@@ -14,7 +14,7 @@ import { ingestDiagnostic, shouldBlockInstalls } from './compatibility.js';
 import { handleP1 } from './p1-routes.js';
 import { consumeRateLimit, inspectRequest, routeLimit, securityHeaders } from './security.js';
 import { notify } from './alerts.js';
-import { expandPackEntries, normalizeDependsOn, pluginServerConfig, recordDownload, requireConfirm } from './catalog.js';
+import { expandPackEntries, listModOverlays, normalizeContentSlots, normalizeDependsOn, pluginServerConfig, recordDownload, requireConfirm } from './catalog.js';
 import { gameVersionMatches } from './game-version.js';
 import { artifactPublicUrl, cloudflareCacheHeaders, manifestPublicUrl, purgeCloudflare } from './cloudflare.js';
 import { can, denyReason, describePrincipal } from './roles.js';
@@ -375,10 +375,75 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
             sbom: analysis?.sbom || null,
             createdAt: now()
           };
+          if (Array.isArray(body.contentSlots) || typeof body.contentSlots === 'string') {
+            mod.contentSlots = normalizeContentSlots(body.contentSlots);
+          } else if (!Array.isArray(mod.contentSlots)) {
+            mod.contentSlots = [];
+          }
+          if (!mod.slotContents || typeof mod.slotContents !== 'object') mod.slotContents = {};
           draft.mods[body.id] = mod;
           return mod;
         });
         return json(res, 201, result);
+      }
+
+      const slotListMatch = pathname.match(/^\/api\/v1\/mods\/([^/]+)\/slots$/);
+      if (req.method === 'PUT' && slotListMatch) {
+        if (!requirePerm(req, res, 'catalog.write')) return;
+        const body = await readJson(req);
+        const slots = normalizeContentSlots(body.slots || body.contentSlots);
+        const result = await store.mutate((draft) => {
+          const mod = draft.mods[slotListMatch[1]];
+          if (!mod) throw Object.assign(new Error('Mod was not found'), { code: 'NOT_FOUND' });
+          const keep = new Set(slots.map((item) => item.id));
+          mod.contentSlots = slots;
+          mod.slotContents = Object.fromEntries(Object.entries(mod.slotContents || {}).filter(([id]) => keep.has(id)));
+          return { id: mod.id, contentSlots: mod.contentSlots, slotContents: mod.slotContents };
+        });
+        return json(res, 200, result);
+      }
+
+      const slotItemMatch = pathname.match(/^\/api\/v1\/mods\/([^/]+)\/slots\/([^/]+)$/);
+      if (slotItemMatch && (req.method === 'POST' || req.method === 'DELETE')) {
+        if (!requirePerm(req, res, 'catalog.write')) return;
+        const modId = slotItemMatch[1];
+        const slotId = slotItemMatch[2];
+        if (req.method === 'DELETE') {
+          const result = await store.mutate((draft) => {
+            const mod = draft.mods[modId];
+            if (!mod) throw Object.assign(new Error('Mod was not found'), { code: 'NOT_FOUND' });
+            mod.contentSlots = (mod.contentSlots || []).filter((item) => item.id !== slotId);
+            if (mod.slotContents) delete mod.slotContents[slotId];
+            return { id: mod.id, contentSlots: mod.contentSlots, slotContents: mod.slotContents || {} };
+          });
+          return json(res, 200, result);
+        }
+        const body = await readJson(req);
+        let artifactSize = 0;
+        if (body.artifactSha) {
+          if (!/^[a-f0-9]{64}$/.test(body.artifactSha)) throw Object.assign(new Error('Invalid SHA-256'), { code: 'VALIDATION' });
+          artifactSize = (await stat(path.join(objectDir, body.artifactSha))).size;
+        }
+        const result = await store.mutate((draft) => {
+          const mod = draft.mods[modId];
+          if (!mod) throw Object.assign(new Error('Mod was not found'), { code: 'NOT_FOUND' });
+          const slot = (mod.contentSlots || []).find((item) => item.id === slotId);
+          if (!slot) throw Object.assign(new Error(`Unknown content slot: ${slotId}`), { code: 'VALIDATION' });
+          if (!body.artifactSha) {
+            if (mod.slotContents) delete mod.slotContents[slotId];
+            return { id: mod.id, slot, slotContents: mod.slotContents || {} };
+          }
+          const review = draft.reviews?.[body.artifactSha];
+          if (draft.bannedHashes?.[body.artifactSha]) throw Object.assign(new Error('Artifact hash is banned'), { code: 'VALIDATION' });
+          if (requireReview && (!review || review.status !== 'approved' || !review.licenseConfirmed)) {
+            throw Object.assign(new Error('Artifact must be reviewed and have a confirmed redistribution license'), { code: 'VALIDATION' });
+          }
+          const size = artifactSize || review?.size || 0;
+          mod.slotContents = mod.slotContents || {};
+          mod.slotContents[slotId] = { sha256: body.artifactSha, size, fileName: review?.fileName || null, createdAt: now() };
+          return { id: mod.id, slot, content: mod.slotContents[slotId] };
+        });
+        return json(res, 200, result);
       }
 
       if (req.method === 'POST' && pathname === '/api/v1/packs') {
@@ -396,6 +461,12 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
           if (requireReview) {
             const review = snapshot.reviews?.[version.artifactSha];
             if (!review || review.status !== 'approved' || !review.licenseConfirmed) throw Object.assign(new Error(`${entry.modId}@${entry.version} is not approved for redistribution`), { code: 'VALIDATION' });
+            for (const overlay of listModOverlays(snapshot.mods[entry.modId])) {
+              const overlayReview = snapshot.reviews?.[overlay.sha256];
+              if (!overlayReview || overlayReview.status !== 'approved' || !overlayReview.licenseConfirmed) {
+                throw Object.assign(new Error(`${entry.modId} content slot ${overlay.id} is not approved for redistribution`), { code: 'VALIDATION' });
+              }
+            }
           }
         }
         const pack = await store.mutate((draft) => {
@@ -423,6 +494,10 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
           issuedAt: now(),
           mods: expandPackEntries(snapshot, pack.entries, pack.gameVersion).map((entry) => {
             const version = snapshot.mods[entry.modId].versions[entry.version];
+            const overlays = listModOverlays(snapshot.mods[entry.modId]).map((overlay) => ({
+              ...overlay,
+              url: artifactPublicUrl(overlay.sha256, config, artifactBase)
+            }));
             return {
               id: entry.modId,
               version: entry.version,
@@ -432,7 +507,8 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
               installRoots: version.installRoots,
               size: version.artifactSize,
               sha256: version.artifactSha,
-              url: artifactPublicUrl(version.artifactSha, config, artifactBase)
+              url: artifactPublicUrl(version.artifactSha, config, artifactBase),
+              ...(overlays.length ? { overlays } : {})
             };
           })
         };
@@ -825,7 +901,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
       }
       return problem(res, 404, 'NOT_FOUND', 'Route not found');
     } catch (error) {
-      if (error.code === 'ENOENT') return problem(res, 404, 'NOT_FOUND', 'Requested file or object was not found');
+      if (error.code === 'ENOENT' || error.code === 'NOT_FOUND') return problem(res, 404, 'NOT_FOUND', error.code === 'NOT_FOUND' ? error.message : 'Requested file or object was not found');
       if (error.code === 'BODY_TOO_LARGE') return problem(res, 413, error.code, error.message);
       if (error.code === 'HASH_MISMATCH') return problem(res, 422, error.code, error.message, error.details);
       if (error.code === 'INVALID_CREDENTIALS') return problem(res, 401, error.code, error.message);

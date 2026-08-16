@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { api, uploadZip } from '../api/client';
 import UiCard from '../components/UiCard.vue';
 import UiTable from '../components/UiTable.vue';
@@ -9,6 +10,7 @@ import { prettyBytes, sha256Hex } from '../lib/format';
 import { catalog, loadMods, type ModRow } from '../stores/catalog';
 import { can } from '../stores/session';
 
+const router = useRouter();
 const file = ref<File | null>(null);
 const over = ref(false);
 const dropHint = ref('');
@@ -24,8 +26,11 @@ const form = ref({
   installRoots: '',
   containsDll: false,
   license: false,
-  dependsOn: [] as string[]
+  dependsOn: [] as string[],
+  slots: [] as string[],
+  extraSlot: ''
 });
+const suggestedSlots = ref<Array<{ id: string; path: string; label?: string }>>([]);
 const reviewHint = ref('');
 
 function refreshHint() {
@@ -49,6 +54,10 @@ async function upload() {
     if (analysis) {
       if (analysis.roots?.length && !form.value.installRoots) form.value.installRoots = analysis.roots.join(',');
       if (analysis.containsDll) form.value.containsDll = true;
+      if (analysis.suggestedSlots?.length) {
+        suggestedSlots.value = analysis.suggestedSlots;
+        if (!form.value.slots.length) form.value.slots = analysis.suggestedSlots.map((item: { path: string }) => item.path);
+      }
       if (analysis.modInfo) {
         if (!form.value.id && analysis.modInfo.name) form.value.id = String(analysis.modInfo.name).replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/^-|-$/g, '').slice(0, 64);
         if (!form.value.name && (analysis.modInfo.displayName || analysis.modInfo.name)) form.value.name = analysis.modInfo.displayName || analysis.modInfo.name;
@@ -87,7 +96,8 @@ async function registerMod() {
         installRoots: form.value.installRoots.split(',').map((item) => item.trim()).filter(Boolean),
         containsDll: form.value.containsDll,
         requiresRestart: form.value.containsDll,
-        dependsOn: form.value.dependsOn
+        dependsOn: form.value.dependsOn,
+        contentSlots: selectedSlots.value
       })
     });
     ok(result, t('mod.registered'));
@@ -112,8 +122,21 @@ function pick(row: Record<string, unknown>, index: number) {
   } else {
     form.value.dependsOn = [];
   }
+  form.value.slots = (mod.contentSlots || []).map((item) => item.path);
+  suggestedSlots.value = mod.contentSlots || [];
 }
 
+function addExtraSlot() {
+  const pathName = form.value.extraSlot.trim();
+  if (!pathName) return;
+  if (!suggestedSlots.value.some((item) => item.path === pathName || item.id === pathName.toLocaleLowerCase('en-US'))) {
+    suggestedSlots.value = suggestedSlots.value.concat([{ id: pathName.toLocaleLowerCase('en-US'), path: pathName, label: pathName }]);
+  }
+  if (!form.value.slots.includes(pathName)) form.value.slots = form.value.slots.concat(pathName);
+  form.value.extraSlot = '';
+}
+
+const selectedSlots = computed(() => suggestedSlots.value.filter((item) => form.value.slots.includes(item.path) || form.value.slots.includes(item.id)));
 const dependOptions = computed(() => catalog.mods.filter((mod) => mod.id && mod.id !== form.value.id));
 
 onMounted(() => {
@@ -157,6 +180,19 @@ onMounted(() => {
             <span>{{ mod.name || mod.id }} <span class="text-theme-xs text-gray-500">{{ mod.id }}</span></span>
           </label>
         </div>
+        <label class="field">{{ t('mod.slots') }}</label>
+        <p class="text-theme-xs text-gray-500">{{ t('mod.slotsHint') }}</p>
+        <div class="max-h-40 space-y-2 overflow-auto rounded-lg border border-gray-200 p-3 dark:border-gray-800">
+          <p v-if="!suggestedSlots.length" class="text-theme-xs text-gray-500">{{ t('mod.slotsEmpty') }}</p>
+          <label v-for="slot in suggestedSlots" :key="slot.id || slot.path" class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+            <input v-model="form.slots" type="checkbox" :value="slot.path">
+            <span>{{ slot.label || slot.path }} <span class="text-theme-xs text-gray-500">{{ slot.path }}</span></span>
+          </label>
+        </div>
+        <div class="flex gap-2">
+          <input v-model="form.extraSlot" class="input" :placeholder="t('mod.slotPath')">
+          <button type="button" class="btn-secondary shrink-0" @click="addExtraSlot">{{ t('mod.slotAdd') }}</button>
+        </div>
         <label class="flex items-center gap-2 text-sm text-gray-500"><input v-model="form.license" type="checkbox"><span>{{ t('mod.license') }}</span></label>
         <p class="text-theme-xs text-gray-500">{{ reviewHint }}</p>
         <div class="flex flex-wrap gap-2">
@@ -167,6 +203,9 @@ onMounted(() => {
     </div>
     <UiCard :title="t('mod.listTitle')" :desc="t('mod.clickFill')">
       <UiTable :rows="catalog.mods as unknown as Record<string, unknown>[]" :cols="['id', 'name', 'latestVersion', 'versionCount', 'containsDll']" :selected="selected" @pick="pick" />
+      <div v-if="form.id" class="mt-3">
+        <button type="button" class="btn-secondary" @click="router.push(`/mods/${encodeURIComponent(form.id)}`)">{{ t('mod.manage') }} · {{ form.name || form.id }}</button>
+      </div>
     </UiCard>
   </div>
 </template>

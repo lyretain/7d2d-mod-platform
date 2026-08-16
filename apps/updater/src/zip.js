@@ -173,7 +173,9 @@ export async function extractZipFile(filePath, destination, options = {}) {
   await mkdir(base, { recursive: true });
   try {
     for (const entry of entries) {
-      const target = path.resolve(base, ...entry.name.split('/').filter(Boolean));
+      const mapped = options.mapName ? options.mapName(entry.name) : entry.name;
+      if (mapped == null || mapped === '') continue;
+      const target = path.resolve(base, ...String(mapped).split('/').filter(Boolean));
       if (target !== base && !target.startsWith(`${base}${path.sep}`)) throw new Error(`ZIP entry escaped destination: ${entry.name}`);
       if (entry.directory) {
         await mkdir(target, { recursive: true });

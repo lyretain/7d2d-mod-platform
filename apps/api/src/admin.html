@@ -363,6 +363,13 @@
         <label class="field" data-i18n="mod.depends">前置 Mod</label>
         <p class="hint" data-i18n="mod.dependsHint">勾选后，把本 Mod 加入 Pack 时会自动带上这些前置并一起下载。</p>
         <div class="depends-box" id="dependsOnList"></div>
+        <label class="field" data-i18n="mod.slots">内容槽</label>
+        <p class="hint" data-i18n="mod.slotsHint">上传后会根据 ZIP 子目录或介绍建议槽位，也可自行填写。加入 Pack 后这些子包会装进对应目录。</p>
+        <div class="depends-box" id="contentSlotList"></div>
+        <div class="row">
+          <div><input id="extraSlot" data-i18n-placeholder="mod.slotPath" placeholder="子目录名"></div>
+          <div><button type="button" class="secondary" onclick="addExtraSlot()" data-i18n="mod.slotAdd">添加槽位</button></div>
+        </div>
         <label class="check"><input id="licenseConfirm" type="checkbox"> <span data-i18n="mod.license">我确认拥有再分发许可，并已审核该 ZIP</span></label>
         <p class="hint" id="reviewHint" data-i18n="mod.reviewHint">生产环境必须先确认许可证。含 DLL 的文件默认待审核。</p>
         <div class="actions">
@@ -373,6 +380,10 @@
       <article class="card stretch">
         <div class="card-head"><h2 data-i18n="mod.listTitle">已登记 Mod</h2><span class="hint" data-i18n="mod.clickFill">点击一行可回填表单</span></div>
         <div id="list-mods" class="table-wrap"><p class="empty" data-i18n="loginEmpty">登录后自动加载</p></div>
+      </article>
+      <article class="card stretch" id="modContentCard">
+        <div class="card-head"><h2 data-i18n="page.modContent.title">内容管理</h2><span class="hint" id="modContentHint" data-i18n="page.modContent.hint">为框架 Mod 增加子目录槽位，并单独上传 Avatars、Dances 等内容包</span></div>
+        <div id="modContentPanel"><p class="hint" data-i18n="mod.slotsEmpty">没有建议槽位。框架类 Mod 可手填，例如 Avatars、Dances。</p></div>
       </article>
     </div>
   </div>
@@ -929,6 +940,89 @@ function selectedDependsOn() {
   return [...document.querySelectorAll('#dependsOnList input[type=checkbox]:checked')].map((box) => box.value);
 }
 
+let suggestedSlots = [];
+let contentMod = null;
+
+function selectedContentSlots() {
+  return [...document.querySelectorAll('#contentSlotList input[type=checkbox]:checked')].map((box) => ({ path: box.value, label: box.dataset.label || box.value }));
+}
+
+function fillContentSlots(selected) {
+  const box = document.getElementById('contentSlotList');
+  if (!box) return;
+  const keep = new Set((selected || selectedContentSlots()).map((item) => item.path || item));
+  if (!suggestedSlots.length) {
+    box.innerHTML = '<p class="hint">' + esc(t('mod.slotsEmpty')) + '</p>';
+    return;
+  }
+  box.innerHTML = suggestedSlots.map((slot) => '<label class="check"><input type="checkbox" value="' + esc(slot.path) + '" data-label="' + esc(slot.label || slot.path) + '"' + (keep.has(slot.path) || keep.has(slot.id) ? ' checked' : '') + '> ' + esc(slot.label || slot.path) + ' <span class="hint">' + esc(slot.path) + '</span></label>').join('');
+}
+
+function addExtraSlot() {
+  const input = document.getElementById('extraSlot');
+  const pathName = (input && input.value || '').trim();
+  if (!pathName) return;
+  if (!suggestedSlots.some((item) => item.path === pathName)) suggestedSlots.push({ id: pathName.toLocaleLowerCase('en-US'), path: pathName, label: pathName });
+  fillContentSlots(selectedContentSlots().concat([{ path: pathName }]));
+  if (input) input.value = '';
+}
+
+function renderModContent(mod) {
+  contentMod = mod || null;
+  const panel = document.getElementById('modContentPanel');
+  const hint = document.getElementById('modContentHint');
+  if (hint) hint.textContent = mod ? ((mod.name || mod.id) + ' · ' + t('page.modContent.hint')) : t('page.modContent.hint');
+  if (!panel) return;
+  if (!mod) {
+    panel.innerHTML = '<p class="hint">' + esc(t('mod.slotsEmpty')) + '</p>';
+    return;
+  }
+  const slots = mod.contentSlots || [];
+  const contents = mod.slotContents || {};
+  if (!slots.length) {
+    panel.innerHTML = '<p class="hint">' + esc(t('mod.slotsEmpty')) + '</p>';
+    return;
+  }
+  panel.innerHTML = slots.map((slot) => {
+    const current = contents[slot.id] || {};
+    const status = current.sha256 ? t('mod.slotCurrent', { name: current.fileName || (current.sha256 || '').slice(0, 10) + '…', size: prettyBytes(current.size || 0) }) : t('mod.slotNone');
+    return '<div class="depends-box"><strong>' + esc(slot.label || slot.path) + '</strong> <span class="hint">' + esc(slot.path) + '</span><p class="hint">' + esc(status) + '</p>'
+      + '<input type="file" accept=".zip" onchange=\'uploadSlotContent(' + JSON.stringify(mod.id) + ',' + JSON.stringify(slot.id) + ', this.files && this.files[0])\'>'
+      + '<div class="actions"><button type="button" class="secondary" onclick=\'clearSlotContent(' + JSON.stringify(mod.id) + ',' + JSON.stringify(slot.id) + ')\'>' + esc(t('mod.slotClear')) + '</button>'
+      + '<button type="button" class="secondary" onclick=\'deleteContentSlot(' + JSON.stringify(mod.id) + ',' + JSON.stringify(slot.id) + ')\'>' + esc(t('mod.slotDelete')) + '</button></div></div>';
+  }).join('');
+}
+
+async function uploadSlotContent(modId, slotId, file) {
+  try {
+    if (!file) throw new Error(t('mod.needZip'));
+    if (!licenseConfirm.checked) throw new Error(t('mod.needLicense'));
+    const bytes = await file.arrayBuffer();
+    const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map((x) => x.toString(16).padStart(2, '0')).join('');
+    await request('/api/v1/artifacts/' + hash, { method: 'PUT', headers: { authorization: headers().authorization, 'content-type': 'application/zip', 'x-file-name': encodeURIComponent(file.name) }, body: bytes });
+    const perms = new Set((window.__me && window.__me.permissions) || []);
+    if (perms.has('review.approve')) {
+      await request('/api/v1/reviews/' + hash, { method: 'POST', headers: headers(), body: JSON.stringify({ status: 'approved', licenseConfirmed: true }) });
+    }
+    show(await request('/api/v1/mods/' + encodeURIComponent(modId) + '/slots/' + encodeURIComponent(slotId), { method: 'POST', headers: headers(), body: JSON.stringify({ artifactSha: hash }) }), { message: t('mod.slotAttached') });
+    await loadMods({ silent: true });
+  } catch (e) { show(e.message); }
+}
+
+async function clearSlotContent(modId, slotId) {
+  try {
+    show(await request('/api/v1/mods/' + encodeURIComponent(modId) + '/slots/' + encodeURIComponent(slotId), { method: 'POST', headers: headers(), body: '{}' }), { message: t('mod.slotCleared') });
+    await loadMods({ silent: true });
+  } catch (e) { show(e.message); }
+}
+
+async function deleteContentSlot(modId, slotId) {
+  try {
+    show(await request('/api/v1/mods/' + encodeURIComponent(modId) + '/slots/' + encodeURIComponent(slotId), { method: 'DELETE', headers: headers() }), { message: t('mod.slotRemoved') });
+    await loadMods({ silent: true });
+  } catch (e) { show(e.message); }
+}
+
 function fillDependsOn(selected) {
   const box = document.getElementById('dependsOnList');
   if (!box) return;
@@ -1024,8 +1118,16 @@ function paint(data) {
         genericGameVersion.checked = latest.gameVersionRange === 'major';
         fillDependsOn(latest.dependsOn || r.dependsOn || []);
       } else fillDependsOn([]);
+      suggestedSlots = r.contentSlots || [];
+      fillContentSlots((r.contentSlots || []).map((item) => item.path));
+      renderModContent(r);
     });
     fillDependsOn(selectedDependsOn());
+    fillContentSlots(selectedContentSlots());
+    if (contentMod) {
+      const fresh = data.mods.find((item) => item.id === contentMod.id);
+      if (fresh) renderModContent(fresh);
+    }
   }
   if (Array.isArray(data.packs)) {
     catalogPacks = data.packs;
@@ -1286,6 +1388,10 @@ async function upload() {
     if (analysis) {
       if (analysis.roots && analysis.roots.length && !installRoots.value) installRoots.value = analysis.roots.join(',');
       if (analysis.containsDll) containsDll.checked = true;
+      if (analysis.suggestedSlots && analysis.suggestedSlots.length) {
+        suggestedSlots = analysis.suggestedSlots;
+        fillContentSlots(analysis.suggestedSlots.map((item) => item.path));
+      }
       if (analysis.modInfo) {
         if (!modId.value && analysis.modInfo.name) modId.value = String(analysis.modInfo.name).replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/^-|-$/g, '').slice(0, 64);
         if (!modName.value && (analysis.modInfo.displayName || analysis.modInfo.name)) modName.value = analysis.modInfo.displayName || analysis.modInfo.name;
@@ -1324,7 +1430,8 @@ async function registerMod() {
       installRoots: installRoots.value.split(',').map((x) => x.trim()).filter(Boolean),
       containsDll: containsDll.checked,
       requiresRestart: containsDll.checked,
-      dependsOn: selectedDependsOn()
+      dependsOn: selectedDependsOn(),
+      contentSlots: selectedContentSlots()
     };
     show(await request('/api/v1/mods', { method: 'POST', headers: headers(), body: JSON.stringify(body) }), { message: t('mod.registered') });
     await loadMods({ silent: true });

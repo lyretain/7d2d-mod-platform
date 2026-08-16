@@ -5,6 +5,7 @@ import path from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { Readable, Transform } from 'node:stream';
 import { extractZipFile, listZipFile } from './zip.js';
+import { manifestArtifacts, overlayKey, remapOverlayEntry } from './overlay.js';
 import { verifyManifest } from './verify.js';
 
 async function exists(file) {
@@ -179,13 +180,18 @@ export async function loadVerifiedManifest({ baseUrl, packId, modsDir, explicitP
   return { manifest, publicKey: trusted.publicKey, keys: trusted.keys, controlDir, resolvedMods };
 }
 
+function rootMatches(current, mod) {
+  return current?.sha256 === mod.sha256 && overlayKey(current?.overlays) === overlayKey(mod.overlays);
+}
+
 export function planFromManifest(manifest, state = { managedRoots: {} }) {
   const desired = new Map();
   const items = [];
   for (const mod of manifest.mods) {
+    const overlaySize = (mod.overlays || []).reduce((sum, item) => sum + (item.size || 0), 0);
     for (const root of mod.installRoots || []) {
       const current = state.managedRoots?.[root];
-      const action = !current ? 'install' : current.sha256 === mod.sha256 ? 'unchanged' : 'update';
+      const action = !current ? 'install' : rootMatches(current, mod) ? 'unchanged' : 'update';
       desired.set(root, mod);
       items.push({
         action,
@@ -193,9 +199,10 @@ export function planFromManifest(manifest, state = { managedRoots: {} }) {
         modId: mod.id,
         version: mod.version,
         sha256: mod.sha256,
-        size: mod.size,
+        size: current?.sha256 === mod.sha256 ? overlaySize : (mod.size || 0) + overlaySize,
         containsDll: Boolean(mod.containsDll),
-        requiresRestart: Boolean(mod.requiresRestart)
+        requiresRestart: Boolean(mod.requiresRestart),
+        overlays: mod.overlays || []
       });
     }
   }
@@ -235,26 +242,39 @@ export async function syncPack({ baseUrl, packId, modsDir, explicitPublicKey, pr
   const transaction = [];
 
   try {
-    const needed = manifest.mods.filter((mod) => {
+    const needed = [];
+    const seenArtifacts = new Set();
+    for (const mod of manifest.mods) {
       if (!/^[a-f0-9]{64}$/.test(mod.sha256) || !Array.isArray(mod.installRoots) || !mod.installRoots.length) throw new Error(`Manifest contains an invalid artifact entry: ${mod.id}`);
-      return !mod.installRoots.every((root) => state.managedRoots?.[root]?.sha256 === mod.sha256);
-    });
-    await mapLimit(needed, concurrency, async (mod) => {
-      const cacheFile = path.join(cacheDir, `${mod.sha256}.zip`);
-      if (!(await exists(cacheFile)) || (await stat(cacheFile)).size !== mod.size) {
+      for (const overlay of mod.overlays || []) {
+        if (!/^[a-f0-9]{64}$/.test(overlay.sha256) || !/^[^\\/:*?"<>|.][^\\/:*?"<>|]{0,127}$/.test(overlay.path || '')) {
+          throw new Error(`Manifest contains an invalid content overlay: ${mod.id}`);
+        }
+      }
+      if ((mod.installRoots || []).every((root) => rootMatches(state.managedRoots?.[root], mod))) continue;
+      for (const item of manifestArtifacts(mod)) {
+        if (seenArtifacts.has(item.sha256)) continue;
+        seenArtifacts.add(item.sha256);
+        needed.push(item);
+      }
+    }
+    await mapLimit(needed, concurrency, async (item) => {
+      const cacheFile = path.join(cacheDir, `${item.sha256}.zip`);
+      if (!(await exists(cacheFile)) || (item.size && (await stat(cacheFile)).size !== item.size)) {
         await rm(cacheFile, { force: true });
-        await download(mod.url, cacheFile, mod.sha256, mod.size, { signal, onProgress, bandwidth });
+        await download(item.url, cacheFile, item.sha256, item.size, { signal, onProgress, bandwidth });
       } else {
         const hash = createHash('sha256');
         await pipeline(createReadStream(cacheFile), new Transform({ transform(chunk, _encoding, callback) { hash.update(chunk); callback(null, chunk); } }), new Transform({ transform(_chunk, _encoding, callback) { callback(); } }));
-        if (hash.digest('hex') !== mod.sha256) { await rm(cacheFile, { force: true }); throw new Error(`Cached artifact hash mismatch: ${mod.id}`); }
+        if (hash.digest('hex') !== item.sha256) { await rm(cacheFile, { force: true }); throw new Error(`Cached artifact hash mismatch: ${item.id}`); }
       }
     });
 
     for (const mod of manifest.mods) {
-      const unchanged = mod.installRoots.every((root) => state.managedRoots?.[root]?.sha256 === mod.sha256);
+      const owner = { modId: mod.id, version: mod.version, sha256: mod.sha256, overlays: (mod.overlays || []).map((item) => ({ id: item.id, path: item.path, sha256: item.sha256 })) };
+      const unchanged = mod.installRoots.every((root) => rootMatches(state.managedRoots?.[root], mod));
       if (unchanged) {
-        for (const root of mod.installRoots) desiredRoots.set(root, { modId: mod.id, version: mod.version, sha256: mod.sha256 });
+        for (const root of mod.installRoots) desiredRoots.set(root, owner);
         continue;
       }
       const cacheFile = path.join(cacheDir, `${mod.sha256}.zip`);
@@ -263,9 +283,19 @@ export async function syncPack({ baseUrl, packId, modsDir, explicitPublicKey, pr
       for (const root of mod.installRoots) {
         if (!/^[^\\/:*?"<>|.][^\\/:*?"<>|]{0,127}$/.test(root) || !archiveRoots.has(root)) throw new Error(`Unsafe or missing install root '${root}' in ${mod.id}`);
         if (desiredRoots.has(root)) throw new Error(`Multiple artifacts own the same install root: ${root}`);
-        desiredRoots.set(root, { modId: mod.id, version: mod.version, sha256: mod.sha256 });
+        desiredRoots.set(root, owner);
       }
       await extractZipFile(cacheFile, stageDir);
+      for (const overlay of mod.overlays || []) {
+        const overlayFile = path.join(cacheDir, `${overlay.sha256}.zip`);
+        for (const root of mod.installRoots) {
+          const dest = path.join(stageDir, root, overlay.path);
+          await rm(dest, { recursive: true, force: true });
+          await extractZipFile(overlayFile, dest, {
+            mapName: (name) => remapOverlayEntry(name, overlay.path, mod.installRoots)
+          });
+        }
+      }
     }
 
     await mkdir(backupDir, { recursive: true });
@@ -308,7 +338,10 @@ export async function syncPack({ baseUrl, packId, modsDir, explicitPublicKey, pr
     await atomicJson(txnFile, { items: transaction.map(({ staged, root, owner, ...item }) => item), committed: true, startedAt: new Date().toISOString() });
     await rm(txnFile, { force: true });
     await rm(stageDir, { recursive: true, force: true });
-    await pruneDir(cacheDir, { keep: new Set([...desiredRoots.values()].map((item) => `${item.sha256}.zip`)), maxAgeMs: cacheDays * 86400_000 });
+    await pruneDir(cacheDir, {
+      keep: new Set(manifest.mods.flatMap((mod) => manifestArtifacts(mod).map((item) => `${item.sha256}.zip`))),
+      maxAgeMs: cacheDays * 86400_000
+    });
     await pruneDir(path.join(controlDir, 'backups'), { maxAgeMs: cacheDays * 86400_000 });
     return { manifest, state, backupDir };
   } catch (error) {

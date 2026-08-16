@@ -4,9 +4,78 @@ import { gameVersionMatches } from './game-version.js';
 import { serverAddresses } from './servers.js';
 import { isSafeId } from './util.js';
 
+const SLOT_SKIP = new Set(['config', 'xui', 'xui_ingame', 'localization', 'bin', 'harmony', 'uiatlases', 'resources', 'dancestates', 'modelstates']);
+const SLOT_HINT_DIR = /^(avatars|dances|models|skins|outfits|emotes|motions|content|assets)$/i;
+const SLOT_MEDIA = /\.(avatar3d|unity3d|bundle|assetbundle|vrm)$/i;
+const SLOT_TEXT = [
+  { id: 'avatars', path: 'Avatars', pattern: /avatar/i },
+  { id: 'dances', path: 'Dances', pattern: /dance|emote/i }
+];
+
 export function normalizeDependsOn(value, selfId) {
   const raw = Array.isArray(value) ? value : typeof value === 'string' ? value.split(/[\s,]+/) : [];
   return [...new Set(raw.map((item) => String(item || '').trim()).filter((id) => isSafeId(id) && id !== selfId))];
+}
+
+export function isSafeSlotPath(value) {
+  return typeof value === 'string' && /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(value);
+}
+
+export function normalizeContentSlots(value) {
+  const raw = Array.isArray(value) ? value : typeof value === 'string' ? value.split(/[\s,]+/).map((pathName) => ({ path: pathName })) : [];
+  const seen = new Set();
+  const slots = [];
+  for (const item of raw) {
+    const pathName = String(item?.path || item?.id || item || '').trim();
+    if (!isSafeSlotPath(pathName)) continue;
+    const id = isSafeId(item?.id) ? item.id : pathName.toLocaleLowerCase('en-US');
+    const key = id.toLocaleLowerCase('en-US');
+    if (seen.has(key) || seen.has(pathName.toLocaleLowerCase('en-US'))) continue;
+    seen.add(key);
+    seen.add(pathName.toLocaleLowerCase('en-US'));
+    slots.push({
+      id,
+      path: pathName,
+      label: String(item?.label || pathName).trim().slice(0, 80) || pathName
+    });
+  }
+  return slots;
+}
+
+export function suggestContentSlots({ files = [], roots = [], description = '' } = {}) {
+  const rootSet = new Set((roots || []).map((item) => String(item).toLocaleLowerCase('en-US')));
+  const dirs = new Map();
+  for (const file of files) {
+    const name = typeof file === 'string' ? file : file?.name;
+    const parts = String(name || '').replaceAll('\\', '/').split('/').filter(Boolean);
+    if (parts.length < 2) continue;
+    let index = 0;
+    if (rootSet.has(parts[0].toLocaleLowerCase('en-US'))) index = 1;
+    if (index >= parts.length) continue;
+    const dir = parts[index];
+    if (!dir || SLOT_SKIP.has(dir.toLocaleLowerCase('en-US'))) continue;
+    const rec = dirs.get(dir) || { media: 0 };
+    if (SLOT_MEDIA.test(parts[parts.length - 1])) rec.media += 1;
+    dirs.set(dir, rec);
+  }
+  const suggested = [];
+  for (const [dir, rec] of dirs) {
+    if (SLOT_HINT_DIR.test(dir) || rec.media > 0) suggested.push({ id: dir.toLocaleLowerCase('en-US'), path: dir, label: dir });
+  }
+  const text = String(description || '');
+  for (const hint of SLOT_TEXT) {
+    if (hint.pattern.test(text) && !suggested.some((item) => item.id === hint.id)) suggested.push(hint);
+  }
+  return normalizeContentSlots(suggested);
+}
+
+export function listModOverlays(mod) {
+  const contents = mod?.slotContents || {};
+  return (mod?.contentSlots || []).map((slot) => {
+    const content = contents[slot.id];
+    if (!content?.sha256) return null;
+    return { id: slot.id, path: slot.path, sha256: content.sha256, size: Number(content.size) || 0 };
+  }).filter(Boolean);
 }
 
 export function pickCompatibleVersion(mod, gameVersion) {
@@ -76,6 +145,8 @@ export function listMods(snapshot, query = '', options = {}) {
       downloads,
       updatedAt: latest?.createdAt || null,
       dependsOn: latest?.dependsOn || [],
+      contentSlots: mod.contentSlots || [],
+      slotContents: mod.slotContents || {},
       versions: versions.map((item) => ({ version: item.version, artifactSha: item.artifactSha, artifactSize: item.artifactSize, gameVersions: item.gameVersions, gameVersionRange: item.gameVersionRange || 'exact', containsDll: item.containsDll, dependsOn: item.dependsOn || [], createdAt: item.createdAt }))
     };
   }).filter((mod) => {

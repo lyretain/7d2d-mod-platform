@@ -16,6 +16,8 @@ export type ModRow = {
   updatedAt?: string;
   gameVersions?: string[];
   dependsOn?: string[];
+  contentSlots?: Array<{ id: string; path: string; label?: string }>;
+  slotContents?: Record<string, { sha256?: string; size?: number; fileName?: string }>;
   versions?: Array<{
     version: string;
     artifactSha?: string;

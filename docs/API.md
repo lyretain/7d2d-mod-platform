@@ -173,6 +173,15 @@ The API hashes while receiving. A URL hash that does not match the body never en
 
 `dependsOn` is a list of registered Mod IDs. Creating or publishing a Pack expands those prerequisites (including transitive ones) into `entries` so the updater downloads them automatically. Prerequisites are listed before the mods that need them.
 
+`contentSlots` is an optional list of subfolders on the install root, for example `Avatars` and `Dances` on `Z_CustomAvatars`. The API also suggests slots from ZIP child folders and the ModInfo description. After register:
+
+```http
+PUT /api/v1/mods/z-custom-avatars/slots
+POST /api/v1/mods/z-custom-avatars/slots/avatars
+```
+
+`PUT` replaces slot definitions. `POST` attaches a previously uploaded artifact SHA-256 to that slot (omit `artifactSha` to clear it). Publishing a Pack writes those artifacts as `overlays` on the manifest. The updater extracts each overlay into `installRoot/slotPath` without replacing the whole framework folder.
+
 ## Create a ModPack
 
 Omit `id` to get `pack_<uuid>`. An existing `id` updates that draft.

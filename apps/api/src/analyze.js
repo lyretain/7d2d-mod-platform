@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { inflateRawSync } from 'node:zlib';
 import { listZip } from '../../updater/src/zip.js';
+import { suggestContentSlots } from './catalog.js';
 
 const SCAN_BYTES = 64 * 1024;
 const INFLATE_HARD_CAP = 32 * 1024 * 1024;
@@ -22,7 +23,7 @@ function parseModInfo(xml) {
 function classify(name) {
   const lower = name.toLocaleLowerCase('en-US');
   if (lower.endsWith('.dll')) return lower.includes('harmony') ? 'harmony' : 'dll';
-  if (lower.endsWith('.unity3d') || lower.endsWith('.bundle') || lower.endsWith('.assetbundle')) return 'assetBundle';
+  if (lower.endsWith('.unity3d') || lower.endsWith('.bundle') || lower.endsWith('.assetbundle') || lower.endsWith('.avatar3d')) return 'assetBundle';
   if (lower.endsWith('.tts') || lower.includes('/prefabs/') || lower.endsWith('.mesh')) return 'poi';
   return 'other';
 }
@@ -97,6 +98,11 @@ export function analyzeZipBuffer(buffer, fileName = 'upload.zip') {
     assemblies,
     modInfo,
     findings,
+    suggestedSlots: suggestContentSlots({
+      files,
+      roots,
+      description: [modInfo?.description, modInfo?.displayName, modInfo?.name, fileName].filter(Boolean).join(' ')
+    }),
     sbom: {
       schema: 'modplatform-sbom-1',
       components: [

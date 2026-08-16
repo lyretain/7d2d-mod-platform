@@ -46,6 +46,17 @@ namespace ModPlatform.Shared
         [DataMember(Name = "installRoots")] public List<string> InstallRoots { get; set; }
         [DataMember(Name = "containsDll")] public bool ContainsDll { get; set; }
         [DataMember(Name = "requiresRestart")] public bool RequiresRestart { get; set; }
+        [DataMember(Name = "overlays")] public List<ManifestOverlay> Overlays { get; set; }
+    }
+
+    [DataContract]
+    public sealed class ManifestOverlay
+    {
+        [DataMember(Name = "id")] public string Id { get; set; }
+        [DataMember(Name = "path")] public string Path { get; set; }
+        [DataMember(Name = "sha256")] public string Sha256 { get; set; }
+        [DataMember(Name = "size")] public long Size { get; set; }
+        [DataMember(Name = "url")] public string Url { get; set; }
     }
 
     [DataContract]

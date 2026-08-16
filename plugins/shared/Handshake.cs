@@ -61,6 +61,7 @@ namespace ModPlatform.Shared
         [DataMember(Name = "modId")] public string ModId { get; set; }
         [DataMember(Name = "version")] public string Version { get; set; }
         [DataMember(Name = "sha256")] public string Sha256 { get; set; }
+        [DataMember(Name = "overlays")] public List<ManifestOverlay> Overlays { get; set; }
     }
 
     [DataContract]

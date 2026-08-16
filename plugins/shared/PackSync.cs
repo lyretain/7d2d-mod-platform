@@ -102,7 +102,18 @@ namespace ModPlatform.Shared
                 {
                     if (!SafeRoot.IsMatch(root) || IsProtected(root)) throw new InvalidOperationException("Refusing to install into protected or unsafe root: " + root);
                     if (desired.ContainsKey(root)) throw new InvalidOperationException("Multiple artifacts own the same install root: " + root);
-                    desired[root] = new ManagedRoot { ModId = mod.Id, Version = mod.Version, Sha256 = mod.Sha256.ToLowerInvariant() };
+                    desired[root] = new ManagedRoot
+                    {
+                        ModId = mod.Id,
+                        Version = mod.Version,
+                        Sha256 = mod.Sha256.ToLowerInvariant(),
+                        Overlays = (mod.Overlays ?? new List<ManifestOverlay>()).Where(item => item != null && !string.IsNullOrEmpty(item.Sha256)).Select(item => new ManifestOverlay
+                        {
+                            Id = item.Id,
+                            Path = item.Path,
+                            Sha256 = item.Sha256.ToLowerInvariant()
+                        }).ToList()
+                    };
                 }
             }
 
@@ -111,7 +122,7 @@ namespace ModPlatform.Shared
                 var roots = (mod.InstallRoots == null || mod.InstallRoots.Count == 0) ? new List<string> { mod.Id } : mod.InstallRoots;
                 var unchanged = roots.All(root =>
                     state.ManagedRoots.TryGetValue(root, out var current)
-                    && string.Equals(current.Sha256, mod.Sha256, StringComparison.OrdinalIgnoreCase)
+                    && RootMatches(current, mod)
                     && Directory.Exists(Path.Combine(modsDir, root)));
                 if (unchanged)
                 {
@@ -130,6 +141,7 @@ namespace ModPlatform.Shared
                 try
                 {
                     ExtractZip(cacheFile, stageDir);
+                    await ApplyOverlaysAsync(mod, roots, cacheDir, stageDir, baseUrl, token).ConfigureAwait(false);
                     foreach (var root in roots)
                     {
                         var staged = Path.Combine(stageDir, root);
@@ -180,6 +192,79 @@ namespace ModPlatform.Shared
             else if (result.Changed) result.Message = "Pack files updated.";
             else result.Message = "Pack already installed.";
             return result;
+        }
+
+        static bool RootMatches(ManagedRoot current, ManifestMod mod)
+        {
+            if (current == null || !string.Equals(current.Sha256, mod.Sha256, StringComparison.OrdinalIgnoreCase)) return false;
+            return OverlayKey(current.Overlays) == OverlayKey(mod.Overlays);
+        }
+
+        static string OverlayKey(IEnumerable<ManifestOverlay> overlays)
+        {
+            if (overlays == null) return "";
+            return string.Join("|", overlays
+                .Where(item => item != null && !string.IsNullOrEmpty(item.Sha256))
+                .Select(item => (item.Id ?? "") + ":" + item.Sha256.ToLowerInvariant())
+                .OrderBy(item => item, StringComparer.Ordinal));
+        }
+
+        static async Task ApplyOverlaysAsync(ManifestMod mod, List<string> roots, string cacheDir, string stageDir, string baseUrl, CancellationToken token)
+        {
+            if (mod.Overlays == null) return;
+            foreach (var overlay in mod.Overlays)
+            {
+                if (overlay == null || string.IsNullOrEmpty(overlay.Sha256) || string.IsNullOrEmpty(overlay.Path)) continue;
+                if (!SafeRoot.IsMatch(overlay.Path)) throw new InvalidOperationException("Unsafe content overlay path: " + overlay.Path);
+                var overlayFile = Path.Combine(cacheDir, overlay.Sha256.ToLowerInvariant() + ".zip");
+                if (!File.Exists(overlayFile) || (overlay.Size > 0 && new FileInfo(overlayFile).Length != overlay.Size) || Sha256File(overlayFile) != overlay.Sha256.ToLowerInvariant())
+                {
+                    var url = string.IsNullOrEmpty(overlay.Url)
+                        ? (baseUrl ?? "").TrimEnd('/') + "/api/v1/public/artifacts/" + overlay.Sha256.ToLowerInvariant()
+                        : overlay.Url;
+                    await DownloadAsync(url, overlayFile, overlay.Sha256, overlay.Size, token).ConfigureAwait(false);
+                }
+                foreach (var root in roots)
+                {
+                    var dest = Path.Combine(stageDir, root, overlay.Path);
+                    if (Directory.Exists(dest)) Directory.Delete(dest, true);
+                    ExtractOverlay(overlayFile, dest, overlay.Path, roots);
+                }
+            }
+        }
+
+        static string RemapOverlayEntry(string entryName, string slotPath, IList<string> installRoots)
+        {
+            var parts = (entryName ?? "").Replace('\\', '/').Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries).ToList();
+            if (parts.Count == 0) return null;
+            var slot = (slotPath ?? "").ToLowerInvariant();
+            var roots = new HashSet<string>((installRoots ?? new List<string>()).Select(item => item.ToLowerInvariant()), StringComparer.OrdinalIgnoreCase);
+            if (parts.Count > 1 && roots.Contains(parts[0])) parts.RemoveAt(0);
+            if (parts.Count > 0 && string.Equals(parts[0], slot, StringComparison.OrdinalIgnoreCase)) parts.RemoveAt(0);
+            return parts.Count == 0 ? null : string.Join("/", parts);
+        }
+
+        static void ExtractOverlay(string zipPath, string destDir, string slotPath, IList<string> installRoots)
+        {
+            Directory.CreateDirectory(destDir);
+            var root = Path.GetFullPath(destDir).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            using (var zip = ZipFile.OpenRead(zipPath))
+            {
+                foreach (var entry in zip.Entries)
+                {
+                    var mapped = RemapOverlayEntry(entry.FullName, slotPath, installRoots);
+                    if (string.IsNullOrEmpty(mapped) || mapped.Contains("..")) continue;
+                    var target = Path.GetFullPath(Path.Combine(destDir, mapped.Replace('/', Path.DirectorySeparatorChar)));
+                    if (!target.StartsWith(root, StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("Zip entry escaped destination: " + entry.FullName);
+                    if (string.IsNullOrEmpty(entry.Name))
+                    {
+                        Directory.CreateDirectory(target);
+                        continue;
+                    }
+                    Directory.CreateDirectory(Path.GetDirectoryName(target));
+                    entry.ExtractToFile(target, true);
+                }
+            }
         }
 
         static bool InstallRoot(string staged, string target, string pending)

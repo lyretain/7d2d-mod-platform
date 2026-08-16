@@ -15,7 +15,14 @@ export const HANDSHAKE_REASON = {
 };
 
 export function artifactFingerprint(mods = []) {
-  return [...mods].map((mod) => String(mod.sha256 || '').toLowerCase()).filter(Boolean).sort().join(',');
+  const hashes = [];
+  for (const mod of mods) {
+    if (mod?.sha256) hashes.push(String(mod.sha256).toLowerCase());
+    for (const overlay of mod?.overlays || []) {
+      if (overlay?.sha256) hashes.push(String(overlay.sha256).toLowerCase());
+    }
+  }
+  return hashes.filter(Boolean).sort().join(',');
 }
 
 export function activeRelease(snapshot, pack) {

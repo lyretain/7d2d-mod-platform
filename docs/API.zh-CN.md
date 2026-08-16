@@ -171,6 +171,15 @@ Authorization: Bearer <ADMIN_TOKEN>
 
 `dependsOn` 是已登记的前置 Mod ID 列表。创建或发布 Pack 时会自动展开这些前置（含传递依赖）写入 `entries`，更新器会一起下载。前置排在依赖它们的 Mod 前面。
 
+`contentSlots` 是安装目录下的可选子目录，例如 `Z_CustomAvatars` 上的 `Avatars`、`Dances`。上传 ZIP 后也会根据子目录和 ModInfo 介绍给出建议。登记之后：
+
+```http
+PUT /api/v1/mods/z-custom-avatars/slots
+POST /api/v1/mods/z-custom-avatars/slots/avatars
+```
+
+`PUT` 替换槽位定义。`POST` 把已上传制品的 SHA-256 绑到该槽位（不传 `artifactSha` 则清空）。发布 Pack 时这些制品会写入 manifest 的 `overlays`。更新器把每个 overlay 解压到 `installRoot/slotPath`，不会整夹替换框架。
+
 ## 创建 ModPack
 
 不传 `id` 时后台自动生成 `pack_<uuid>`。传入已有 `id` 则更新该草稿。

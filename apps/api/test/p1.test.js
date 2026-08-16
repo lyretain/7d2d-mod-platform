@@ -50,6 +50,17 @@ test('analyzes ZIP structure, ModInfo and DLL rules', () => {
   assert.ok(analysis.sbom.components.length >= 1);
 });
 
+test('suggests content slots from ZIP folders and description', () => {
+  const archive = createStoredZip({
+    'Z_CustomAvatars/ModInfo.xml': '<xml><Name value="CustomAvatars" /><DisplayName value="Custom Avatars" /><Description value="Custom Avatars" /></xml>',
+    'Z_CustomAvatars/Avatars/hero.avatar3d': 'model',
+    'Z_CustomAvatars/Dances/wave.unity3d': 'dance',
+    'Z_CustomAvatars/Config/items.xml': '<xml />'
+  });
+  const analysis = analyzeZipBuffer(archive, 'Z_CustomAvatars.zip');
+  assert.deepEqual(analysis.suggestedSlots.map((item) => item.path).sort(), ['Avatars', 'Dances']);
+});
+
 test('analyzes deflated DLLs larger than 64 KiB without throwing', () => {
   const archive = createDeflatedZip({
     'ExampleMod/ModInfo.xml': '<ModInfo><Name value="Example" /><Version value="1.0.0" /></ModInfo>',

@@ -83,6 +83,28 @@ test('pack create pulls prerequisite mods into the release', async (t) => {
   assert.deepEqual(latest.mods.map((mod) => mod.id), ['harmony', 'gunmod']);
 });
 
+test('content slots attach overlays that publish into the release', async (t) => {
+  const { base } = await fixture(t);
+  const admin = { authorization: 'Bearer test-admin-token-1234', 'content-type': 'application/json' };
+  const framework = createStoredZip({ 'Z_CustomAvatars/ModInfo.xml': '<xml><Name value="CustomAvatars" /><Description value="Custom Avatars" /></xml>' });
+  const avatars = createStoredZip({ 'Avatars/hero.avatar3d': 'model' });
+  const frameworkSha = sha256(framework);
+  const avatarSha = sha256(avatars);
+  await jsonRequest(`${base}/api/v1/artifacts/${frameworkSha}`, { method: 'PUT', headers: { ...admin, 'content-type': 'application/zip' }, body: framework });
+  await jsonRequest(`${base}/api/v1/artifacts/${avatarSha}`, { method: 'PUT', headers: { ...admin, 'content-type': 'application/zip' }, body: avatars });
+  const created = await jsonRequest(`${base}/api/v1/mods`, { method: 'POST', headers: admin, body: JSON.stringify({ id: 'z-custom-avatars', name: 'Custom Avatars', version: '2.5.2.14', artifactSha: frameworkSha, gameVersions: ['3.10.14'], installRoots: ['Z_CustomAvatars'], contentSlots: [{ path: 'Avatars' }, { path: 'Dances' }] }) });
+  assert.deepEqual(created.contentSlots.map((item) => item.path), ['Avatars', 'Dances']);
+  await jsonRequest(`${base}/api/v1/mods/z-custom-avatars/slots/avatars`, { method: 'POST', headers: admin, body: JSON.stringify({ artifactSha: avatarSha }) });
+  const listed = await jsonRequest(`${base}/api/v1/mods/z-custom-avatars`, { headers: { authorization: admin.authorization } });
+  assert.equal(listed.slotContents.avatars.sha256, avatarSha);
+  await jsonRequest(`${base}/api/v1/packs`, { method: 'POST', headers: admin, body: JSON.stringify({ id: 'avatar-pack', name: 'Avatars', gameVersion: '3.10.14', entries: [{ modId: 'z-custom-avatars', version: '2.5.2.14' }] }) });
+  await jsonRequest(`${base}/api/v1/packs/avatar-pack/releases`, { method: 'POST', headers: admin, body: '{}' });
+  const latest = await jsonRequest(`${base}/api/v1/public/packs/avatar-pack/latest`);
+  assert.equal(latest.mods[0].overlays[0].path, 'Avatars');
+  assert.equal(latest.mods[0].overlays[0].sha256, avatarSha);
+  assert.match(latest.mods[0].overlays[0].url, new RegExp(avatarSha));
+});
+
 test('redacts and aggregates diagnostics', async (t) => {
   const { base } = await fixture(t);
   const event = { sessionId: 's1', side: 'client', gameVersion: '2.6', stage: 'startup', exceptionType: 'TypeLoadException', message: 'token=secret-value from 192.168.1.8', stackTrace: 'at Mod.Run() in C:\\Users\\Alice\\x.cs:42', logExcerpt: 'password=hunter2' };
