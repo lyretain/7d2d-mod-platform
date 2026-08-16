@@ -1,7 +1,8 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { createReadStream, createWriteStream, readFileSync } from 'node:fs';
+import { createReadStream, createWriteStream, existsSync, readFileSync, statSync } from 'node:fs';
 import { mkdir, rename, stat, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { prepareDiagnostic } from './diagnostics.js';
@@ -24,6 +25,62 @@ import { applyAddresses, parseAddresses, publicAddressView, resolveRegisteredSer
 import { currentLauncher, launcherArtifactUrl, launcherManifestPayload, normalizePlatform, validateLauncherZip } from './launcher-update.js';
 
 const ADMIN_HTML_V2 = readFileSync(new URL('./admin.html', import.meta.url), 'utf8');
+const WEB_DIST = path.resolve(fileURLToPath(new URL('../../web/dist/', import.meta.url)));
+
+function spaIndexPath() {
+  return path.join(WEB_DIST, 'index.html');
+}
+
+function spaAvailable() {
+  return existsSync(spaIndexPath());
+}
+
+function mimeFor(filePath) {
+  return {
+    '.html': 'text/html; charset=utf-8',
+    '.js': 'application/javascript; charset=utf-8',
+    '.css': 'text/css; charset=utf-8',
+    '.svg': 'image/svg+xml',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.webp': 'image/webp',
+    '.ico': 'image/x-icon',
+    '.woff': 'font/woff',
+    '.woff2': 'font/woff2',
+    '.map': 'application/json'
+  }[path.extname(filePath).toLowerCase()] || 'application/octet-stream';
+}
+
+function sendHtml(res, html) {
+  const body = Buffer.isBuffer(html) ? html : Buffer.from(html);
+  res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'content-length': body.length, 'cache-control': 'no-cache', 'x-content-type-options': 'nosniff' });
+  return res.end(body);
+}
+
+function sendWebFile(res, relPath) {
+  const target = path.resolve(WEB_DIST, relPath);
+  const relative = path.relative(WEB_DIST, target);
+  if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) return false;
+  if (!existsSync(target) || !statSync(target).isFile()) return false;
+  const body = readFileSync(target);
+  const cache = relative.startsWith(`assets${path.sep}`) ? 'public, max-age=31536000, immutable' : 'no-cache';
+  res.writeHead(200, { 'content-type': mimeFor(target), 'content-length': body.length, 'cache-control': cache, 'x-content-type-options': 'nosniff' });
+  res.end(body);
+  return true;
+}
+
+function isSpaReserved(pathname) {
+  return pathname.startsWith('/api')
+    || pathname.startsWith('/docs')
+    || pathname === '/status'
+    || pathname === '/health'
+    || pathname.startsWith('/health/')
+    || pathname === '/metrics'
+    || pathname === '/guide'
+    || pathname === '/admin-i18n.js'
+    || pathname === '/legacy';
+}
 
 function tokenHash(token) {
   return createHash('sha256').update(token).digest('hex');
@@ -100,10 +157,15 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
         res.writeHead(200, { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'no-cache', 'x-content-type-options': 'nosniff' });
         return res.end(body);
       }
+      if (req.method === 'GET' && pathname === '/legacy') {
+        return sendHtml(res, ADMIN_HTML_V2);
+      }
       if (req.method === 'GET' && pathname === '/') {
-        const body = Buffer.from(ADMIN_HTML_V2);
-        res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'content-length': body.length, 'x-content-type-options': 'nosniff' });
-        return res.end(body);
+        if (spaAvailable()) return sendHtml(res, readFileSync(spaIndexPath()));
+        return sendHtml(res, ADMIN_HTML_V2);
+      }
+      if (req.method === 'GET' && spaAvailable() && pathname.startsWith('/assets/')) {
+        if (sendWebFile(res, pathname.slice(1))) return;
       }
       if (req.method === 'GET' && (pathname === '/guide' || pathname === '/docs/user')) {
         const markdown = readFileSync(new URL('../../../docs/USER.zh-CN.md', import.meta.url), 'utf8');
@@ -731,6 +793,10 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
         return json(res, 200, { fingerprints });
       }
 
+      if (req.method === 'GET' && spaAvailable() && !isSpaReserved(pathname)) {
+        if (path.extname(pathname) && sendWebFile(res, pathname.slice(1))) return;
+        if (!path.extname(pathname) || pathname.endsWith('.html')) return sendHtml(res, readFileSync(spaIndexPath()));
+      }
       return problem(res, 404, 'NOT_FOUND', 'Route not found');
     } catch (error) {
       if (error.code === 'ENOENT') return problem(res, 404, 'NOT_FOUND', 'Requested file or object was not found');

@@ -8,7 +8,7 @@
 
 ## 已实现功能
 
-- 浏览器管理页面
+- 浏览器管理页面（`apps/web` Vue 后台；无构建产物时回退内嵌页，`/legacy` 保留旧页）
 - 邀请码注册、账户登录和角色权限
 - 一次性/限次邀请码、有效期和管理员吊销
 - Mod ZIP 上传和版本登记
@@ -28,7 +28,8 @@
 ## 项目目录
 
 ```text
-apps/api/                 云端 API 与管理页面
+apps/api/                 云端 API 与旧管理页
+apps/web/                 Vue 3 运营后台
 apps/updater/             客户端安全更新器
 apps/agent/               游戏进程守护与故障上报
 plugins/client/           七日杀客户端插件源码
@@ -42,16 +43,27 @@ data/                     单节点元数据、签名密钥和 Mod 文件
 
 ## 快速启动后台
 
-需要 Node.js 22 或更高版本。
+需要 Node.js 22 或更高版本。生产或本机完整后台先构建 Vue，再启动 API：
 
 ```powershell
-cd E:\Project
+cd A:\GameMod\7d2d-mod-platform
+npm --prefix apps/web install
+npm run build:web
 $env:ADMIN_TOKEN = "替换为至少16位的随机管理令牌"
 $env:PUBLIC_BASE_URL = "http://localhost:8080"
 node apps/api/src/server.js
 ```
 
-启动后访问：`http://localhost:8080`
+启动后访问：`http://localhost:8080`（Vue 后台）。应急旧页：`/legacy`。没有 `apps/web/dist` 时 API 仍回退内嵌 `admin.html`。
+
+只改前端时用 Vite（`/api` 代理到 8080）：
+
+```powershell
+npm run dev
+npm run dev:web
+```
+
+完整步骤见 [中文部署指南](docs/DEPLOYMENT.zh-CN.md)。
 
 首次部署流程：
 
@@ -66,8 +78,6 @@ node apps/api/src/server.js
 首个用户注册后，`ADMIN_TOKEN` 默认停止作为后台身份使用。只有设置 `ALLOW_BOOTSTRAP_ADMIN=true` 才能继续使用它，建议仅在账户恢复时临时启用。
 
 玩家进服与服主登记服务器，参见 [玩家与服主教程](docs/USER.zh-CN.md)。线上也可打开 `https://mods.aic.la/guide`。
-
-详细部署步骤参见 [中文部署指南](docs/DEPLOYMENT.zh-CN.md)。
 
 ## 客户端同步
 

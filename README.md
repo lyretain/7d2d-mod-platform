@@ -6,7 +6,7 @@ A deployable, dependency-light MVP for managing, signing, distributing and diagn
 
 ## Included
 
-- Browser-based administration page.
+- Browser-based administration page (`apps/web` Vue SPA, with `/legacy` fallback).
 - Invitation-only registration, password login, roles and revocable sessions.
 - Immutable artifact upload and SHA-256 addressing.
 - Mod and ModPack metadata management.
@@ -27,12 +27,21 @@ Requirements: Node.js 22+ or Docker.
 PowerShell:
 
 ```powershell
+npm --prefix apps/web install
+npm run build:web
 $env:ADMIN_TOKEN = "replace-with-at-least-16-random-characters"
 $env:PUBLIC_BASE_URL = "http://localhost:8080"
 node apps/api/src/server.js
 ```
 
-Open `http://localhost:8080`, enter the administrator token, then upload a ZIP, register its metadata and publish a pack.
+Open `http://localhost:8080` for the Vue console (or `/legacy` for the embedded page). Without `apps/web/dist` the API still falls back to `admin.html`.
+
+Frontend-only development (Vite proxies `/api` to port 8080):
+
+```powershell
+npm run dev
+npm run dev:web
+```
 
 Player and server-owner tutorial: [docs/USER.zh-CN.md](docs/USER.zh-CN.md) or `/guide` on a running instance.
 

@@ -42,8 +42,10 @@ CF_API_TOKEN=...
    Eligible for cache，Edge TTL 尊重源站。源站已发送 `Cache-Control` / `CDN-Cache-Control: public, max-age=31536000, immutable`。
 2. **Manifest**：`*/api/v1/public/packs/*/latest`  
    Edge TTL 30 秒。吊销或回滚后后台会调用 Purge。
-3. **管理与登录**：`/api/v1/auth/*`、`/api/v1/admin/*`、`/`  
+3. **管理与登录**：`/api/v1/auth/*`、`/api/v1/admin/*`、`/`、`/setup`、`/signin`、`/workshop`、`/mods`、`/packs`、`/servers`、`/ops`、`/account`、`/legacy`、`/admin-i18n.js`  
    Bypass cache。
+4. **后台静态资源**：`/assets/*`  
+   Eligible for cache，Edge TTL 可长期（文件名带内容哈希）。
 
 SSL/TLS 使用 Full (strict)，源站证书可用 Origin CA。
 

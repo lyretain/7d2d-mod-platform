@@ -68,3 +68,23 @@ test('serves admin-i18n.js as javascript', async (t) => {
   assert.match(body, /const zh =/);
   assert.match(body, /const en =/);
 });
+
+test('serves spa or embedded admin at / and always keeps /legacy', async (t) => {
+  const dataDir = await mkdtemp(path.join(os.tmpdir(), 'mod-platform-legacy-'));
+  const store = new JsonStore(path.join(dataDir, 'state', 'database.json'));
+  const signing = new SigningService({ dataDir });
+  await Promise.all([store.init(), signing.init()]);
+  const server = createServer();
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  server.removeAllListeners('request');
+  server.on('request', createApp({ store, signing, dataDir, adminToken: 'test-admin-token-1234', publicBaseUrl: base }));
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const home = await fetch(`${base}/`);
+  assert.equal(home.status, 200);
+  assert.match(await home.text(), /id="(gate|app)"/);
+  const legacy = await fetch(`${base}/legacy`);
+  assert.equal(legacy.status, 200);
+  assert.match(await legacy.text(), /id="gate"/);
+});

@@ -145,5 +145,6 @@ test('S3 SigV4 string and CSRF same-origin policy', () => {
   assert.equal(inspectRequest({ method: 'POST', url: '/api/v1/auth/login', headers: { host: 'mods.example', origin: 'https://evil.example' } }).blocked, true);
   const csp = securityHeaders({ headers: {}, url: '/' })['content-security-policy'];
   assert.match(csp, /script-src[^;]*'self'/);
+  assert.match(csp, /style-src[^;]*'self'/);
   assert.match(csp, /challenges\.cloudflare\.com/);
 });
