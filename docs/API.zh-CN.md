@@ -197,9 +197,11 @@ Content-Type: application/json
 {
   "name": "Tokyo PVE",
   "packId": "production-pack",
-  "publicAddress": "game.example.com:26900"
+  "publicAddresses": ["192.168.3.42:26900", "game.example.com:26900"]
 }
 ```
+
+`publicAddress` 仍可用，表示单条地址。地址可选；解析和握手优先使用 `serverId`。`GET /api/v1/public/servers/resolve?serverId=` 或 `?address=` 均可。多台服可以登记相同局域网地址。服务端插件用令牌 `PUT /api/v1/servers/:id/addresses` 合并当前监听地址。
 
 响应中的 `config` 与插件 `server.config.json` 字段一致（`BaseUrl`、`ServerId`、`ServerToken`、`GameVersion`、`RefreshSeconds`、`HandshakeTimeoutSeconds`）。令牌只返回一次，应立即覆盖到插件目录。
 

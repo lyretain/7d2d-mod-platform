@@ -228,7 +228,12 @@ test('regular users can register a game server and open the user guide', async (
   assert.equal(created.config.HandshakeTimeoutSeconds, 15);
   const resolved = await jsonRequest(`${base}/api/v1/public/servers/resolve?address=play.example.com:26900`);
   assert.equal(resolved.packId, 'prod-pack');
-  assert.equal((await fetch(`${base}/api/v1/servers`, { method: 'POST', headers: hostHeaders, body: JSON.stringify({ name: 'NoAddr', packId: 'prod-pack' }) })).status, 422);
+  assert.equal(resolved.serverId, created.serverId);
+  const noAddr = await jsonRequest(`${base}/api/v1/servers`, { method: 'POST', headers: hostHeaders, body: JSON.stringify({ name: 'NoAddr', packId: 'prod-pack' }) });
+  assert.match(noAddr.serverId, /^srv_/);
+  assert.deepEqual(noAddr.publicAddresses, []);
+  const byId = await jsonRequest(`${base}/api/v1/public/servers/resolve?serverId=${encodeURIComponent(noAddr.serverId)}`);
+  assert.equal(byId.serverId, noAddr.serverId);
 
   await jsonRequest(`${base}/api/v1/auth/register`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'OtherUser', password: 'other user password' }) });
   const other = await jsonRequest(`${base}/api/v1/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'otheruser', password: 'other user password' }) });
@@ -248,9 +253,25 @@ test('client can deposit a handshake and the dedicated server claims it once', a
   await jsonRequest(`${base}/api/v1/mods`, { method: 'POST', headers: admin, body: JSON.stringify({ id: 'example', name: 'Example', version: '1.0.0', artifactSha, gameVersions: ['3.10.14'], installRoots: ['ExampleMod'] }) });
   await jsonRequest(`${base}/api/v1/packs`, { method: 'POST', headers: admin, body: JSON.stringify({ id: 'hs-pack', name: 'HS', gameVersion: '3.10.14', entries: [{ modId: 'example', version: '1.0.0' }] }) });
   await jsonRequest(`${base}/api/v1/packs/hs-pack/releases`, { method: 'POST', headers: admin, body: '{}' });
-  const server = await jsonRequest(`${base}/api/v1/servers`, { method: 'POST', headers: admin, body: JSON.stringify({ name: 'LAN', packId: 'hs-pack', publicAddress: '192.168.3.42:26900' }) });
+  const server = await jsonRequest(`${base}/api/v1/servers`, { method: 'POST', headers: admin, body: JSON.stringify({ name: 'LAN', packId: 'hs-pack', publicAddresses: ['192.168.3.42:26900', '27.185.99.144:26900'] }) });
+  const twin = await jsonRequest(`${base}/api/v1/servers`, { method: 'POST', headers: admin, body: JSON.stringify({ name: 'Same LAN', packId: 'hs-pack', publicAddress: '192.168.3.42:26900' }) });
+  assert.deepEqual(server.publicAddresses, ['192.168.3.42:26900', '27.185.99.144:26900']);
+  const wan = await jsonRequest(`${base}/api/v1/public/servers/resolve?address=27.185.99.144:26900`);
+  assert.equal(wan.serverId, server.serverId);
+  await jsonRequest(`${base}/api/v1/servers/${server.serverId}/addresses`, { method: 'PUT', headers: { authorization: `Bearer ${server.token}`, 'content-type': 'application/json' }, body: JSON.stringify({ publicAddresses: ['10.0.0.8:26900'] }) });
+  assert.equal((await jsonRequest(`${base}/api/v1/public/servers/resolve?address=10.0.0.8:26900`)).serverId, server.serverId);
 
   assert.equal((await fetch(`${base}/api/v1/public/handshakes`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ address: 'no-such.example:26900', playerIds: ['Steam_1'], hello: { protocolVersion: 1, packId: 'hs-pack', packVersion: 1 } }) })).status, 404);
+  const byServerId = await jsonRequest(`${base}/api/v1/public/handshakes`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      serverId: twin.serverId,
+      playerIds: ['Steam_twin'],
+      hello: { protocolVersion: 1, packId: 'hs-pack', packVersion: 1, artifactFingerprint: artifactSha }
+    })
+  });
+  assert.equal(byServerId.serverId, twin.serverId);
 
   const deposited = await jsonRequest(`${base}/api/v1/public/handshakes`, {
     method: 'POST',

@@ -36,11 +36,11 @@
 2. 填写：
    - **名称**：给你自己看的名字，例如 `周末 PVE`。
    - **Pack**：下拉选择已发布的 Pack。
-   - **公开地址**：玩家进服时填写的地址，例如 `play.example.com:26900` 或 `1.2.3.4:26900`。必须和游戏里看到的一致，大小写不敏感。
+   - **地址（可选）**：每行一条，例如局域网 `192.168.3.42:26900` 和公网 `play.example.com:26900`。可以留空。握手和 Pack 解析以 **Server ID** 为准；地址只是方便玩家按 IP 进服时自动找到这台服。动态 IP、只开局域网、公网和内网同时存在都可以。
 3. 点「登记服务器」。
 4. 页面会给出完整的 `server.config.json`，字段与插件一致：`BaseUrl`、`ServerId`、`ServerToken`、`GameVersion`、`RefreshSeconds`、`HandshakeTimeoutSeconds`。令牌只显示这一次，立刻复制覆盖到插件目录。丢了只能删掉重登，或请管理员协助。
 
-同一公开地址不能登记两次。以后要换 Pack 或改地址：点表格里的那一行，改完后点「更新绑定」。你只能改自己登记的服务器。
+同一地址可以被多台服使用（例如都是 `192.168.1.100:26900`）。按地址解析时，平台会选最近在线的那一台；要精确指定请用 Server ID。以后要换 Pack 或改地址：点表格里的那一行，改完后点「更新绑定」。你只能改自己登记的服务器。服务端插件在线后会自动把本机监听地址补进列表。
 
 ### 3. 安装服务端插件
 
@@ -94,7 +94,7 @@ node apps/updater/src/cli.js --base-url https://mods.aic.la --server-address "pl
 
 ## 三、玩家：同步并进服
 
-玩家不必登记服务器。只要服主已经登记了公开地址，你用同一地址就能解析到 Pack。
+玩家不必登记服务器。连上服主的游戏地址后，客户端会按地址或 Server ID 解析 Pack。局域网、公网或动态 IP 都可以，不必和网页上填的那一条完全一致。
 
 ### 1. 安装客户端插件
 
@@ -122,7 +122,7 @@ node apps/updater/src/cli.js --base-url https://mods.aic.la --server-address "pl
 
 ### 2. 进服时自动同步
 
-装好客户端插件后，连服主登记的同一地址即可。插件会解析 Pack、下载到 `%APPDATA%\7DaysToDie\Mods`，再握手进服。含 DLL 的 Pack 会先退出再自动重连。日志里应有：
+装好客户端插件后直接进服即可。插件会解析 Pack、下载到 `%APPDATA%\7DaysToDie\Mods`，再按 Server ID 握手。含 DLL 的 Pack 会先弹出重启确认。日志里应有：
 
 ```text
 [ModPlatform] Resolving pack for 192.168.3.42:26900

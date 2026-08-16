@@ -37,10 +37,18 @@ namespace ModPlatform.Shared
 
         public async Task<ServerResolve> ResolveServerAsync(string address, CancellationToken cancellationToken)
         {
-            using (var response = await http.GetAsync(baseUrl + "/api/v1/public/servers/resolve?address=" + Uri.EscapeDataString(address), cancellationToken).ConfigureAwait(false))
+            return await ResolveServerAsync(address, null, cancellationToken).ConfigureAwait(false);
+        }
+
+        public async Task<ServerResolve> ResolveServerAsync(string address, string serverId, CancellationToken cancellationToken)
+        {
+            var query = !string.IsNullOrEmpty(serverId)
+                ? "serverId=" + Uri.EscapeDataString(serverId)
+                : "address=" + Uri.EscapeDataString(address ?? "");
+            using (var response = await http.GetAsync(baseUrl + "/api/v1/public/servers/resolve?" + query, cancellationToken).ConfigureAwait(false))
             {
                 if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-                    throw new InvalidOperationException("No registered server uses " + address);
+                    throw new InvalidOperationException("No registered server matches " + (string.IsNullOrEmpty(serverId) ? address : serverId));
                 await EnsureOk(response).ConfigureAwait(false);
                 using (var stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
                     return Deserialize<ServerResolve>(stream);
@@ -59,8 +67,14 @@ namespace ModPlatform.Shared
 
         public async Task SubmitHandshakeAsync(string address, IList<string> playerIds, HandshakeHello hello, CancellationToken cancellationToken)
         {
+            await SubmitHandshakeAsync(null, address, playerIds, hello, cancellationToken).ConfigureAwait(false);
+        }
+
+        public async Task SubmitHandshakeAsync(string serverId, string address, IList<string> playerIds, HandshakeHello hello, CancellationToken cancellationToken)
+        {
             var body = new HandshakeSubmit
             {
+                ServerId = serverId,
                 Address = address,
                 PlayerIds = playerIds == null ? new List<string>() : new List<string>(playerIds),
                 Hello = hello
@@ -98,6 +112,17 @@ namespace ModPlatform.Shared
             using (var content = new StringContent(json, Encoding.UTF8, "application/json"))
             using (var response = await http.PostAsync(baseUrl + "/api/v1/diagnostics", content, cancellationToken).ConfigureAwait(false))
                 response.EnsureSuccessStatusCode();
+        }
+
+        public async Task ReportAddressesAsync(string serverId, string token, IList<string> addresses, CancellationToken cancellationToken)
+        {
+            using (var request = new HttpRequestMessage(HttpMethod.Put, baseUrl + "/api/v1/servers/" + Uri.EscapeDataString(serverId) + "/addresses"))
+            {
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                request.Content = new StringContent(Serialize(new AddressReport { PublicAddresses = addresses == null ? new List<string>() : new List<string>(addresses) }), Encoding.UTF8, "application/json");
+                using (var response = await http.SendAsync(request, cancellationToken).ConfigureAwait(false))
+                    response.EnsureSuccessStatusCode();
+            }
         }
 
         public async Task SendSyncStatusAsync(string serverId, string token, ServerSyncStatus status, CancellationToken cancellationToken)

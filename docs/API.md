@@ -59,8 +59,8 @@ All administrator routes require `Authorization: Bearer <ADMIN_TOKEN>`.
 {
   "name": "Tokyo PVE",
   "packId": "production-pack",
-  "publicAddress": "game.example.com:26900"
+  "publicAddresses": ["192.168.3.42:26900", "game.example.com:26900"]
 }
 ```
 
-Store the returned server token immediately; it is not returned again.
+Addresses are optional. Resolve and handshake prefer `serverId`. `publicAddress` remains accepted as a single value. Store the returned server token immediately; it is not returned again.

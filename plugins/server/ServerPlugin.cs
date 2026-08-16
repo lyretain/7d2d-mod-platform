@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Net;
+using System.Net.NetworkInformation;
+using System.Net.Sockets;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
 using System.Threading;
@@ -276,6 +279,7 @@ public sealed class ModPlatformServerPlugin : IModApi
                 if (config.ShouldSync && assignment != null && assignment.Manifest != null)
                     await SyncPackAsync(assignment, token).ConfigureAwait(false);
                 ApplyAssignment(assignment, directory);
+                await ReportAddressesAsync(token).ConfigureAwait(false);
             }
             catch (Exception error)
             {
@@ -400,6 +404,54 @@ public sealed class ModPlatformServerPlugin : IModApi
             await platform.SendDiagnosticAsync(ev, CancellationToken.None).ConfigureAwait(false);
         }
         catch { }
+    }
+
+    static async Task ReportAddressesAsync(CancellationToken token)
+    {
+        if (platform == null || config == null || string.IsNullOrEmpty(config.ServerId)) return;
+        try
+        {
+            var addresses = DetectListenAddresses();
+            if (addresses.Count == 0) return;
+            await platform.ReportAddressesAsync(config.ServerId, config.ServerToken, addresses, token).ConfigureAwait(false);
+            Log.Out("[ModPlatform] Reported listen addresses " + string.Join(", ", addresses));
+        }
+        catch (Exception error)
+        {
+            Log.Warning("[ModPlatform] Address report failed: " + error.Message);
+        }
+    }
+
+    static List<string> DetectListenAddresses()
+    {
+        var port = 26900;
+        try { port = GamePrefs.GetInt(EnumGamePrefs.ServerPort); } catch { }
+        if (port <= 0) port = 26900;
+        var addresses = new List<string>();
+        AddAddress(addresses, "127.0.0.1:" + port);
+        try
+        {
+            foreach (var network in NetworkInterface.GetAllNetworkInterfaces())
+            {
+                if (network.OperationalStatus != OperationalStatus.Up) continue;
+                if (network.NetworkInterfaceType == NetworkInterfaceType.Loopback) continue;
+                foreach (var item in network.GetIPProperties().UnicastAddresses)
+                {
+                    if (item.Address == null || item.Address.AddressFamily != AddressFamily.InterNetwork) continue;
+                    if (IPAddress.IsLoopback(item.Address)) continue;
+                    AddAddress(addresses, item.Address + ":" + port);
+                }
+            }
+        }
+        catch { }
+        return addresses;
+    }
+
+    static void AddAddress(List<string> addresses, string value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return;
+        var trimmed = value.Trim();
+        if (!addresses.Exists(item => string.Equals(item, trimmed, StringComparison.OrdinalIgnoreCase))) addresses.Add(trimmed);
     }
 
     static string DetectGameVersion()

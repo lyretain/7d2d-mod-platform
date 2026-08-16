@@ -66,6 +66,7 @@ namespace ModPlatform.Shared
     [DataContract]
     public sealed class HandshakeSubmit
     {
+        [DataMember(Name = "serverId")] public string ServerId { get; set; }
         [DataMember(Name = "address")] public string Address { get; set; }
         [DataMember(Name = "playerIds")] public List<string> PlayerIds { get; set; }
         [DataMember(Name = "hello")] public HandshakeHello Hello { get; set; }
@@ -92,5 +93,12 @@ namespace ModPlatform.Shared
         [DataMember(Name = "packVersion")] public int? PackVersion { get; set; }
         [DataMember(Name = "message")] public string Message { get; set; }
         [DataMember(Name = "requiresRestart")] public bool RequiresRestart { get; set; }
+        [DataMember(Name = "publicAddresses")] public List<string> PublicAddresses { get; set; }
+    }
+
+    [DataContract]
+    public sealed class AddressReport
+    {
+        [DataMember(Name = "publicAddresses")] public List<string> PublicAddresses { get; set; }
     }
 }

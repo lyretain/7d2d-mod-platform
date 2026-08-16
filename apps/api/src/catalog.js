@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { activeRelease, releaseDiff } from './protocol.js';
 import { gameVersionMatches } from './game-version.js';
+import { serverAddresses } from './servers.js';
 
 function modInfoFrom(snapshot, version) {
   if (!version) return { author: null, description: null };
@@ -96,7 +97,14 @@ export function listServers(snapshot) {
   return Object.values(snapshot.servers || {}).map((server) => {
     const { tokenHash, ...safe } = server;
     const online = Boolean(server.lastSeenAt && Date.parse(server.lastSeenAt) >= cutoff);
-    return { ...safe, online, acceptingPlayers: online && server.sync?.ok !== false && !snapshot.settings?.distributionPaused };
+    const addresses = serverAddresses(server);
+    return {
+      ...safe,
+      publicAddresses: addresses,
+      publicAddress: addresses[0] || null,
+      online,
+      acceptingPlayers: online && server.sync?.ok !== false && !snapshot.settings?.distributionPaused
+    };
   });
 }
 

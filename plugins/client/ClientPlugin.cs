@@ -19,6 +19,8 @@ public sealed class ModPlatformClientPlugin : IModApi
     static bool handshakeSent;
     static bool handshakeBusy;
     static string handshakeAddress;
+    static string handshakeServerId;
+    static string resolvedServerId;
     static DateTime nextHandshakeAttempt;
     static DateTime nextHandshakeSkipLog;
     static bool reconnectAttempted;
@@ -172,8 +174,9 @@ public sealed class ModPlatformClientPlugin : IModApi
         try
         {
             Log.Out("[ModPlatform] Resolving pack for " + address);
-            var resolved = await platform.ResolveServerAsync(address, CancellationToken.None).ConfigureAwait(false);
+            var resolved = await platform.ResolveServerAsync(address, string.IsNullOrEmpty(address) ? resolvedServerId : null, CancellationToken.None).ConfigureAwait(false);
             if (resolved == null || string.IsNullOrEmpty(resolved.PackId)) throw new InvalidOperationException("Resolve did not return a pack.");
+            if (!string.IsNullOrEmpty(resolved.ServerId)) resolvedServerId = resolved.ServerId;
             if (resolved.Handshake != null && resolved.Handshake.DistributionPaused)
                 throw new InvalidOperationException("Mod distribution is paused.");
             var manifest = await platform.GetLatestPackAsync(resolved.PackId, CancellationToken.None).ConfigureAwait(false);
@@ -286,9 +289,9 @@ public sealed class ModPlatformClientPlugin : IModApi
             return;
         }
         var address = CurrentServerAddress();
-        if (string.IsNullOrEmpty(address))
+        if (string.IsNullOrEmpty(resolvedServerId) && string.IsNullOrEmpty(address))
         {
-            LogHandshakeSkip("no server address");
+            LogHandshakeSkip("no server id or address");
             return;
         }
         if (config != null && config.ShouldSync && !syncReady)
@@ -296,7 +299,7 @@ public sealed class ModPlatformClientPlugin : IModApi
             LogHandshakeSkip("waiting for pack sync");
             return;
         }
-        if (handshakeSent && string.Equals(handshakeAddress, address, StringComparison.OrdinalIgnoreCase)) return;
+        if (handshakeSent && (string.Equals(handshakeServerId, resolvedServerId, StringComparison.OrdinalIgnoreCase) || string.Equals(handshakeAddress, address, StringComparison.OrdinalIgnoreCase))) return;
         var playerIds = CollectLocalPlayerIds();
         if (playerIds.Count == 0)
         {
@@ -320,10 +323,11 @@ public sealed class ModPlatformClientPlugin : IModApi
         try
         {
             var hello = BuildHello();
-            await platform.SubmitHandshakeAsync(address, playerIds, hello, CancellationToken.None).ConfigureAwait(false);
+            await platform.SubmitHandshakeAsync(resolvedServerId, address, playerIds, hello, CancellationToken.None).ConfigureAwait(false);
             handshakeSent = true;
             handshakeAddress = address;
-            Log.Out("[ModPlatform] Handshake sent address=" + address + " pack=" + hello.PackId + " v" + hello.PackVersion);
+            handshakeServerId = resolvedServerId;
+            Log.Out("[ModPlatform] Handshake sent server=" + resolvedServerId + " address=" + address + " pack=" + hello.PackId + " v" + hello.PackVersion);
             Ignore(SendAsync("handshake_sent", null));
         }
         catch (Exception error)

@@ -402,8 +402,9 @@
           <div><label class="field">Server ID</label><input id="serverId" placeholder="新建后自动填写"></div>
           <div><label class="field">Pack</label><select id="serverPackId"><option value="">请选择已发布的 Pack</option></select></div>
         </div>
-        <label class="field">公开地址</label>
-        <input id="serverAddress" placeholder="host:port，例如 play.example.com:26900">
+        <label class="field">地址（可选，每行一条）</label>
+        <textarea id="serverAddress" rows="3" placeholder="可空。校验以 Server ID 为准。&#10;192.168.3.42:26900&#10;play.example.com:26900"></textarea>
+        <p class="hint">局域网、公网、动态 IP 可以同时登记。插件在线后会自动补上本机监听地址。同一地址允许被多台服使用。</p>
         <div class="actions">
           <button onclick="createServer()">登记服务器</button>
           <button class="secondary" onclick="updateServer()">更新绑定</button>
@@ -917,7 +918,7 @@ function paint(data) {
       serverId.value = r.id || '';
       serverName.value = r.name || '';
       fillPackSelects({ serverPackId: r.packId || '' });
-      serverAddress.value = r.publicAddress || '';
+      serverAddress.value = (r.publicAddresses && r.publicAddresses.length ? r.publicAddresses : (r.publicAddress ? [r.publicAddress] : [])).join('\n');
     });
   }
   if (data.reviews) {
@@ -1269,7 +1270,7 @@ async function copyServerConfig() {
 
 async function createServer() {
   try {
-    const created = await request('/api/v1/servers', { method: 'POST', headers: headers(), body: JSON.stringify({ name: serverName.value, packId: serverPackId.value, publicAddress: serverAddress.value }) });
+    const created = await request('/api/v1/servers', { method: 'POST', headers: headers(), body: JSON.stringify({ name: serverName.value, packId: serverPackId.value, publicAddresses: serverAddress.value }) });
     serverId.value = created.serverId || (created.config && created.config.ServerId) || '';
     showServerPluginConfig(created);
     show(created, { message: '服务器已登记，请保存 server.config.json' });
@@ -1279,7 +1280,7 @@ async function createServer() {
 
 async function updateServer() {
   try {
-    show(await request('/api/v1/servers/' + encodeURIComponent(serverId.value), { method: 'PATCH', headers: headers(), body: JSON.stringify({ packId: serverPackId.value || undefined, publicAddress: serverAddress.value || undefined }) }), { message: '服务器已更新' });
+    show(await request('/api/v1/servers/' + encodeURIComponent(serverId.value), { method: 'PATCH', headers: headers(), body: JSON.stringify({ packId: serverPackId.value || undefined, publicAddresses: serverAddress.value }) }), { message: '服务器已更新' });
     await loadServers({ silent: true });
   } catch (e) { show(e.message); }
 }

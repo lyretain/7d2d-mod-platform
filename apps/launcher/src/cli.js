@@ -41,7 +41,9 @@ function printPlan(plan) {
 }
 
 async function resolveServer(baseUrl, address) {
-  const response = await fetch(`${baseUrl.replace(/\/$/, '')}/api/v1/public/servers/resolve?address=${encodeURIComponent(address)}`);
+  const key = String(address || '').trim();
+  const query = key.toLowerCase().startsWith('srv_') ? `serverId=${encodeURIComponent(key)}` : `address=${encodeURIComponent(key)}`;
+  const response = await fetch(`${baseUrl.replace(/\/$/, '')}/api/v1/public/servers/resolve?${query}`);
   if (!response.ok) throw new Error(`Unable to resolve server (${response.status})`);
   return response.json();
 }
@@ -74,7 +76,7 @@ try {
   const address = options.serverAddress || options.address;
   const baseUrl = options.baseUrl;
   if (!baseUrl || (!options.packId && !address) || !env.modsDir) {
-    console.error('Usage: node apps/launcher/src/cli.js <discover|plan|join|servers> --base-url URL (--pack-id ID | --address host:port) [--public-key KEY] [--no-launch]');
+    console.error('Usage: node apps/launcher/src/cli.js <discover|plan|join|servers> --base-url URL (--pack-id ID | --address host:port | --address srv_...) [--public-key KEY] [--no-launch]');
     process.exit(2);
   }
   let packId = options.packId;

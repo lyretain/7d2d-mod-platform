@@ -20,6 +20,7 @@ import { can, denyReason, describePrincipal } from './roles.js';
 import { exchangeGithubCode, githubAuthorizeUrl } from './github.js';
 import { renderUserGuide } from './guide.js';
 import { claimHandshake, normalizePlayerIds, sanitizeHello, storeHandshake } from './handshakes.js';
+import { applyAddresses, parseAddresses, publicAddressView, resolveRegisteredServer } from './servers.js';
 
 const ADMIN_HTML_V2 = readFileSync(new URL('./admin.html', import.meta.url), 'utf8');
 
@@ -455,11 +456,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
         requireFields(body, ['name', 'packId']);
         const snapshot = store.snapshot();
         if (!snapshot.packs[body.packId]) throw Object.assign(new Error('Unknown packId'), { code: 'VALIDATION' });
-        const publicAddress = String(body.publicAddress || '').trim();
-        if (!can(owner, 'server.manage') && !publicAddress) throw Object.assign(new Error('publicAddress is required'), { code: 'VALIDATION' });
-        if (publicAddress && Object.values(snapshot.servers).some((item) => String(item.publicAddress || '').trim().toLocaleLowerCase('en-US') === publicAddress.toLocaleLowerCase('en-US'))) {
-          throw Object.assign(new Error('That public address is already registered'), { code: 'CONFLICT' });
-        }
+        const addresses = parseAddresses(body.publicAddresses, body.publicAddress);
         const serverId = id('srv');
         const token = randomBytes(32).toString('base64url');
         const pack = snapshot.packs[body.packId];
@@ -474,23 +471,25 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
             id: serverId,
             name: body.name,
             packId: body.packId,
-            publicAddress: publicAddress || null,
+            publicAddresses: addresses,
+            publicAddress: addresses[0] || null,
             ownerId: owner.bootstrap ? null : owner.id,
             tokenHash: tokenHash(token),
             createdAt: now(),
             lastSeenAt: null
           };
-          recordAudit(draft, { actor: owner.username || owner.id, action: 'server.create', target: serverId, details: { packId: body.packId, publicAddress: publicAddress || null } });
+          recordAudit(draft, { actor: owner.username || owner.id, action: 'server.create', target: serverId, details: { packId: body.packId, publicAddresses: addresses } });
         });
-        return json(res, 201, { serverId, token, packId: body.packId, publicAddress: publicAddress || null, config: pluginConfig });
+        return json(res, 201, { serverId, token, packId: body.packId, ...publicAddressView({ publicAddresses: addresses }), config: pluginConfig });
       }
 
       if (req.method === 'GET' && pathname === '/api/v1/public/servers/resolve') {
-        const address = String(url.searchParams.get('address') || '').trim().toLocaleLowerCase('en-US');
-        if (!address) return problem(res, 422, 'VALIDATION', 'address query parameter is required');
+        const address = String(url.searchParams.get('address') || '').trim();
+        const serverId = String(url.searchParams.get('serverId') || '').trim();
+        if (!address && !serverId) return problem(res, 422, 'VALIDATION', 'serverId or address query parameter is required');
         const snapshot = store.snapshot();
-        const server = Object.values(snapshot.servers).find((item) => String(item.publicAddress || '').trim().toLocaleLowerCase('en-US') === address);
-        if (!server) return problem(res, 404, 'SERVER_NOT_FOUND', 'No registered server uses that public address');
+        const server = resolveRegisteredServer(snapshot, { serverId, address });
+        if (!server) return problem(res, 404, 'SERVER_NOT_FOUND', 'No registered server matches that id or address');
         const pack = snapshot.packs[server.packId];
         const policy = handshakePolicy(snapshot, pack, signing, { launcherUrl, publicBaseUrl });
         return json(res, 200, {
@@ -498,19 +497,21 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
           packId: server.packId,
           packVersion: policy.packVersion,
           gameVersion: policy.gameVersion,
-          handshake: policy
+          handshake: policy,
+          ...publicAddressView(server)
         });
       }
 
       if (req.method === 'POST' && pathname === '/api/v1/public/handshakes') {
         const body = await readJson(req, 32 * 1024);
-        const address = String(body.address || '').trim().toLocaleLowerCase('en-US');
-        if (!address) return problem(res, 422, 'VALIDATION', 'address is required');
+        const address = String(body.address || '').trim();
+        const requestedServerId = String(body.serverId || '').trim();
+        if (!address && !requestedServerId) return problem(res, 422, 'VALIDATION', 'serverId or address is required');
         const playerIds = normalizePlayerIds(body.playerIds, body.playerId);
         const hello = sanitizeHello(body.hello);
         const snapshot = store.snapshot();
-        const server = Object.values(snapshot.servers).find((item) => String(item.publicAddress || '').trim().toLocaleLowerCase('en-US') === address);
-        if (!server) return problem(res, 404, 'SERVER_NOT_FOUND', 'No registered server uses that public address');
+        const server = resolveRegisteredServer(snapshot, { serverId: requestedServerId, address });
+        if (!server) return problem(res, 404, 'SERVER_NOT_FOUND', 'No registered server matches that id or address');
         const stored = await store.mutate((draft) => storeHandshake(draft, server.id, playerIds, hello));
         return json(res, 202, { accepted: true, serverId: server.id, expiresAt: stored.expiresAt });
       }
@@ -543,14 +544,31 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
             if (!draft.packs[body.packId]) throw Object.assign(new Error('Unknown packId'), { code: 'VALIDATION' });
             server.packId = body.packId;
           }
-          if (body.publicAddress !== undefined) server.publicAddress = body.publicAddress || null;
+          if (body.publicAddresses !== undefined || body.publicAddress !== undefined) {
+            applyAddresses(server, body.publicAddresses !== undefined ? body.publicAddresses : body.publicAddress, { replace: true });
+          }
           if (body.name) server.name = body.name;
           server.updatedAt = now();
-          recordAudit(draft, { actor: principal.username || principal.id, action: 'server.update', target: server.id, reason: body.reason, details: { packId: server.packId, publicAddress: server.publicAddress } });
-          return { id: server.id, name: server.name, packId: server.packId, publicAddress: server.publicAddress };
+          recordAudit(draft, { actor: principal.username || principal.id, action: 'server.update', target: server.id, reason: body.reason, details: { packId: server.packId, ...publicAddressView(server) } });
+          return { id: server.id, name: server.name, packId: server.packId, ...publicAddressView(server) };
         });
         if (!result) return problem(res, 404, 'SERVER_NOT_FOUND', 'Server was not found');
         return json(res, 200, result);
+      }
+
+      const addressesMatch = pathname.match(/^\/api\/v1\/servers\/([^/]+)\/addresses$/);
+      if (req.method === 'PUT' && addressesMatch) {
+        const snapshot = store.snapshot();
+        const server = snapshot.servers[addressesMatch[1]];
+        if (!server || tokenHash(bearer(req)) !== server.tokenHash) return problem(res, 401, 'UNAUTHORIZED', 'Invalid server credential');
+        const body = await readJson(req, 32 * 1024);
+        const updated = await store.mutate((draft) => {
+          const current = draft.servers[server.id];
+          current.lastSeenAt = now();
+          applyAddresses(current, body.publicAddresses || body.publicAddress, { replace: false });
+          return publicAddressView(current);
+        });
+        return json(res, 200, { serverId: server.id, ...updated });
       }
 
       const claimHandshakeMatch = pathname.match(/^\/api\/v1\/servers\/([^/]+)\/pending-handshake\/claim$/);
@@ -578,6 +596,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
         const status = await store.mutate((draft) => {
           const current = draft.servers[server.id];
           current.lastSeenAt = now();
+          if (body.publicAddresses || body.publicAddress) applyAddresses(current, body.publicAddresses || body.publicAddress, { replace: false });
           current.sync = {
             stage: body.stage,
             ok: body.ok !== false,
