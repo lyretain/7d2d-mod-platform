@@ -1,0 +1,714 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>七日杀 Mod 平台</title>
+  <style>
+    :root {
+      --bg: #101114;
+      --side: #16181d;
+      --card: #1c1f26;
+      --line: #2c313c;
+      --text: #e8e6e1;
+      --muted: #8b909c;
+      --accent: #e8a317;
+      --danger: #b33a2f;
+      --ok: #2f7a4f;
+      --warn: #8a6a1a;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, "Segoe UI", "Microsoft YaHei", sans-serif; }
+    body { display: grid; grid-template-columns: 232px 1fr; }
+    .sidebar { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; gap: 18px; padding: 20px 16px; background: var(--side); border-right: 1px solid var(--line); }
+    .brand { padding: 4px 8px 8px; }
+    .brand strong { display: block; color: var(--accent); font-size: 18px; letter-spacing: .02em; }
+    .brand span { color: var(--muted); font-size: 12px; }
+    nav { display: flex; flex-direction: column; gap: 6px; }
+    nav button { width: 100%; margin: 0; padding: 10px 12px; text-align: left; background: transparent; border: 1px solid transparent; border-radius: 8px; color: var(--text); font-weight: 600; }
+    nav button:hover { background: #22262e; }
+    nav button.active { background: #2a2114; border-color: #5a4316; color: var(--accent); }
+    .who { margin-top: auto; padding: 10px 12px; background: #111318; border: 1px solid var(--line); border-radius: 8px; color: var(--muted); font-size: 12px; word-break: break-all; }
+    .workspace { min-width: 0; padding: 22px 28px 40px; }
+    .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 16px; }
+    .top h1 { margin: 0; font-size: 24px; }
+    .top p { margin: 6px 0 0; color: var(--muted); }
+    .page { display: none; }
+    .page.on { display: block; }
+    .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px; }
+    .card { grid-column: span 6; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px 16px 12px; }
+    .card.stretch { grid-column: span 12; }
+    .card.third { grid-column: span 4; }
+    .card.danger { border-color: #5a2a26; background: #211618; }
+    .card-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
+    h2 { margin: 0 0 8px; font-size: 15px; }
+    p.hint { margin: 0 0 12px; color: var(--muted); font-size: 12px; }
+    label.field { display: block; margin: 8px 0 4px; color: var(--muted); font-size: 12px; }
+    input, select, button, textarea { width: 100%; padding: 9px 10px; margin: 0 0 8px; background: #14171d; color: #fff; border: 1px solid #3a404c; border-radius: 7px; }
+    input:focus, select:focus { outline: none; border-color: #8a6918; }
+    button { background: var(--danger); border: 0; cursor: pointer; font-weight: 650; }
+    button.secondary { background: #2a2f38; }
+    button.ok { background: var(--ok); }
+    button.ghost { width: auto; margin: 0; background: #2a2f38; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .actions button { width: auto; flex: 1; min-width: 110px; margin: 0; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .three { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+    .check { display: flex; align-items: center; gap: 8px; margin: 8px 0 12px; color: var(--muted); }
+    .check input { width: auto; margin: 0; }
+    .stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; grid-column: span 12; }
+    .stat { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+    .stat b { display: block; font-size: 22px; color: var(--accent); }
+    .stat span { color: var(--muted); font-size: 12px; }
+    .drop { position: relative; display: flex; align-items: center; justify-content: center; min-height: 118px; margin-bottom: 10px; border: 1px dashed #4a5160; border-radius: 10px; background: #14171d; color: var(--muted); text-align: center; }
+    .drop input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .drop.over { border-color: var(--accent); color: var(--accent); background: #241c10; }
+    .table-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 8px; background: #14171d; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+    th { color: var(--muted); font-weight: 600; background: #191c23; }
+    tbody tr { cursor: pointer; }
+    tbody tr:hover { background: #222733; }
+    tbody tr.sel { background: #2a2114; }
+    .empty { margin: 0; padding: 18px; color: var(--muted); text-align: center; }
+    .toast { margin: 0 0 14px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); }
+    .toast.ok { background: #173022; border-color: #2f7a4f; }
+    .toast.err { background: #2a1716; border-color: #b33a2f; }
+    .toast.warn { background: #2a2314; border-color: #8a6a1a; }
+    pre { white-space: pre-wrap; background: #0c0e12; padding: 12px; max-height: 220px; overflow: auto; margin: 8px 0 0; border-radius: 8px; font-size: 12px; }
+    .raw { margin-top: 16px; border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; background: var(--card); color: var(--muted); }
+    .raw summary { cursor: pointer; font-weight: 600; }
+    .raw pre { max-height: 360px; }
+    @media (max-width: 1100px) {
+      .card, .card.third { grid-column: span 12; }
+      .stats { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (max-width: 860px) {
+      body { grid-template-columns: 1fr; }
+      .sidebar { position: sticky; top: 0; z-index: 8; height: auto; flex-direction: row; flex-wrap: wrap; gap: 10px; padding: 12px; }
+      .brand { flex: 1; }
+      .who { margin: 0; min-width: 160px; }
+      nav { flex-direction: row; width: 100%; overflow: auto; }
+      nav button { width: auto; white-space: nowrap; }
+      .workspace { padding: 16px 14px 28px; }
+      .row, .three, .stats { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<aside class="sidebar">
+  <div class="brand"><strong>七日杀 Mod 平台</strong><span>管理控制台</span></div>
+  <nav>
+    <button class="active" data-tab="account" onclick="showTab('account')">账户</button>
+    <button data-tab="mods" onclick="showTab('mods')">Mod</button>
+    <button data-tab="packs" onclick="showTab('packs')">Pack</button>
+    <button data-tab="servers" onclick="showTab('servers')">服务器</button>
+    <button data-tab="ops" onclick="showTab('ops')">运维</button>
+  </nav>
+  <div class="who" id="authStatus">尚未登录</div>
+</aside>
+<main class="workspace">
+  <div class="top">
+    <div>
+      <h1 id="pageTitle">账户</h1>
+      <p id="pageHint">登录、邀请码注册与首次部署邀请</p>
+    </div>
+    <button class="ghost" onclick="logout()">退出登录</button>
+  </div>
+  <div id="toast" class="toast" hidden></div>
+
+  <div class="page on" id="tab-account">
+    <div class="grid">
+      <article class="card third">
+        <h2>登录</h2>
+        <p class="hint">日常管理请用账户登录，不要把 ADMIN_TOKEN 写进浏览器。</p>
+        <label class="field">用户名</label>
+        <input id="loginUser" autocomplete="username" placeholder="用户名">
+        <label class="field">密码</label>
+        <input id="loginPassword" type="password" autocomplete="current-password" placeholder="密码">
+        <div class="actions"><button onclick="login()">登录</button></div>
+      </article>
+      <article class="card third">
+        <h2>邀请码注册</h2>
+        <p class="hint">新管理员或只读用户用邀请码开户。</p>
+        <label class="field">用户名</label>
+        <input id="registerUser" autocomplete="username" placeholder="3-32位">
+        <label class="field">密码</label>
+        <input id="registerPassword" type="password" autocomplete="new-password" placeholder="至少10位">
+        <label class="field">邀请码</label>
+        <input id="registerInvite" placeholder="inv_...">
+        <div class="actions"><button class="secondary" onclick="register()">注册</button></div>
+      </article>
+      <article class="card third">
+        <h2>邀请管理</h2>
+        <p class="hint">首次部署可用 ADMIN_TOKEN 创建第一张邀请码。</p>
+        <label class="field">ADMIN_TOKEN（仅首次部署）</label>
+        <input id="bootstrapToken" type="password" placeholder="首次部署可在此填写 ADMIN_TOKEN">
+        <div class="three">
+          <div><label class="field">角色</label><select id="inviteRole"><option value="admin">管理员</option><option value="viewer">只读用户</option></select></div>
+          <div><label class="field">可用次数</label><input id="inviteUses" type="number" min="1" max="100" value="1"></div>
+          <div><label class="field">有效小时</label><input id="inviteHours" type="number" min="1" max="8760" value="168"></div>
+        </div>
+        <div class="actions"><button onclick="createInvite()">创建邀请码</button></div>
+        <pre id="inviteResult">邀请码只显示一次，请安全发送给受邀用户。</pre>
+      </article>
+    </div>
+  </div>
+
+  <div class="page" id="tab-mods">
+    <div class="grid">
+      <article class="card">
+        <h2>上传 Mod ZIP</h2>
+        <p class="hint">上传后自动计算 SHA-256，并填入右侧登记表。</p>
+        <label class="drop" id="dropZone">
+          <input id="artifact" type="file" accept=".zip">
+          <span id="dropHint">拖入 ZIP，或点击选择</span>
+        </label>
+        <div class="actions"><button onclick="upload()">上传并计算哈希</button></div>
+        <pre id="uploadResult">上传结果会显示在这里。</pre>
+      </article>
+      <article class="card">
+        <h2>登记 Mod 版本</h2>
+        <div class="row">
+          <div><label class="field">Mod ID</label><input id="modId" placeholder="example-vehicles"></div>
+          <div><label class="field">显示名称</label><input id="modName" placeholder="Example Vehicles"></div>
+        </div>
+        <div class="row">
+          <div><label class="field">版本</label><input id="modVersion" placeholder="1.0.0"></div>
+          <div><label class="field">文件 SHA-256</label><input id="artifactSha" placeholder="上传后自动填写"></div>
+        </div>
+        <label class="field">游戏版本</label>
+        <input id="gameVersions" placeholder="逗号分隔，例如 3.10.14">
+        <label class="field">ZIP 顶层目录</label>
+        <input id="installRoots" placeholder="逗号分隔，例如 ExampleVehicles">
+        <label class="check"><input id="containsDll" type="checkbox"> 包含客户端 DLL / 需要重启</label>
+        <div class="actions">
+          <button onclick="registerMod()">登记版本</button>
+          <button class="secondary" onclick="loadMods()">刷新列表</button>
+        </div>
+      </article>
+      <article class="card stretch">
+        <div class="card-head"><h2>已登记 Mod</h2><span class="hint">点击一行可回填表单</span></div>
+        <div id="list-mods" class="table-wrap"><p class="empty">登录后自动加载</p></div>
+      </article>
+    </div>
+  </div>
+
+  <div class="page" id="tab-packs">
+    <div class="grid">
+      <article class="card">
+        <h2>创建并发布</h2>
+        <p class="hint">条目格式：mod@version，多个用逗号分隔。</p>
+        <div class="row">
+          <div><label class="field">Pack ID</label><input id="packId" placeholder="production-pack"></div>
+          <div><label class="field">名称</label><input id="packName" placeholder="正式服 Pack"></div>
+        </div>
+        <div class="row">
+          <div><label class="field">游戏版本</label><input id="packGame" placeholder="3.10.14"></div>
+          <div><label class="field">条目</label><input id="packEntries" placeholder="mod@version,mod2@version"></div>
+        </div>
+        <label class="field">发布原因</label>
+        <input id="releaseReason" placeholder="发布 / 吊销 / 回滚原因">
+        <div class="actions">
+          <button onclick="publishPack()">创建并发布</button>
+          <button class="secondary" onclick="loadPacks()">刷新 Pack</button>
+        </div>
+      </article>
+      <article class="card danger">
+        <h2>吊销与回滚</h2>
+        <p class="hint">回滚可能影响已有存档。点击下方表格可填入 Release ID。</p>
+        <div class="row">
+          <div><label class="field">Pack ID</label><input id="releasePackId" placeholder="默认使用左侧 Pack ID"></div>
+          <div><label class="field">Release ID</label><input id="releaseId" placeholder="rel_..."></div>
+        </div>
+        <div class="actions">
+          <button class="secondary" onclick="listReleases()">列出 Release</button>
+          <button onclick="revokeRelease()">吊销</button>
+          <button onclick="rollbackRelease()">回滚</button>
+        </div>
+      </article>
+      <article class="card">
+        <div class="card-head"><h2>Pack 目录</h2><span class="hint">点击一行可回填</span></div>
+        <div id="list-packs" class="table-wrap"><p class="empty">登录后自动加载</p></div>
+      </article>
+      <article class="card">
+        <div class="card-head"><h2>Release</h2><span class="hint">先选 Pack 再列出</span></div>
+        <div id="list-releases" class="table-wrap"><p class="empty">尚未读取</p></div>
+      </article>
+    </div>
+  </div>
+
+  <div class="page" id="tab-servers">
+    <div class="grid">
+      <article class="card">
+        <h2>绑定 Pack</h2>
+        <p class="hint">把专用服指到当前要分发的 Pack。</p>
+        <div class="row">
+          <div><label class="field">Server ID</label><input id="serverId" placeholder="srv_..."></div>
+          <div><label class="field">新的 Pack ID</label><input id="serverPackId" placeholder="production-pack"></div>
+        </div>
+        <label class="field">公开地址</label>
+        <input id="serverAddress" placeholder="host:port">
+        <div class="actions">
+          <button onclick="updateServer()">更新绑定</button>
+          <button class="secondary" onclick="loadServers()">刷新状态</button>
+        </div>
+      </article>
+      <article class="card danger">
+        <h2>紧急停发</h2>
+        <p class="hint">停止后更新器将无法拉取新包，不影响已安装玩家继续游戏。</p>
+        <label class="field">停发原因</label>
+        <input id="pauseReason" placeholder="可选">
+        <div class="actions">
+          <button onclick="pauseDistribution(true)">紧急停止分发</button>
+          <button class="ok" onclick="pauseDistribution(false)">恢复分发</button>
+        </div>
+      </article>
+      <article class="card stretch">
+        <div class="card-head"><h2>服务器</h2><span class="hint">点击一行可回填</span></div>
+        <div id="list-servers" class="table-wrap"><p class="empty">登录后自动加载</p></div>
+      </article>
+    </div>
+  </div>
+
+  <div class="page" id="tab-ops">
+    <div class="grid">
+      <div class="stats">
+        <div class="stat"><b id="statDownloads">—</b><span>下载次数</span></div>
+        <div class="stat"><b id="statBytes">—</b><span>流量</span></div>
+        <div class="stat"><b id="statMods">—</b><span>Mod</span></div>
+        <div class="stat"><b id="statPacks">—</b><span>Pack</span></div>
+        <div class="stat"><b id="statServers">—</b><span>服务器</span></div>
+        <div class="stat"><b id="statUsers">—</b><span>用户</span></div>
+      </div>
+      <article class="card">
+        <h2>快捷查看</h2>
+        <div class="actions">
+          <button class="secondary" onclick="loadReviews()">审核队列</button>
+          <button class="secondary" onclick="loadMatrix()">兼容性矩阵</button>
+          <button class="secondary" onclick="loadStats()">下载统计</button>
+          <button class="secondary" onclick="loadUsers()">用户列表</button>
+          <button class="secondary" onclick="loadSessions()">登录会话</button>
+          <button class="secondary" onclick="loadState()">平台状态</button>
+        </div>
+      </article>
+      <article class="card">
+        <h2>审核与审计</h2>
+        <div class="row">
+          <div><label class="field">审计 action</label><input id="auditAction" placeholder="例如 release.publish"></div>
+          <div><label class="field">审核 SHA-256</label><input id="reviewSha" placeholder="点击审核表可回填"></div>
+        </div>
+        <div class="actions">
+          <button class="secondary" onclick="loadAudit()">查询审计</button>
+          <button class="ok" onclick="approveReview()">确认许可证并批准</button>
+        </div>
+      </article>
+      <article class="card stretch">
+        <div class="card-head"><h2 id="opsTitle">数据</h2><span class="hint">审核行可点选 SHA</span></div>
+        <div id="list-ops" class="table-wrap"><p class="empty">选择上方操作查看表格</p></div>
+      </article>
+    </div>
+  </div>
+
+  <details class="raw">
+    <summary>原始响应</summary>
+    <pre id="out">尚未读取</pre>
+  </details>
+</main>
+<script>
+const PAGES = {
+  account: { title: '账户', hint: '登录、邀请码注册与首次部署邀请' },
+  mods: { title: 'Mod', hint: '上传 ZIP、登记版本；点击表格行可回填表单' },
+  packs: { title: 'Pack', hint: '组装发布包。吊销与回滚会影响玩家下载' },
+  servers: { title: '服务器', hint: '绑定当前 Pack，必要时紧急停发' },
+  ops: { title: '运维', hint: '审核、审计、统计与会话' }
+};
+const LABELS = {
+  id: 'ID', name: '名称', latestVersion: '最新版本', versionCount: '版本数', containsDll: '含DLL',
+  gameVersion: '游戏', entryCount: '条目', packVersion: 'Pack版本', latestReleaseId: '当前Release',
+  createdAt: '创建时间', revokedAt: '吊销时间', packId: 'Pack', publicAddress: '地址', online: '在线',
+  acceptingPlayers: '接玩家', lastSeenAt: '最近心跳', sha256: 'SHA-256', fileName: '文件', status: '状态',
+  size: '大小', username: '用户', role: '角色', totpEnabled: '2FA', disabledAt: '停用', userId: '用户',
+  expiresAt: '过期', ip: 'IP', at: '时间', actor: '操作者', action: '动作', target: '对象', mod: 'Mod',
+  events: '事件', failCount: '失败', successCount: '成功', crashRate: '崩溃率', conclusion: '结论',
+  hash: '会话', count: '次数'
+};
+
+function showTab(name) {
+  document.querySelectorAll('.page').forEach((el) => el.classList.toggle('on', el.id === 'tab-' + name));
+  document.querySelectorAll('nav button').forEach((el) => el.classList.toggle('active', el.getAttribute('data-tab') === name));
+  pageTitle.textContent = PAGES[name].title;
+  pageHint.textContent = PAGES[name].hint;
+  if (name === 'mods') loadMods({ silent: true });
+  if (name === 'packs') loadPacks({ silent: true });
+  if (name === 'servers') loadServers({ silent: true });
+  if (name === 'ops') loadStats({ silent: true });
+}
+
+const savedToken = () => localStorage.getItem('modPlatformToken') || bootstrapToken.value;
+const headers = () => ({ authorization: 'Bearer ' + savedToken(), 'content-type': 'application/json' });
+
+async function request(url, options = {}) {
+  const r = await fetch(url, options);
+  let b = {};
+  try { b = await r.json(); } catch {}
+  if (!r.ok) throw new Error(b.error?.message || ('HTTP ' + r.status));
+  return b;
+}
+
+function esc(v) {
+  return String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function prettyBytes(n) {
+  n = Number(n) || 0;
+  if (n < 1024) return n + ' B';
+  if (n < 1048576) return (n / 1024).toFixed(1) + ' KB';
+  return (n / 1048576).toFixed(1) + ' MB';
+}
+
+function fmt(key, v) {
+  if (v == null || v === '') return '—';
+  if (typeof v === 'boolean') return v ? '是' : '否';
+  if (key === 'bytes' || key === 'artifactSize' || key === 'size') return prettyBytes(v);
+  if (/At$/.test(key) || key === 'createdAt' || key === 'expiresAt') return String(v).replace('T', ' ').slice(0, 19);
+  if ((key === 'sha256' || key === 'artifactSha' || key === 'hash') && String(v).length > 16) return String(v).slice(0, 10) + '…';
+  if (key === 'crashRate' && typeof v === 'number') return (v * 100).toFixed(1) + '%';
+  if (Array.isArray(v)) return v.join(', ');
+  if (typeof v === 'object') return JSON.stringify(v);
+  return String(v);
+}
+
+function table(id, rows, cols, onpick) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (!rows || !rows.length) {
+    el.innerHTML = '<p class="empty">暂无数据</p>';
+    return;
+  }
+  let html = '<table><thead><tr>' + cols.map((c) => '<th>' + esc(LABELS[c] || c) + '</th>').join('') + '</tr></thead><tbody>';
+  rows.forEach((row, i) => {
+    html += '<tr data-i="' + i + '">' + cols.map((c) => '<td>' + esc(fmt(c, row[c])) + '</td>').join('') + '</tr>';
+  });
+  html += '</tbody></table>';
+  el.innerHTML = html;
+  if (!onpick) return;
+  el.querySelectorAll('tbody tr').forEach((tr) => {
+    tr.onclick = () => {
+      onpick(rows[Number(tr.getAttribute('data-i'))]);
+      tr.parentNode.querySelectorAll('tr').forEach((x) => x.classList.remove('sel'));
+      tr.classList.add('sel');
+    };
+  });
+}
+
+function opsTitle(text) {
+  const el = document.getElementById('opsTitle');
+  if (el) el.textContent = text;
+}
+
+function fillStats(s) {
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set('statDownloads', s.downloads);
+  set('statBytes', prettyBytes(s.bytes));
+  set('statMods', s.mods);
+  set('statPacks', s.packs);
+  set('statServers', s.servers);
+  set('statUsers', s.users);
+  if (s.topArtifacts) {
+    table('list-ops', s.topArtifacts, ['sha256', 'count']);
+    opsTitle('下载热度');
+  }
+}
+
+function paint(data) {
+  if (!data || typeof data !== 'object') return;
+  if (data.mods) table('list-mods', data.mods, ['id', 'name', 'latestVersion', 'versionCount', 'containsDll'], (r) => {
+    modId.value = r.id;
+    modName.value = r.name || '';
+    if (r.latestVersion) modVersion.value = r.latestVersion;
+    if (r.versions && r.versions[0]) artifactSha.value = r.versions[0].artifactSha || '';
+  });
+  if (data.packs) table('list-packs', data.packs, ['id', 'name', 'gameVersion', 'entryCount', 'packVersion', 'latestReleaseId'], (r) => {
+    packId.value = r.id;
+    packName.value = r.name || '';
+    packGame.value = r.gameVersion || '';
+    releasePackId.value = r.id;
+    if (r.latestReleaseId) releaseId.value = r.latestReleaseId;
+  });
+  if (data.releases) table('list-releases', data.releases, ['id', 'packVersion', 'createdAt', 'revokedAt'], (r) => {
+    releaseId.value = r.id;
+    if (data.packId) releasePackId.value = data.packId;
+  });
+  if (data.servers) table('list-servers', data.servers, ['id', 'packId', 'publicAddress', 'online', 'acceptingPlayers', 'lastSeenAt'], (r) => {
+    serverId.value = r.id || '';
+    serverPackId.value = r.packId || '';
+    serverAddress.value = r.publicAddress || '';
+  });
+  if (data.reviews) {
+    table('list-ops', data.reviews, ['sha256', 'fileName', 'status', 'size', 'createdAt'], (r) => { reviewSha.value = r.sha256 || ''; });
+    opsTitle('审核队列');
+  }
+  if (data.users) {
+    table('list-ops', data.users, ['username', 'role', 'totpEnabled', 'disabledAt', 'createdAt']);
+    opsTitle('用户');
+  }
+  if (data.sessions) {
+    table('list-ops', data.sessions, ['userId', 'createdAt', 'expiresAt']);
+    opsTitle('登录会话');
+  }
+  if (data.audit) {
+    table('list-ops', data.audit, ['at', 'actor', 'action', 'target']);
+    opsTitle('审计');
+  }
+  if (data.rows) {
+    table('list-ops', data.rows, ['gameVersion', 'mod', 'events', 'failCount', 'successCount', 'crashRate', 'conclusion']);
+    opsTitle(data.block && data.block.blocked ? '兼容性矩阵（已熔断）' : '兼容性矩阵');
+  }
+  if (data.downloads != null && data.topArtifacts) fillStats(data);
+}
+
+let toastTimer;
+function toast(text, kind) {
+  const el = document.getElementById('toast');
+  el.hidden = !text;
+  el.className = 'toast ' + (kind || 'ok');
+  el.textContent = text || '';
+  clearTimeout(toastTimer);
+  if (text) toastTimer = setTimeout(() => { el.hidden = true; }, 5000);
+}
+
+function show(value, opts = {}) {
+  out.textContent = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+  if (typeof value === 'string') {
+    const cancelled = /已取消/.test(value);
+    const ok = /成功|已退出|已加载|已更新|已取消/.test(value);
+    toast(value, cancelled ? 'warn' : (ok ? 'ok' : 'err'));
+    return;
+  }
+  paint(value);
+  if (!opts.silent) toast(opts.message || '已更新', 'ok');
+}
+
+async function refreshMe() {
+  const token = savedToken();
+  if (!token) { authStatus.textContent = '尚未登录'; return; }
+  try {
+    const me = await request('/api/v1/auth/me', { headers: headers() });
+    authStatus.textContent = me.user.username + ' · ' + me.user.role;
+  } catch {
+    authStatus.textContent = '登录已失效';
+    localStorage.removeItem('modPlatformToken');
+  }
+}
+
+async function login() {
+  try {
+    const r = await request('/api/v1/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: loginUser.value, password: loginPassword.value }) });
+    if (r.requiresTotp) {
+      const code = prompt('请输入两步验证码或恢复码');
+      const done = await request('/api/v1/auth/login/totp', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ticket: r.ticket, code }) });
+      localStorage.setItem('modPlatformToken', done.token);
+    } else {
+      localStorage.setItem('modPlatformToken', r.token);
+    }
+    loginPassword.value = '';
+    await refreshMe();
+    show('登录成功');
+    showTab('mods');
+  } catch (e) { show(e.message); }
+}
+
+async function logout() {
+  try { await request('/api/v1/auth/logout', { method: 'POST', headers: headers(), body: '{}' }); } catch {}
+  localStorage.removeItem('modPlatformToken');
+  bootstrapToken.value = '';
+  await refreshMe();
+  showTab('account');
+  show('已退出登录');
+}
+
+async function register() {
+  try {
+    const r = await request('/api/v1/auth/register', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: registerUser.value, password: registerPassword.value, inviteCode: registerInvite.value }) });
+    registerPassword.value = '';
+    registerInvite.value = '';
+    show('注册成功，请登录');
+    out.textContent = JSON.stringify({ user: r.user }, null, 2);
+  } catch (e) { show(e.message); }
+}
+
+async function createInvite() {
+  try {
+    const r = await request('/api/v1/invites', { method: 'POST', headers: headers(), body: JSON.stringify({ role: inviteRole.value, maxUses: Number(inviteUses.value), expiresInHours: Number(inviteHours.value) }) });
+    inviteResult.textContent = '邀请码（只显示一次）：\n' + r.code + '\n\n' + JSON.stringify(r.invite, null, 2);
+    show('邀请码已创建，请立即复制');
+  } catch (e) {
+    inviteResult.textContent = e.message;
+    show(e.message);
+  }
+}
+
+async function loadState() {
+  try {
+    show(await request('/api/v1/admin/state', { headers: headers() }), { message: '已加载平台状态' });
+    opsTitle('平台状态（见原始响应）');
+  } catch (e) { show(e.message); }
+}
+
+async function upload() {
+  try {
+    const file = artifact.files[0];
+    if (!file) throw Error('请选择 ZIP');
+    uploadResult.textContent = '正在上传 ' + file.name + ' …';
+    const bytes = await file.arrayBuffer();
+    const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map((x) => x.toString(16).padStart(2, '0')).join('');
+    const r = await request('/api/v1/artifacts/' + hash, { method: 'PUT', headers: { authorization: headers().authorization, 'content-type': 'application/zip', 'x-file-name': file.name }, body: bytes });
+    artifactSha.value = hash;
+    uploadResult.textContent = 'SHA-256：' + hash + '\n状态：' + (r.review && r.review.status || '已上传') + '\n大小：' + prettyBytes(r.size);
+    show(r, { message: '上传完成' });
+  } catch (e) {
+    uploadResult.textContent = e.message;
+    show(e.message);
+  }
+}
+
+async function registerMod() {
+  try {
+    const body = {
+      id: modId.value,
+      name: modName.value,
+      version: modVersion.value,
+      artifactSha: artifactSha.value,
+      gameVersions: gameVersions.value.split(',').map((x) => x.trim()).filter(Boolean),
+      installRoots: installRoots.value.split(',').map((x) => x.trim()).filter(Boolean),
+      containsDll: containsDll.checked,
+      requiresRestart: containsDll.checked
+    };
+    show(await request('/api/v1/mods', { method: 'POST', headers: headers(), body: JSON.stringify(body) }), { message: '已登记 Mod 版本' });
+    await loadMods({ silent: true });
+  } catch (e) { show(e.message); }
+}
+
+async function publishPack() {
+  try {
+    const entries = packEntries.value.split(',').map((x) => {
+      const parts = x.trim().split('@');
+      return { modId: parts[0], version: parts[1], required: true };
+    });
+    await request('/api/v1/packs', { method: 'POST', headers: headers(), body: JSON.stringify({ id: packId.value, name: packName.value, gameVersion: packGame.value, entries }) });
+    show(await request('/api/v1/packs/' + encodeURIComponent(packId.value) + '/releases', { method: 'POST', headers: headers(), body: JSON.stringify({ reason: releaseReason.value || 'publish' }) }), { message: 'Pack 已发布' });
+    await loadPacks({ silent: true });
+    await listReleases({ silent: true });
+  } catch (e) { show(e.message); }
+}
+
+async function listReleases(opts) {
+  try {
+    show(await request('/api/v1/packs/' + encodeURIComponent(releasePackId.value || packId.value) + '/releases', { headers: headers() }), Object.assign({ message: '已加载 Release' }, opts || {}));
+  } catch (e) { show(e.message); }
+}
+
+async function confirmToken(action, message) {
+  if (!confirm(message)) throw new Error('已取消');
+  const r = await request('/api/v1/admin/confirm', { method: 'POST', headers: headers(), body: JSON.stringify({ action }) });
+  return r.token;
+}
+
+async function revokeRelease() {
+  try {
+    const token = await confirmToken('release.revoke', '确认吊销该 Release？玩家将无法再下载此版本。');
+    show(await request('/api/v1/packs/' + encodeURIComponent(releasePackId.value || packId.value) + '/releases/' + encodeURIComponent(releaseId.value) + '/revoke', { method: 'POST', headers: headers(), body: JSON.stringify({ reason: releaseReason.value || 'revoke', confirmToken: token }) }), { message: '已吊销' });
+    await listReleases({ silent: true });
+  } catch (e) { show(e.message); }
+}
+
+async function rollbackRelease() {
+  try {
+    const token = await confirmToken('pack.rollback', '确认回滚？可能影响已有存档。');
+    show(await request('/api/v1/packs/' + encodeURIComponent(releasePackId.value || packId.value) + '/rollback', { method: 'POST', headers: headers(), body: JSON.stringify({ releaseId: releaseId.value, reason: releaseReason.value || 'rollback', confirmToken: token }) }), { message: '已回滚' });
+    await loadPacks({ silent: true });
+  } catch (e) { show(e.message); }
+}
+
+async function updateServer() {
+  try {
+    show(await request('/api/v1/servers/' + encodeURIComponent(serverId.value), { method: 'PATCH', headers: headers(), body: JSON.stringify({ packId: serverPackId.value || undefined, publicAddress: serverAddress.value || undefined }) }), { message: '服务器已更新' });
+    await loadServers({ silent: true });
+  } catch (e) { show(e.message); }
+}
+
+async function pauseDistribution(paused) {
+  try {
+    const action = paused ? 'distribution.pause' : 'distribution.resume';
+    const token = await confirmToken(action, paused ? '确认紧急停止分发？' : '确认恢复分发？');
+    show(await request('/api/v1/admin/distribution', { method: 'POST', headers: headers(), body: JSON.stringify({ paused, reason: pauseReason.value || undefined, confirmToken: token }) }), { message: paused ? '已停止分发' : '已恢复分发' });
+    await loadServers({ silent: true });
+  } catch (e) { show(e.message); }
+}
+
+async function loadMods(opts) {
+  try { show(await request('/api/v1/mods', { headers: headers() }), Object.assign({ message: '已加载 Mod 列表' }, opts || {})); }
+  catch (e) { show(e.message); }
+}
+async function loadPacks(opts) {
+  try { show(await request('/api/v1/packs', { headers: headers() }), Object.assign({ message: '已加载 Pack 列表' }, opts || {})); }
+  catch (e) { show(e.message); }
+}
+async function loadServers(opts) {
+  try { show(await request('/api/v1/servers', { headers: headers() }), Object.assign({ message: '已加载服务器' }, opts || {})); }
+  catch (e) { show(e.message); }
+}
+async function loadUsers() {
+  try { show(await request('/api/v1/users', { headers: headers() }), { message: '已加载用户' }); }
+  catch (e) { show(e.message); }
+}
+async function loadReviews() {
+  try { show(await request('/api/v1/reviews', { headers: headers() }), { message: '已加载审核队列' }); }
+  catch (e) { show(e.message); }
+}
+async function loadMatrix() {
+  try { show(await request('/api/v1/diagnostics/matrix', { headers: headers() }), { message: '已加载兼容性矩阵' }); }
+  catch (e) { show(e.message); }
+}
+async function loadAudit() {
+  try { show(await request('/api/v1/admin/audit' + (auditAction.value ? '?action=' + encodeURIComponent(auditAction.value) : ''), { headers: headers() }), { message: '已加载审计' }); }
+  catch (e) { show(e.message); }
+}
+async function loadStats(opts) {
+  try { show(await request('/api/v1/admin/stats', { headers: headers() }), Object.assign({ message: '已加载统计' }, opts || {})); }
+  catch (e) { show(e.message); }
+}
+async function loadSessions() {
+  try { show(await request('/api/v1/sessions', { headers: headers() }), { message: '已加载会话' }); }
+  catch (e) { show(e.message); }
+}
+async function approveReview() {
+  try {
+    show(await request('/api/v1/reviews/' + reviewSha.value, { method: 'POST', headers: headers(), body: JSON.stringify({ status: 'approved', licenseConfirmed: true }) }), { message: '已批准' });
+    await loadReviews();
+  } catch (e) { show(e.message); }
+}
+
+(function bindDropZone() {
+  const zone = document.getElementById('dropZone');
+  const input = document.getElementById('artifact');
+  const hint = document.getElementById('dropHint');
+  const name = () => {
+    hint.textContent = input.files[0] ? ('已选择 ' + input.files[0].name + '（' + prettyBytes(input.files[0].size) + '）') : '拖入 ZIP，或点击选择';
+  };
+  input.addEventListener('change', name);
+  ['dragenter', 'dragover'].forEach((ev) => zone.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach((ev) => zone.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.remove('over'); }));
+  zone.addEventListener('drop', (e) => {
+    if (e.dataTransfer.files[0]) {
+      input.files = e.dataTransfer.files;
+      name();
+    }
+  });
+})();
+
+refreshMe();
+</script>
+</body>
+</html>

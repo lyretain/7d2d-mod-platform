@@ -8,7 +8,7 @@ import { analyzeZipBuffer } from '../src/analyze.js';
 import { createApp } from '../src/app.js';
 import { compatibilityMatrix, ingestDiagnostic, shouldBlockInstalls } from '../src/compatibility.js';
 import { s3Sign } from '../src/objects.js';
-import { inspectRequest } from '../src/security.js';
+import { inspectRequest, securityHeaders } from '../src/security.js';
 import { SigningService } from '../src/signing.js';
 import { JsonStore } from '../src/store.js';
 import { totp } from '../src/totp.js';
@@ -132,4 +132,7 @@ test('S3 SigV4 string and CSRF same-origin policy', () => {
   assert.match(authorization, /^AWS4-HMAC-SHA256 Credential=AKIA\/20260816\/us-east-1\/s3\/aws4_request/);
   assert.equal(inspectRequest({ method: 'POST', url: '/api/v1/auth/login', headers: { host: 'mods.example', origin: 'https://mods.example' } }).blocked, false);
   assert.equal(inspectRequest({ method: 'POST', url: '/api/v1/auth/login', headers: { host: 'mods.example', origin: 'https://evil.example' } }).blocked, true);
+  const csp = securityHeaders({ headers: {}, url: '/' })['content-security-policy'];
+  assert.match(csp, /script-src[^;]*'self'/);
+  assert.match(csp, /challenges\.cloudflare\.com/);
 });

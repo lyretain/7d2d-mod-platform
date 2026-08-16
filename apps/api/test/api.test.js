@@ -64,6 +64,9 @@ test('requires a one-use invitation for registration and supports login sessions
   const { base } = await fixture(t);
   const adminPage = await (await fetch(base)).text();
   assert.match(adminPage, /邀请码注册/);
+  const adminScript = adminPage.split('<script>')[1]?.split('</script>')[0];
+  assert.ok(adminScript, 'admin page must include a script block');
+  new Function(adminScript);
   const bootstrap = { authorization: 'Bearer test-admin-token-1234', 'content-type': 'application/json' };
   const invitation = await jsonRequest(`${base}/api/v1/invites`, { method: 'POST', headers: bootstrap, body: JSON.stringify({ role: 'admin', maxUses: 1, expiresInHours: 24 }) });
   assert.match(invitation.code, /^inv_/);

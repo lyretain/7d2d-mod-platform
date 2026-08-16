@@ -17,7 +17,7 @@ export function securityHeaders(req, { forceHttps = false, adminHost = '' } = {}
     'x-frame-options': 'DENY',
     'referrer-policy': 'no-referrer',
     'permissions-policy': 'geolocation=(), microphone=(), camera=()',
-    'content-security-policy': "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'"
+    'content-security-policy': "default-src 'none'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://static.cloudflareinsights.com; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; frame-ancestors 'none'"
   };
   if (forceHttps) headers['strict-transport-security'] = 'max-age=31536000; includeSubDomains';
   if (adminHost && req.headers.host && req.headers.host.split(':')[0] !== adminHost && (req.url === '/' || req.url.startsWith('/api/v1/admin') || req.url.startsWith('/api/v1/auth') || req.url.startsWith('/api/v1/invites'))) {
