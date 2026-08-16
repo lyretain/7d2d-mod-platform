@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -30,6 +31,41 @@ namespace ModPlatform.Shared
                     response.EnsureSuccessStatusCode();
                     using (var stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
                         return Deserialize<ServerAssignment>(stream);
+                }
+            }
+        }
+
+        public async Task SubmitHandshakeAsync(string address, IList<string> playerIds, HandshakeHello hello, CancellationToken cancellationToken)
+        {
+            var body = new HandshakeSubmit
+            {
+                Address = address,
+                PlayerIds = playerIds == null ? new List<string>() : new List<string>(playerIds),
+                Hello = hello
+            };
+            using (var content = new StringContent(Serialize(body), Encoding.UTF8, "application/json"))
+            using (var response = await http.PostAsync(baseUrl + "/api/v1/public/handshakes", content, cancellationToken).ConfigureAwait(false))
+                response.EnsureSuccessStatusCode();
+        }
+
+        public async Task<HandshakeHello> ClaimHandshakeAsync(string serverId, string token, IList<string> playerIds, CancellationToken cancellationToken)
+        {
+            using (var request = new HttpRequestMessage(HttpMethod.Post, baseUrl + "/api/v1/servers/" + Uri.EscapeDataString(serverId) + "/pending-handshake/claim"))
+            {
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                request.Content = new StringContent(Serialize(new HandshakeClaimRequest
+                {
+                    PlayerIds = playerIds == null ? new List<string>() : new List<string>(playerIds)
+                }), Encoding.UTF8, "application/json");
+                using (var response = await http.SendAsync(request, cancellationToken).ConfigureAwait(false))
+                {
+                    if (response.StatusCode == System.Net.HttpStatusCode.NotFound) return null;
+                    response.EnsureSuccessStatusCode();
+                    using (var stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
+                    {
+                        var result = Deserialize<HandshakeClaimResult>(stream);
+                        return result == null ? null : result.Hello;
+                    }
                 }
             }
         }

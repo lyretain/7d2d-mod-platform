@@ -32,7 +32,7 @@ namespace ModPlatform.Shared
 {
     public static class PluginIdentity
     {
-        public const string PluginVersion = "0.2.0";
+        public const string PluginVersion = "0.2.1";
         public const int ProtocolVersion = 1;
         public const string TargetGameVersion = "$GameVersion";
         public const string TargetSteamBuild = "$SteamBuildId";
@@ -42,7 +42,7 @@ namespace ModPlatform.Shared
 Set-Content -LiteralPath (Join-Path $root "plugins\shared\PluginIdentity.cs") -Value $identity -Encoding UTF8
 
 $versionInfo = @{
-  pluginVersion = "0.2.0"
+  pluginVersion = "0.2.1"
   protocolVersion = 1
   targetGameVersion = $GameVersion
   targetSteamBuild = $SteamBuildId
@@ -84,9 +84,9 @@ if (Get-Command dotnet -ErrorAction SilentlyContinue) {
   & $csc @common "/out:$build\ModPlatform.Shared.dll" @sharedSources
   if ($LASTEXITCODE -ne 0) { throw "Shared plugin compilation failed." }
   $gameReferences = @("/reference:$GameManagedDir\Assembly-CSharp.dll","/reference:$GameManagedDir\LogLibrary.dll","/reference:$GameManagedDir\UnityEngine.CoreModule.dll","/reference:$build\ModPlatform.Shared.dll")
-  & $csc @common @gameReferences "/out:$serverOutput\ModPlatform.Server.dll" "$root\plugins\server\ServerPlugin.cs" "$root\plugins\server\NetPackageModPlatformHello.cs"
+  & $csc @common @gameReferences "/out:$serverOutput\ModPlatform.Server.dll" "$root\plugins\server\ServerPlugin.cs"
   if ($LASTEXITCODE -ne 0) { throw "Server plugin compilation failed." }
-  & $csc @common @gameReferences "/out:$clientOutput\ModPlatform.Client.dll" "$root\plugins\client\ClientPlugin.cs" "$root\plugins\client\NetPackageModPlatformHello.cs"
+  & $csc @common @gameReferences "/out:$clientOutput\ModPlatform.Client.dll" "$root\plugins\client\ClientPlugin.cs"
   if ($LASTEXITCODE -ne 0) { throw "Client plugin compilation failed." }
   Copy-Item "$build\ModPlatform.Shared.dll" -Destination $serverOutput -Force
   Copy-Item "$build\ModPlatform.Shared.dll" -Destination $clientOutput -Force

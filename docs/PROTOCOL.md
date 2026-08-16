@@ -18,14 +18,16 @@ Launcher preflight remains the supported way to install files before the game lo
 
 ## Handshake v1
 
-The client plugin sends `NetPackageModPlatformHello` (`AllowedBeforeAuth = true`) with:
+The client plugin posts the hello to `POST /api/v1/public/handshakes` (not a custom 7DTD `NetPackage`, so extra server-only Mods cannot shift package IDs). The payload includes:
 
-- `protocolVersion` (must be `1`)
-- `pluginVersion`, `gameVersion`, `steamBuildId`
-- `packId`, `packVersion`, `keyId`
-- `artifactFingerprint`: sorted lowercase SHA-256 list from `.modplatform/state.json`
+- `address`: the same `host:port` registered for the dedicated server
+- `playerIds`: Steam / EOS / display-name identifiers known to the local client
+- `hello.protocolVersion` (must be `1`)
+- `hello.pluginVersion`, `hello.gameVersion`, `hello.steamBuildId`
+- `hello.packId`, `hello.packVersion`, `hello.keyId`
+- `hello.artifactFingerprint`: sorted lowercase SHA-256 list from `.modplatform/state.json`
 
-The server plugin compares that payload to the assignment `handshake` policy. Missing plugin, timeout, paused distribution, revoked release, game-version mismatch, or hash mismatch all disconnect the player with a reason code and launcher URL.
+The dedicated-server plugin claims that payload with `POST /api/v1/servers/{id}/pending-handshake/claim` using the server token, then compares it to the assignment `handshake` policy. Missing plugin, timeout, paused distribution, revoked release, game-version mismatch, or hash mismatch all disconnect the player with a reason code and launcher URL. Pending hellos expire after two minutes and are consumed on claim.
 
 A custom plugin can still claim matching hashes; the gate exists to stop ordinary unsynced clients, not a dedicated spoofed DLL. The server never accepts arbitrary artifact URLs from the client.
 

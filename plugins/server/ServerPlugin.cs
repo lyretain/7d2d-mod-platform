@@ -17,6 +17,7 @@ public sealed class ModPlatformServerPlugin : IModApi
     static bool pendingRestart;
     static string modsDirectory;
     static readonly Dictionary<int, ClientHandshake> clients = new Dictionary<int, ClientHandshake>();
+    static readonly HashSet<int> claiming = new HashSet<int>();
     static readonly object gate = new object();
 
     static ModPlatformServerPlugin()
@@ -75,6 +76,7 @@ public sealed class ModPlatformServerPlugin : IModApi
     {
         if (ConnectionManager.Instance == null || !ConnectionManager.Instance.IsServer) return ModEvents.EModEventResult.Continue;
         if (IsLocalHost(data.ClientInfo)) return ModEvents.EModEventResult.Continue;
+        TryClaim(data.ClientInfo);
         string reason;
         string message;
         lock (gate)
@@ -113,6 +115,7 @@ public sealed class ModPlatformServerPlugin : IModApi
                 clients[Key(data.ClientInfo)] = new ClientHandshake { Verified = false, Reason = HandshakeReasons.MissingPlugin, Message = DenyMessage(HandshakeReasons.MissingPlugin, "Client plugin is missing."), JoinedAt = DateTime.UtcNow, Client = data.ClientInfo };
             else clients[Key(data.ClientInfo)].JoinedAt = DateTime.UtcNow;
         }
+        TryClaim(data.ClientInfo);
     }
 
     static void OnPlayerSpawning(ref ModEvents.SPlayerSpawningData data)
@@ -147,8 +150,82 @@ public sealed class ModPlatformServerPlugin : IModApi
                 expired.Add(item);
             }
         }
-        if (expired == null) return;
-        foreach (var item in expired) Kick(item.Client, HandshakeReasons.Timeout, DenyMessage(HandshakeReasons.Timeout, "Handshake timed out. Install the launcher and client plugin."));
+        if (expired != null)
+        {
+            foreach (var item in expired) Kick(item.Client, HandshakeReasons.Timeout, DenyMessage(HandshakeReasons.Timeout, "Handshake timed out. Install the launcher and client plugin."));
+        }
+        List<ClientInfo> retry = null;
+        lock (gate)
+        {
+            foreach (var item in clients.Values)
+            {
+                if (item.Verified || item.Client == null) continue;
+                if (item.NextClaimAt > DateTime.UtcNow) continue;
+                item.NextClaimAt = DateTime.UtcNow.AddSeconds(1);
+                if (retry == null) retry = new List<ClientInfo>();
+                retry.Add(item.Client);
+            }
+        }
+        if (retry != null)
+        {
+            foreach (var client in retry) TryClaim(client);
+        }
+    }
+
+    static void TryClaim(ClientInfo client)
+    {
+        if (client == null || platform == null || config == null) return;
+        var key = Key(client);
+        lock (gate)
+        {
+            if (clients.TryGetValue(key, out var state) && state.Verified) return;
+            if (!claiming.Add(key)) return;
+        }
+        Ignore(ClaimAsync(client));
+    }
+
+    static async Task ClaimAsync(ClientInfo client)
+    {
+        try
+        {
+            var ids = CollectPlayerIds(client);
+            if (ids.Count == 0) return;
+            var hello = await platform.ClaimHandshakeAsync(config.ServerId, config.ServerToken, ids, CancellationToken.None).ConfigureAwait(false);
+            if (hello != null) OnHello(client, hello);
+        }
+        catch (Exception error)
+        {
+            Log.Warning("[ModPlatform] Handshake claim failed: " + error.Message);
+        }
+        finally
+        {
+            lock (gate) claiming.Remove(Key(client));
+        }
+    }
+
+    static List<string> CollectPlayerIds(ClientInfo client)
+    {
+        var ids = new List<string>();
+        if (client == null) return ids;
+        try { AddPlatformId(ids, client.PlatformId); } catch { }
+        try { AddPlatformId(ids, client.CrossplatformId); } catch { }
+        try { AddPlatformId(ids, client.InternalId); } catch { }
+        try { AddId(ids, client.playerName); } catch { }
+        return ids;
+    }
+
+    static void AddPlatformId(List<string> ids, PlatformUserIdentifierAbs value)
+    {
+        if (value == null) return;
+        try { AddId(ids, value.CombinedString); } catch { }
+        try { AddId(ids, value.ToString()); } catch { }
+    }
+
+    static void AddId(List<string> ids, string value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return;
+        var trimmed = value.Trim();
+        if (!ids.Exists(item => string.Equals(item, trimmed, StringComparison.OrdinalIgnoreCase))) ids.Add(trimmed);
     }
 
     static Decision Evaluate(HandshakeHello hello)
@@ -344,6 +421,7 @@ public sealed class ModPlatformServerPlugin : IModApi
         public string Reason;
         public string Message;
         public DateTime JoinedAt;
+        public DateTime NextClaimAt;
         public ClientInfo Client;
     }
 

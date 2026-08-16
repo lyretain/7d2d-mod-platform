@@ -153,8 +153,10 @@ node apps/updater/src/cli.js --base-url https://mods.aic.la --server-address pla
 
 ```text
 [ModPlatform] Client bootstrap initialized
-[ModPlatform] Handshake sent
+[ModPlatform] Handshake sent address=192.168.3.42:26900
 ```
+
+握手走平台 HTTP，不走游戏自定义数据包。玩家连的地址必须和服主登记的公开地址一致，否则服务端收不到握手。客户端和服务端插件都要换成 `0.2.1`。
 
 ## 四、常见问题
 

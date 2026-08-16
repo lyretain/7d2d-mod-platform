@@ -64,6 +64,26 @@ namespace ModPlatform.Shared
     }
 
     [DataContract]
+    public sealed class HandshakeSubmit
+    {
+        [DataMember(Name = "address")] public string Address { get; set; }
+        [DataMember(Name = "playerIds")] public List<string> PlayerIds { get; set; }
+        [DataMember(Name = "hello")] public HandshakeHello Hello { get; set; }
+    }
+
+    [DataContract]
+    public sealed class HandshakeClaimRequest
+    {
+        [DataMember(Name = "playerIds")] public List<string> PlayerIds { get; set; }
+    }
+
+    [DataContract]
+    public sealed class HandshakeClaimResult
+    {
+        [DataMember(Name = "hello")] public HandshakeHello Hello { get; set; }
+    }
+
+    [DataContract]
     public sealed class ServerSyncStatus
     {
         [DataMember(Name = "stage")] public string Stage { get; set; }

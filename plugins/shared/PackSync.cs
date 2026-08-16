@@ -37,30 +37,41 @@ namespace ModPlatform.Shared
             return parent == null ? pluginDirectory : parent.FullName;
         }
 
+        public static string ControlDirectory(string modsDir)
+        {
+            if (string.IsNullOrEmpty(modsDir)) return null;
+            if (Directory.Exists(Path.Combine(modsDir, "ModPlatformServer")))
+                return Path.Combine(modsDir, "ModPlatformServer", ".modplatform");
+            return Path.Combine(modsDir, ".modplatform");
+        }
+
         public static void ApplyPending(string modsDir)
         {
             if (string.IsNullOrEmpty(modsDir)) return;
-            var pending = Path.Combine(modsDir, ".modplatform", "pending");
-            if (!Directory.Exists(pending)) return;
-            foreach (var staged in Directory.GetDirectories(pending))
+            foreach (var controlDir in ControlDirectories(modsDir))
             {
-                var root = Path.GetFileName(staged);
-                if (IsProtected(root)) continue;
-                var target = Path.Combine(modsDir, root);
-                var backup = Path.Combine(modsDir, ".modplatform", "backups", "boot-" + DateTime.UtcNow.ToString("yyyyMMddHHmmss"), root);
-                try
+                var pending = Path.Combine(controlDir, "pending");
+                if (!Directory.Exists(pending)) continue;
+                foreach (var staged in Directory.GetDirectories(pending))
                 {
-                    if (Directory.Exists(target))
+                    var root = Path.GetFileName(staged);
+                    if (IsProtected(root)) continue;
+                    var target = Path.Combine(modsDir, root);
+                    var backup = Path.Combine(controlDir, "backups", "boot-" + DateTime.UtcNow.ToString("yyyyMMddHHmmss"), root);
+                    try
                     {
-                        Directory.CreateDirectory(Path.GetDirectoryName(backup));
-                        if (Directory.Exists(backup)) Directory.Delete(backup, true);
-                        Directory.Move(target, backup);
+                        if (Directory.Exists(target))
+                        {
+                            Directory.CreateDirectory(Path.GetDirectoryName(backup));
+                            if (Directory.Exists(backup)) Directory.Delete(backup, true);
+                            Directory.Move(target, backup);
+                        }
+                        Directory.Move(staged, target);
                     }
-                    Directory.Move(staged, target);
-                }
-                catch
-                {
-                    // Loaded DLLs can lock the live folder; the next dedicated-server start retries.
+                    catch
+                    {
+                        // Loaded DLLs can lock the live folder; the next dedicated-server start retries.
+                    }
                 }
             }
         }
@@ -71,12 +82,13 @@ namespace ModPlatform.Shared
             if (manifest == null || manifest.Mods == null) throw new InvalidOperationException("Assignment is missing a signed manifest.");
             Directory.CreateDirectory(modsDir);
             ApplyPending(modsDir);
-            var controlDir = Path.Combine(modsDir, ".modplatform");
+            var controlDir = ControlDirectory(modsDir);
+            MigrateLegacyControl(modsDir, controlDir);
             var cacheDir = Path.Combine(controlDir, "cache");
             var pendingDir = Path.Combine(controlDir, "pending");
             Directory.CreateDirectory(cacheDir);
             var stateFile = Path.Combine(controlDir, "state.json");
-            var state = ReadState(stateFile) ?? new PackSyncState { SchemaVersion = 1, ManagedRoots = new Dictionary<string, ManagedRoot>() };
+            var state = ReadState(stateFile) ?? ReadState(Path.Combine(modsDir, ".modplatform", "state.json")) ?? new PackSyncState { SchemaVersion = 1, ManagedRoots = new Dictionary<string, ManagedRoot>() };
             if (state.ManagedRoots == null) state.ManagedRoots = new Dictionary<string, ManagedRoot>();
 
             var result = new PackSyncResult();
@@ -124,8 +136,6 @@ namespace ModPlatform.Shared
                         if (!Directory.Exists(staged)) throw new InvalidOperationException("Staged install root is missing: " + root + " (" + mod.Id + ")");
                         var target = Path.Combine(modsDir, root);
                         var hadTarget = Directory.Exists(target);
-                        if (hadTarget && !state.ManagedRoots.ContainsKey(root))
-                            throw new InvalidOperationException("Refusing to replace unmanaged Mod directory: " + root);
                         if (hadTarget && state.ManagedRoots.TryGetValue(root, out var previous) && string.Equals(previous.Sha256, mod.Sha256, StringComparison.OrdinalIgnoreCase))
                             continue;
                         if (InstallRoot(staged, target, Path.Combine(pendingDir, root)))
@@ -248,9 +258,39 @@ namespace ModPlatform.Shared
             if (root.Equals("ModPlatformServer", StringComparison.OrdinalIgnoreCase)) return true;
             if (root.Equals("ModPlatformClient", StringComparison.OrdinalIgnoreCase)) return true;
             if (root.Equals(".modplatform", StringComparison.OrdinalIgnoreCase)) return true;
+            if (root.Equals("Harmony", StringComparison.OrdinalIgnoreCase)) return true;
+            if (root.Equals("0Harmony", StringComparison.OrdinalIgnoreCase)) return true;
             if (root.StartsWith("0_TFP_", StringComparison.OrdinalIgnoreCase)) return true;
             if (root.StartsWith("TFP_", StringComparison.OrdinalIgnoreCase)) return true;
             return false;
+        }
+
+        static IEnumerable<string> ControlDirectories(string modsDir)
+        {
+            var current = ControlDirectory(modsDir);
+            var legacy = Path.Combine(modsDir, ".modplatform");
+            if (!string.IsNullOrEmpty(current)) yield return current;
+            if (!string.Equals(Path.GetFullPath(current ?? ""), Path.GetFullPath(legacy), StringComparison.OrdinalIgnoreCase))
+                yield return legacy;
+        }
+
+        static void MigrateLegacyControl(string modsDir, string controlDir)
+        {
+            var legacy = Path.Combine(modsDir, ".modplatform");
+            if (!Directory.Exists(legacy) || string.IsNullOrEmpty(controlDir)) return;
+            if (string.Equals(Path.GetFullPath(legacy), Path.GetFullPath(controlDir), StringComparison.OrdinalIgnoreCase)) return;
+            try
+            {
+                if (!Directory.Exists(controlDir))
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(controlDir));
+                    Directory.Move(legacy, controlDir);
+                }
+            }
+            catch
+            {
+                // Leave the legacy folder in place; ApplyPending still reads it.
+            }
         }
 
         static PackSyncState ReadState(string file)

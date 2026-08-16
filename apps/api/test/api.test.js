@@ -239,3 +239,47 @@ test('regular users can register a game server and open the user guide', async (
   assert.match(await guide.text(), /玩家与服主教程/);
 });
 
+test('client can deposit a handshake and the dedicated server claims it once', async (t) => {
+  const { base } = await fixture(t);
+  const admin = { authorization: 'Bearer test-admin-token-1234', 'content-type': 'application/json' };
+  const archive = createStoredZip({ 'ExampleMod/ModInfo.xml': '<xml />' });
+  const artifactSha = sha256(archive);
+  await jsonRequest(`${base}/api/v1/artifacts/${artifactSha}`, { method: 'PUT', headers: { authorization: admin.authorization, 'content-type': 'application/zip' }, body: archive });
+  await jsonRequest(`${base}/api/v1/mods`, { method: 'POST', headers: admin, body: JSON.stringify({ id: 'example', name: 'Example', version: '1.0.0', artifactSha, gameVersions: ['3.10.14'], installRoots: ['ExampleMod'] }) });
+  await jsonRequest(`${base}/api/v1/packs`, { method: 'POST', headers: admin, body: JSON.stringify({ id: 'hs-pack', name: 'HS', gameVersion: '3.10.14', entries: [{ modId: 'example', version: '1.0.0' }] }) });
+  await jsonRequest(`${base}/api/v1/packs/hs-pack/releases`, { method: 'POST', headers: admin, body: '{}' });
+  const server = await jsonRequest(`${base}/api/v1/servers`, { method: 'POST', headers: admin, body: JSON.stringify({ name: 'LAN', packId: 'hs-pack', publicAddress: '192.168.3.42:26900' }) });
+
+  assert.equal((await fetch(`${base}/api/v1/public/handshakes`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ address: 'no-such.example:26900', playerIds: ['Steam_1'], hello: { protocolVersion: 1, packId: 'hs-pack', packVersion: 1 } }) })).status, 404);
+
+  const deposited = await jsonRequest(`${base}/api/v1/public/handshakes`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      address: '192.168.3.42:26900',
+      playerIds: ['Steam_76561198000000000', 'CariYui'],
+      hello: { protocolVersion: 1, pluginVersion: '0.2.1', packId: 'hs-pack', packVersion: 1, artifactFingerprint: artifactSha }
+    })
+  });
+  assert.equal(deposited.accepted, true);
+  assert.equal(deposited.serverId, server.serverId);
+
+  const adminState = await jsonRequest(`${base}/api/v1/admin/state`, { headers: { authorization: admin.authorization } });
+  assert.equal(adminState.handshakes, undefined);
+
+  const claimed = await jsonRequest(`${base}/api/v1/servers/${server.serverId}/pending-handshake/claim`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${server.token}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ playerIds: ['cariyui'] })
+  });
+  assert.equal(claimed.hello.packId, 'hs-pack');
+  assert.equal(claimed.hello.packVersion, 1);
+  assert.equal(claimed.hello.artifactFingerprint, artifactSha);
+
+  assert.equal((await fetch(`${base}/api/v1/servers/${server.serverId}/pending-handshake/claim`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${server.token}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ playerIds: ['Steam_76561198000000000'] })
+  })).status, 404);
+});
+

@@ -1,10 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using ModPlatform.Shared;
+using Platform;
 
 public sealed class ModPlatformClientPlugin : IModApi
 {
@@ -13,19 +15,21 @@ public sealed class ModPlatformClientPlugin : IModApi
     static readonly string SessionId = Guid.NewGuid().ToString("N");
     static string modsDirectory;
     static bool handshakeSent;
+    static bool handshakeBusy;
+    static string handshakeAddress;
+    static DateTime nextHandshakeAttempt;
     static bool reconnectAttempted;
 
     public void InitMod(Mod modInstance)
     {
         try { modsDirectory = Path.Combine(GameIO.GetUserGameDataDir(), "Mods"); }
         catch { modsDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "7DaysToDie", "Mods"); }
-        var directory = Path.Combine(modsDirectory, "ModPlatformClient");
-        var configFile = Path.Combine(directory, "client.config.json");
-        if (!File.Exists(configFile))
-        {
-            directory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Mods", "ModPlatformClient");
-            configFile = Path.Combine(directory, "client.config.json");
-        }
+        var directory = PluginPaths.FindDirectory(
+            "client.config.json",
+            modInstance != null ? modInstance.Path : null,
+            Path.Combine(modsDirectory, "ModPlatformClient"),
+            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Mods", "ModPlatformClient"));
+        var configFile = Path.Combine(directory ?? modsDirectory, "client.config.json");
         if (!File.Exists(configFile)) { Log.Warning("[ModPlatform] Client config is missing"); return; }
         using (var stream = File.OpenRead(configFile)) config = (ClientConfig)new DataContractJsonSerializer(typeof(ClientConfig)).ReadObject(stream);
         platform = new PlatformClient(config.BaseUrl);
@@ -53,20 +57,83 @@ public sealed class ModPlatformClientPlugin : IModApi
 
     static void TrySendHandshake()
     {
-        if (handshakeSent || ConnectionManager.Instance == null || !ConnectionManager.Instance.IsClient) return;
+        if (platform == null || handshakeBusy || DateTime.UtcNow < nextHandshakeAttempt) return;
+        var address = CurrentServerAddress();
+        if (string.IsNullOrEmpty(address)) return;
+        if (handshakeSent && string.Equals(handshakeAddress, address, StringComparison.OrdinalIgnoreCase)) return;
+        var playerIds = CollectLocalPlayerIds();
+        if (playerIds.Count == 0) return;
+        handshakeBusy = true;
+        nextHandshakeAttempt = DateTime.UtcNow.AddSeconds(2);
+        Ignore(SendHandshakeAsync(address, playerIds));
+    }
+
+    static async Task SendHandshakeAsync(string address, List<string> playerIds)
+    {
         try
         {
             var hello = BuildHello();
-            var package = NetPackageManager.GetPackage<NetPackageModPlatformHello>().Setup(hello);
-            ConnectionManager.Instance.SendToServer(package);
+            await platform.SubmitHandshakeAsync(address, playerIds, hello, CancellationToken.None).ConfigureAwait(false);
             handshakeSent = true;
-            Log.Out("[ModPlatform] Handshake sent pack=" + hello.PackId + " v" + hello.PackVersion);
+            handshakeAddress = address;
+            Log.Out("[ModPlatform] Handshake sent address=" + address + " pack=" + hello.PackId + " v" + hello.PackVersion);
             Ignore(SendAsync("handshake_sent", null));
         }
         catch (Exception error)
         {
+            handshakeSent = false;
             Log.Warning("[ModPlatform] Handshake send failed: " + error.Message);
         }
+        finally
+        {
+            handshakeBusy = false;
+        }
+    }
+
+    static string CurrentServerAddress()
+    {
+        try
+        {
+            var ip = GamePrefs.GetString(EnumGamePrefs.ConnectToServerIP);
+            var port = GamePrefs.GetInt(EnumGamePrefs.ConnectToServerPort);
+            if (!string.IsNullOrEmpty(ip) && port > 0) return ip.Trim() + ":" + port;
+        }
+        catch { }
+        try
+        {
+            var info = ConnectionManager.Instance == null ? null : ConnectionManager.Instance.LastGameServerInfo;
+            if (info != null)
+            {
+                var ip = info.GetValue(GameInfoString.IP);
+                var port = info.GetValue(GameInfoInt.Port);
+                if (!string.IsNullOrEmpty(ip) && port > 0) return ip.Trim() + ":" + port;
+            }
+        }
+        catch { }
+        return null;
+    }
+
+    static List<string> CollectLocalPlayerIds()
+    {
+        var ids = new List<string>();
+        try { AddPlatformId(ids, PlatformManager.NativePlatform.User.PlatformUserId); } catch { }
+        try { AddPlatformId(ids, PlatformManager.CrossplatformPlatform.User.PlatformUserId); } catch { }
+        try { AddId(ids, GamePrefs.GetString(EnumGamePrefs.PlayerName)); } catch { }
+        return ids;
+    }
+
+    static void AddPlatformId(List<string> ids, PlatformUserIdentifierAbs value)
+    {
+        if (value == null) return;
+        try { AddId(ids, value.CombinedString); } catch { }
+        try { AddId(ids, value.ToString()); } catch { }
+    }
+
+    static void AddId(List<string> ids, string value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return;
+        var trimmed = value.Trim();
+        if (!ids.Exists(item => string.Equals(item, trimmed, StringComparison.OrdinalIgnoreCase))) ids.Add(trimmed);
     }
 
     static HandshakeHello BuildHello()

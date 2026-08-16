@@ -22,7 +22,8 @@ export const EMPTY = {
   webhooks: [],
   maintenance: { enabled: false, message: null },
   stats: { downloads: 0, bytes: 0, artifacts: {}, gameVersions: {} },
-  confirmations: {}
+  confirmations: {},
+  handshakes: {}
 };
 
 export class JsonStore {
@@ -50,6 +51,7 @@ export class JsonStore {
         maintenance: { ...structuredClone(EMPTY.maintenance), ...(loaded.maintenance || {}) },
         stats: { ...structuredClone(EMPTY.stats), ...(loaded.stats || {}) },
         confirmations: loaded.confirmations || {},
+        handshakes: loaded.handshakes || {},
         schemaVersion: 3
       };
     } catch (error) {

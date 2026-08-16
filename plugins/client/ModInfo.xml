@@ -1,2 +1,10 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<xml><ModInfo><Name value="ModPlatformClient"/><DisplayName value="Mod Platform Client"/><Description value="Client bootstrap and crash diagnostics."/><Author value="ModPlatform"/><Version value="0.2.0"/></ModInfo></xml>
+<?xml version="1.0" encoding="UTF-8" ?>
+<xml>
+	<Name value="ModPlatformClient" />
+	<DisplayName value="Mod Platform Client" />
+	<Description value="Client handshake, pack verification and crash diagnostics." />
+	<Author value="ModPlatform" />
+	<Version value="0.2.1.0" />
+	<Website value="https://mods.aic.la" />
+	<SkipWithAntiCheat value="true" />
+</xml>

@@ -8,7 +8,7 @@
 - Unity：`2022.3.62f2`
 - 插件目标框架：`netstandard2.1`
 - 握手协议：`1`
-- 插件版本：`0.2.0`
+- 插件版本：`0.2.1`
 
 ## 二、使用现成插件包
 
@@ -92,7 +92,7 @@ E:\Project\artifacts\plugins
 服务端插件会定期：
 
 - 从后台获取当前 ModPack；
-- 按 manifest 自动下载、校验 SHA-256 并安装到同级 `Mods`（`AutoSync` 默认开启）；
+- 按 manifest 自动下载、校验 SHA-256 并安装到同级 `Mods`（`AutoSync` 默认开启）；已存在的同名目录会被认领并按 Pack 更新，不会再因「unmanaged」失败；
 - Pack 发布新版本后，下次刷新会增量更新；
 - 更新本地 `current-assignment.json` 并上报 `sync-status`；
 - 含 DLL 或首次安装后要求重启；`AutoRestart=true` 时下载完成后退出进程。
@@ -145,8 +145,11 @@ E:\Project\artifacts\plugins
 当前插件已实现：
 
 - 后台 assignment 轮询和诊断上报；
-- 握手协议 v1：客户端发送 Pack、版本、签名 Key 和已安装文件指纹；
-- 服务端在 `PlayerLogin` / `PlayerSpawning` 拒绝未同步、版本不符或超时的玩家，踢出原因包含启动器地址。
+- 握手协议 v1：客户端通过平台 HTTP 提交 Pack、版本、签名 Key 和已安装文件指纹，不再发送自定义 NetPackage（避免服务端多装了其它 Mod 后包 ID 错位）；
+- 服务端按玩家 Steam/EOS/名称认领该握手，并在 `PlayerLogin` / `PlayerSpawning` 拒绝未同步、版本不符或超时的玩家，踢出原因包含启动器地址。
+- 同步时会认领 Pack 已声明且已存在的同名目录；缓存写在 `ModPlatformServer/.modplatform`，不再占用 `Mods/.modplatform`。
+
+客户端和服务端插件必须一起升级到 `0.2.1`。只更新一侧仍可能握手失败。
 
 进游戏前的文件安装仍由启动器完成。请用当前 Steam Build 的 `Assembly-CSharp.dll` 重新编译后再做一次真实进服验证。
 

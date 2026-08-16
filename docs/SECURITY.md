@@ -8,7 +8,7 @@
 - ZIP traversal, absolute path, drive path, symlink, duplicate path, encryption, unsupported compression, entry-count and decompressed-size protections.
 - ZIP CRC verification.
 - Staging installation, ownership tracking, backups and rollback on failed replacement.
-- Refusal to overwrite unmanaged Mod roots by default.
+- Signed-manifest install roots are adopted if the folder already exists; Harmony, `TFP_*`, and plugin directories stay protected.
 - Server credentials stored as SHA-256 token hashes.
 - Diagnostic request limits and server-side redaction.
 - No game server receives the platform signing private key.

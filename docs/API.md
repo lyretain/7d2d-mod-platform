@@ -30,6 +30,8 @@ All administrator routes require `Authorization: Bearer <ADMIN_TOKEN>`.
 | GET | `/api/v1/public/packs/{id}/latest` | Retrieve signed manifest |
 | GET | `/api/v1/public/artifacts/{sha256}` | Retrieve immutable artifact |
 | GET | `/api/v1/public/servers/resolve?address=host:port` | Resolve a server to its pack |
+| POST | `/api/v1/public/handshakes` | Client plugin deposits a pending hello for a registered address |
+| POST | `/api/v1/servers/{id}/pending-handshake/claim` | Server plugin consumes a pending hello by player id |
 | GET | `/api/v1/servers/{id}/assignment` | Server-authenticated assignment and heartbeat |
 | POST | `/api/v1/diagnostics` | Submit bounded diagnostic event |
 

@@ -19,6 +19,7 @@ import { artifactPublicUrl, cloudflareCacheHeaders, manifestPublicUrl, purgeClou
 import { can, denyReason, describePrincipal } from './roles.js';
 import { exchangeGithubCode, githubAuthorizeUrl } from './github.js';
 import { renderUserGuide } from './guide.js';
+import { claimHandshake, normalizePlayerIds, sanitizeHello, storeHandshake } from './handshakes.js';
 
 const ADMIN_HTML_V2 = readFileSync(new URL('./admin.html', import.meta.url), 'utf8');
 
@@ -211,6 +212,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
         for (const user of Object.values(state.users)) delete user.passwordHash;
         for (const invite of Object.values(state.invites)) delete invite.codeHash;
         state.sessions = { activeCount: Object.values(state.sessions).filter((session) => Date.parse(session.expiresAt) > Date.now()).length };
+        delete state.handshakes;
         return json(res, 200, state);
       }
 
@@ -500,6 +502,19 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
         });
       }
 
+      if (req.method === 'POST' && pathname === '/api/v1/public/handshakes') {
+        const body = await readJson(req, 32 * 1024);
+        const address = String(body.address || '').trim().toLocaleLowerCase('en-US');
+        if (!address) return problem(res, 422, 'VALIDATION', 'address is required');
+        const playerIds = normalizePlayerIds(body.playerIds, body.playerId);
+        const hello = sanitizeHello(body.hello);
+        const snapshot = store.snapshot();
+        const server = Object.values(snapshot.servers).find((item) => String(item.publicAddress || '').trim().toLocaleLowerCase('en-US') === address);
+        if (!server) return problem(res, 404, 'SERVER_NOT_FOUND', 'No registered server uses that public address');
+        const stored = await store.mutate((draft) => storeHandshake(draft, server.id, playerIds, hello));
+        return json(res, 202, { accepted: true, serverId: server.id, expiresAt: stored.expiresAt });
+      }
+
       const assignmentMatch = pathname.match(/^\/api\/v1\/servers\/([^/]+)\/assignment$/);
       if (req.method === 'GET' && assignmentMatch) {
         const snapshot = store.snapshot();
@@ -536,6 +551,21 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
         });
         if (!result) return problem(res, 404, 'SERVER_NOT_FOUND', 'Server was not found');
         return json(res, 200, result);
+      }
+
+      const claimHandshakeMatch = pathname.match(/^\/api\/v1\/servers\/([^/]+)\/pending-handshake\/claim$/);
+      if (req.method === 'POST' && claimHandshakeMatch) {
+        const snapshot = store.snapshot();
+        const server = snapshot.servers[claimHandshakeMatch[1]];
+        if (!server || tokenHash(bearer(req)) !== server.tokenHash) return problem(res, 401, 'UNAUTHORIZED', 'Invalid server credential');
+        const body = await readJson(req, 32 * 1024);
+        const playerIds = normalizePlayerIds(body.playerIds, body.playerId);
+        const hello = await store.mutate((draft) => {
+          draft.servers[server.id].lastSeenAt = now();
+          return claimHandshake(draft, server.id, playerIds);
+        });
+        if (!hello) return problem(res, 404, 'HANDSHAKE_NOT_FOUND', 'No pending handshake for that player');
+        return json(res, 200, { hello });
       }
 
       const syncStatusMatch = pathname.match(/^\/api\/v1\/servers\/([^/]+)\/sync-status$/);
