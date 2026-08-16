@@ -160,9 +160,10 @@ Authorization: Bearer <ADMIN_TOKEN>
 
 ## 创建 ModPack
 
+不传 `id` 时后台自动生成 `pack_<uuid>`。传入已有 `id` 则更新该草稿。
+
 ```json
 {
-  "id": "production-pack",
   "name": "正式服务器 ModPack",
   "gameVersion": "3.0.1-b4",
   "entries": [

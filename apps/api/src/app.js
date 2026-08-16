@@ -302,8 +302,9 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
       if (req.method === 'POST' && pathname === '/api/v1/packs') {
         if (!requirePerm(req, res, 'pack.publish')) return;
         const body = await readJson(req);
-        requireFields(body, ['id', 'name', 'gameVersion', 'entries']);
-        if (!isSafeId(body.id) || !Array.isArray(body.entries)) throw Object.assign(new Error('Invalid pack'), { code: 'VALIDATION' });
+        requireFields(body, ['name', 'gameVersion', 'entries']);
+        const packId = body.id || id('pack');
+        if (!isSafeId(packId) || !Array.isArray(body.entries)) throw Object.assign(new Error('Invalid pack'), { code: 'VALIDATION' });
         const snapshot = store.snapshot();
         for (const entry of body.entries) {
           const version = snapshot.mods[entry.modId]?.versions?.[entry.version];
@@ -315,9 +316,9 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
           }
         }
         const pack = await store.mutate((draft) => {
-          const existing = draft.packs[body.id];
-          const value = { id: body.id, name: body.name, gameVersion: body.gameVersion, entries: body.entries, createdAt: existing?.createdAt || now(), updatedAt: now(), latestReleaseId: existing?.latestReleaseId || null };
-          draft.packs[body.id] = value;
+          const existing = draft.packs[packId];
+          const value = { id: packId, name: body.name, gameVersion: body.gameVersion, entries: body.entries, createdAt: existing?.createdAt || now(), updatedAt: now(), latestReleaseId: existing?.latestReleaseId || null };
+          draft.packs[packId] = value;
           return value;
         });
         return json(res, 201, pack);

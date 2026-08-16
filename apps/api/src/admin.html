@@ -81,6 +81,17 @@
     .three { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
     .check { display: flex; align-items: center; gap: 8px; margin: 8px 0 12px; color: var(--muted); }
     .check input { width: auto; margin: 0; }
+    input[readonly] { color: var(--muted); cursor: default; }
+    .picker { position: relative; margin: 0 0 8px; }
+    .picker-btn { width: 100%; margin: 0; text-align: left; background: #14171d; color: var(--text); border: 1px solid #3a404c; font-weight: 500; }
+    .picker-btn:hover { background: #1a1e26; }
+    .picker-menu { position: absolute; z-index: 12; left: 0; right: 0; top: calc(100% + 4px); max-height: 260px; overflow: auto; background: #1c1f26; border: 1px solid #3a404c; border-radius: 7px; box-shadow: 0 12px 28px rgba(0, 0, 0, .4); }
+    .picker-item { display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px; margin: 0; color: var(--text); cursor: pointer; }
+    .picker-item:hover { background: #222733; }
+    .picker-item input { width: auto; margin: 2px 0 0; }
+    .picker-item strong { display: block; }
+    .picker-item span { color: var(--muted); font-size: 12px; }
+    .picker-empty { margin: 0; padding: 14px; color: var(--muted); text-align: center; }
     .stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; grid-column: span 12; }
     .stat { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
     .stat b { display: block; font-size: 22px; color: var(--accent); }
@@ -264,19 +275,23 @@
     <div class="grid">
       <article class="card">
         <h2>创建并发布</h2>
-        <p class="hint">条目格式：mod@version，多个用逗号分隔。</p>
+        <p class="hint">新建时自动生成 Pack ID。点表格行可改已有 Pack 后再发布。</p>
         <div class="row">
-          <div><label class="field">Pack ID</label><input id="packId" placeholder="production-pack"></div>
+          <div><label class="field">Pack ID</label><input id="packId" readonly placeholder="创建后自动生成"></div>
           <div><label class="field">名称</label><input id="packName" placeholder="正式服 Pack"></div>
         </div>
-        <div class="row">
-          <div><label class="field">游戏版本</label><input id="packGame" placeholder="3.10.14"></div>
-          <div><label class="field">条目</label><input id="packEntries" placeholder="mod@version,mod2@version"></div>
+        <label class="field">游戏版本</label>
+        <input id="packGame" placeholder="3.10.14">
+        <label class="field">包含的 Mod</label>
+        <div class="picker" id="packEntryPicker">
+          <button type="button" class="picker-btn" id="packEntryToggle" onclick="togglePackEntries(event)">选择已登记的 Mod（可多选）</button>
+          <div class="picker-menu" id="packEntryMenu" hidden></div>
         </div>
         <label class="field">发布原因</label>
         <input id="releaseReason" placeholder="发布 / 吊销 / 回滚原因">
         <div class="actions">
           <button onclick="publishPack()">创建并发布</button>
+          <button class="secondary" onclick="newPack()">新建</button>
           <button class="secondary" onclick="loadPacks()">刷新 Pack</button>
         </div>
       </article>
@@ -284,7 +299,7 @@
         <h2>吊销与回滚</h2>
         <p class="hint">回滚可能影响已有存档。点击下方表格可填入 Release ID。</p>
         <div class="row">
-          <div><label class="field">Pack ID</label><input id="releasePackId" placeholder="默认使用左侧 Pack ID"></div>
+          <div><label class="field">Pack</label><select id="releasePackId"><option value="">请选择 Pack</option></select></div>
           <div><label class="field">Release ID</label><input id="releaseId" placeholder="rel_..."></div>
         </div>
         <div class="actions">
@@ -313,7 +328,7 @@
         <input id="serverName" placeholder="周末 PVE">
         <div class="row">
           <div><label class="field">Server ID</label><input id="serverId" placeholder="新建后自动填写"></div>
-          <div><label class="field">Pack ID</label><input id="serverPackId" placeholder="production-pack"></div>
+          <div><label class="field">Pack</label><select id="serverPackId"><option value="">请选择已发布的 Pack</option></select></div>
         </div>
         <label class="field">公开地址</label>
         <input id="serverAddress" placeholder="host:port，例如 play.example.com:26900">
@@ -440,8 +455,8 @@ function showTab(name) {
   pageTitle.textContent = PAGES[name].title;
   pageHint.textContent = PAGES[name].hint;
   if (name === 'mods') loadMods({ silent: true });
-  if (name === 'packs') loadPacks({ silent: true });
-  if (name === 'servers') loadServers({ silent: true });
+  if (name === 'packs') { loadMods({ silent: true }); loadPacks({ silent: true }); }
+  if (name === 'servers') { loadPacks({ silent: true }); loadServers({ silent: true }); }
   if (name === 'ops') loadStats({ silent: true });
 }
 
@@ -522,31 +537,129 @@ function fillStats(s) {
   }
 }
 
+let catalogMods = [];
+let catalogPacks = [];
+
+function packOptionLabel(pack) {
+  return (pack.name || pack.id) + (pack.packVersion != null ? ' · v' + pack.packVersion : '');
+}
+
+function fillPackSelects(selected) {
+  selected = selected || {};
+  ['serverPackId', 'releasePackId'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const keep = selected[id] !== undefined ? selected[id] : el.value;
+    const empty = id === 'serverPackId' ? '请选择已发布的 Pack' : '请选择 Pack';
+    el.innerHTML = '<option value="">' + empty + '</option>' + catalogPacks.map((pack) =>
+      '<option value="' + esc(pack.id) + '">' + esc(packOptionLabel(pack)) + '</option>'
+    ).join('');
+    if (keep && [...el.options].some((opt) => opt.value === keep)) el.value = keep;
+  });
+}
+
+function selectedPackEntries() {
+  return [...document.querySelectorAll('#packEntryMenu input[type=checkbox]:checked')].map((box) => {
+    const at = box.value.lastIndexOf('@');
+    return { modId: box.value.slice(0, at), version: box.value.slice(at + 1), required: true };
+  }).filter((entry) => entry.modId && entry.version);
+}
+
+function refreshPackEntryToggle() {
+  const btn = document.getElementById('packEntryToggle');
+  if (!btn) return;
+  const selected = selectedPackEntries();
+  if (!catalogMods.length) btn.textContent = '暂无已登记 Mod，请先到 Mod 页登记';
+  else if (!selected.length) btn.textContent = '选择已登记的 Mod（可多选）';
+  else btn.textContent = selected.map((entry) => entry.modId + '@' + entry.version).join('，');
+}
+
+function setPackEntries(entries) {
+  const wanted = new Set((entries || []).map((entry) => entry.modId + '@' + entry.version));
+  document.querySelectorAll('#packEntryMenu input[type=checkbox]').forEach((box) => {
+    box.checked = wanted.has(box.value);
+  });
+  refreshPackEntryToggle();
+}
+
+function fillPackEntryPicker() {
+  const menu = document.getElementById('packEntryMenu');
+  if (!menu) return;
+  const prev = new Set(selectedPackEntries().map((entry) => entry.modId + '@' + entry.version));
+  const options = [];
+  catalogMods.forEach((mod) => {
+    (mod.versions || []).forEach((ver) => {
+      options.push({
+        value: mod.id + '@' + ver.version,
+        title: (mod.name || mod.id) + ' @ ' + ver.version,
+        hint: mod.id + (ver.gameVersions && ver.gameVersions.length ? ' · 游戏 ' + ver.gameVersions.join('/') : '')
+      });
+    });
+  });
+  if (!options.length) {
+    menu.innerHTML = '<p class="picker-empty">暂无已登记 Mod</p>';
+    refreshPackEntryToggle();
+    return;
+  }
+  menu.innerHTML = options.map((opt) =>
+    '<label class="picker-item"><input type="checkbox" value="' + esc(opt.value) + '"' + (prev.has(opt.value) ? ' checked' : '') + '><div><strong>' + esc(opt.title) + '</strong><span>' + esc(opt.hint) + '</span></div></label>'
+  ).join('');
+  menu.querySelectorAll('input').forEach((box) => { box.onchange = refreshPackEntryToggle; });
+  refreshPackEntryToggle();
+}
+
+function togglePackEntries(ev) {
+  if (ev) ev.preventDefault();
+  const menu = document.getElementById('packEntryMenu');
+  if (menu) menu.hidden = !menu.hidden;
+}
+
+function newPack() {
+  packId.value = '';
+  packName.value = '';
+  packGame.value = '';
+  setPackEntries([]);
+  const list = document.getElementById('list-packs');
+  if (list) list.querySelectorAll('tr.sel').forEach((tr) => tr.classList.remove('sel'));
+}
+
 function paint(data) {
   if (!data || typeof data !== 'object') return;
-  if (data.mods) table('list-mods', data.mods, ['id', 'name', 'latestVersion', 'versionCount', 'containsDll'], (r) => {
-    modId.value = r.id;
-    modName.value = r.name || '';
-    if (r.latestVersion) modVersion.value = r.latestVersion;
-    if (r.versions && r.versions[0]) artifactSha.value = r.versions[0].artifactSha || '';
-  });
-  if (data.packs) table('list-packs', data.packs, ['id', 'name', 'gameVersion', 'entryCount', 'packVersion', 'latestReleaseId'], (r) => {
-    packId.value = r.id;
-    packName.value = r.name || '';
-    packGame.value = r.gameVersion || '';
-    releasePackId.value = r.id;
-    if (r.latestReleaseId) releaseId.value = r.latestReleaseId;
-  });
+  if (data.mods) {
+    catalogMods = data.mods;
+    fillPackEntryPicker();
+    table('list-mods', data.mods, ['id', 'name', 'latestVersion', 'versionCount', 'containsDll'], (r) => {
+      modId.value = r.id;
+      modName.value = r.name || '';
+      if (r.latestVersion) modVersion.value = r.latestVersion;
+      if (r.versions && r.versions[0]) artifactSha.value = r.versions[0].artifactSha || '';
+    });
+  }
+  if (data.packs) {
+    catalogPacks = data.packs;
+    fillPackSelects();
+    table('list-packs', data.packs, ['id', 'name', 'gameVersion', 'entryCount', 'packVersion', 'latestReleaseId'], (r) => {
+      packId.value = r.id;
+      packName.value = r.name || '';
+      packGame.value = r.gameVersion || '';
+      setPackEntries(r.entries || []);
+      fillPackSelects({ releasePackId: r.id });
+      if (r.latestReleaseId) releaseId.value = r.latestReleaseId;
+    });
+  }
   if (data.releases) table('list-releases', data.releases, ['id', 'packVersion', 'createdAt', 'revokedAt'], (r) => {
     releaseId.value = r.id;
-    if (data.packId) releasePackId.value = data.packId;
+    if (data.packId) fillPackSelects({ releasePackId: data.packId });
   });
-  if (data.servers) table('list-servers', data.servers, ['id', 'name', 'packId', 'publicAddress', 'online', 'acceptingPlayers', 'lastSeenAt'], (r) => {
-    serverId.value = r.id || '';
-    serverName.value = r.name || '';
-    serverPackId.value = r.packId || '';
-    serverAddress.value = r.publicAddress || '';
-  });
+  if (data.servers) {
+    fillPackSelects();
+    table('list-servers', data.servers, ['id', 'name', 'packId', 'publicAddress', 'online', 'acceptingPlayers', 'lastSeenAt'], (r) => {
+      serverId.value = r.id || '';
+      serverName.value = r.name || '';
+      fillPackSelects({ serverPackId: r.packId || '' });
+      serverAddress.value = r.publicAddress || '';
+    });
+  }
   if (data.reviews) {
     table('list-ops', data.reviews, ['sha256', 'fileName', 'status', 'size', 'createdAt'], (r) => { reviewSha.value = r.sha256 || ''; });
     opsTitle('审核队列');
@@ -813,12 +926,14 @@ async function registerMod() {
 
 async function publishPack() {
   try {
-    const entries = packEntries.value.split(',').map((x) => {
-      const parts = x.trim().split('@');
-      return { modId: parts[0], version: parts[1], required: true };
-    });
-    await request('/api/v1/packs', { method: 'POST', headers: headers(), body: JSON.stringify({ id: packId.value, name: packName.value, gameVersion: packGame.value, entries }) });
-    show(await request('/api/v1/packs/' + encodeURIComponent(packId.value) + '/releases', { method: 'POST', headers: headers(), body: JSON.stringify({ reason: releaseReason.value || 'publish' }) }), { message: 'Pack 已发布' });
+    const entries = selectedPackEntries();
+    if (!entries.length) throw new Error('请至少选择一个 Mod');
+    const body = { name: packName.value, gameVersion: packGame.value, entries };
+    if (packId.value.trim()) body.id = packId.value.trim();
+    const pack = await request('/api/v1/packs', { method: 'POST', headers: headers(), body: JSON.stringify(body) });
+    packId.value = pack.id || '';
+    fillPackSelects({ releasePackId: pack.id, serverPackId: serverPackId.value });
+    show(await request('/api/v1/packs/' + encodeURIComponent(pack.id) + '/releases', { method: 'POST', headers: headers(), body: JSON.stringify({ reason: releaseReason.value || 'publish' }) }), { message: 'Pack 已发布' });
     await loadPacks({ silent: true });
     await listReleases({ silent: true });
   } catch (e) { show(e.message); }
@@ -940,6 +1055,12 @@ async function approveReview() {
   });
 })();
 
+document.addEventListener('click', (ev) => {
+  const picker = document.getElementById('packEntryPicker');
+  const menu = document.getElementById('packEntryMenu');
+  if (!picker || !menu || menu.hidden || picker.contains(ev.target)) return;
+  menu.hidden = true;
+});
 loginPassword.addEventListener('keydown', (e) => { if (e.key === 'Enter') login(); });
 registerInvite.addEventListener('keydown', (e) => { if (e.key === 'Enter') register(); });
 setupPassword2.addEventListener('keydown', (e) => { if (e.key === 'Enter') setupPlatform(); });

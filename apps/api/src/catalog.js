@@ -24,6 +24,7 @@ export function listPacks(snapshot) {
       name: pack.name,
       gameVersion: pack.gameVersion,
       entryCount: (pack.entries || []).length,
+      entries: pack.entries || [],
       latestReleaseId: pack.latestReleaseId,
       packVersion: release?.packVersion || null,
       updatedAt: pack.updatedAt

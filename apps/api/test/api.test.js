@@ -40,6 +40,8 @@ test('publishes and verifies an immutable ModPack manifest', async (t) => {
   const artifactSha = sha256(archive);
   await jsonRequest(`${base}/api/v1/artifacts/${artifactSha}`, { method: 'PUT', headers: { ...admin, 'content-type': 'application/zip' }, body: archive });
   await jsonRequest(`${base}/api/v1/mods`, { method: 'POST', headers: { ...admin, 'content-type': 'application/json' }, body: JSON.stringify({ id: 'example', name: 'Example', version: '1.0.0', artifactSha, gameVersions: ['2.6'], installRoots: ['ExampleMod'] }) });
+  const autoPack = await jsonRequest(`${base}/api/v1/packs`, { method: 'POST', headers: { ...admin, 'content-type': 'application/json' }, body: JSON.stringify({ name: 'Auto', gameVersion: '2.6', entries: [{ modId: 'example', version: '1.0.0' }] }) });
+  assert.match(autoPack.id, /^pack_[0-9a-f]{32}$/);
   await jsonRequest(`${base}/api/v1/packs`, { method: 'POST', headers: { ...admin, 'content-type': 'application/json' }, body: JSON.stringify({ id: 'test-pack', name: 'Test', gameVersion: '2.6', entries: [{ modId: 'example', version: '1.0.0' }] }) });
   await jsonRequest(`${base}/api/v1/packs/test-pack/releases`, { method: 'POST', headers: { ...admin, 'content-type': 'application/json' }, body: '{}' });
   const manifest = await jsonRequest(`${base}/api/v1/public/packs/test-pack/latest`);
