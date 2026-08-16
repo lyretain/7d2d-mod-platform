@@ -72,7 +72,7 @@ E:\Project\artifacts\plugins
 
 ```json
 {
-  "BaseUrl": "https://mods.example.com",
+  "BaseUrl": "https://mods.aic.la",
   "ServerId": "srv_replace",
   "ServerToken": "replace",
   "GameVersion": "3.0.1-b4",
@@ -95,7 +95,7 @@ E:\Project\artifacts\plugins
 
 ```json
 {
-  "BaseUrl": "https://mods.example.com",
+  "BaseUrl": "https://mods.aic.la",
   "GameVersion": "3.0.1-b4",
   "DiagnosticsEnabled": true
 }

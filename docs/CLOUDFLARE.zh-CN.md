@@ -9,21 +9,21 @@
 Cloudflare（HTTPS、WAF、缓存）
     │
     ├─ cdn.example.com  →  R2 自定义域名（可选，CDN_STYLE=r2）
-    └─ mods.example.com →  源站 Node API（管理、manifest、诊断）
+    └─ mods.aic.la →  源站 Node API（管理、manifest、诊断）
 ```
 
 ## 域名
 
 | 主机 | 用途 | 代理 |
 |---|---|---|
-| `mods.example.com` | API、管理页、latest manifest | 橙色云 |
+| `mods.aic.la` | API、管理页、latest manifest | 橙色云 |
 | `admin.example.com` | 可选，仅管理后台。设置 `ADMIN_HOST` | 橙色云 |
 | `cdn.example.com` | 不可变 ZIP。R2 自定义域名或回源 `/api/v1/public/artifacts/*` | 橙色云 |
 
 源站环境变量：
 
 ```
-PUBLIC_BASE_URL=https://mods.example.com
+PUBLIC_BASE_URL=https://mods.aic.la
 PUBLIC_CDN_URL=https://cdn.example.com
 CDN_STYLE=origin
 FORCE_HTTPS=true

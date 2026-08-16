@@ -54,9 +54,14 @@ if (Get-Command dotnet -ErrorAction SilentlyContinue) {
   if ($LASTEXITCODE -ne 0) { throw "Server plugin compilation failed." }
   dotnet build "$root\plugins\client\ModPlatform.Client.csproj" -c $Configuration -p:GameManagedDir="$GameManagedDir"
   if ($LASTEXITCODE -ne 0) { throw "Client plugin compilation failed." }
-  $sharedDll = Get-ChildItem "$root\plugins\shared\bin\$Configuration" -Recurse -Filter ModPlatform.Shared.dll | Select-Object -First 1
-  $serverDll = Get-ChildItem "$root\plugins\server\bin\$Configuration" -Recurse -Filter ModPlatform.Server.dll | Select-Object -First 1
-  $clientDll = Get-ChildItem "$root\plugins\client\bin\$Configuration" -Recurse -Filter ModPlatform.Client.dll | Select-Object -First 1
+  function LatestPluginDll($searchRoot, $name) {
+    Get-ChildItem $searchRoot -Recurse -Filter $name |
+      Sort-Object { if ($_.DirectoryName -match 'netstandard2\.1') { 0 } else { 1 } }, LastWriteTime -Descending |
+      Select-Object -First 1
+  }
+  $sharedDll = LatestPluginDll "$root\plugins\shared\bin\$Configuration" "ModPlatform.Shared.dll"
+  $serverDll = LatestPluginDll "$root\plugins\server\bin\$Configuration" "ModPlatform.Server.dll"
+  $clientDll = LatestPluginDll "$root\plugins\client\bin\$Configuration" "ModPlatform.Client.dll"
   if (-not $sharedDll -or -not $serverDll -or -not $clientDll) { throw "Compiled plugin DLLs were not found." }
   Copy-Item $sharedDll.FullName,$serverDll.FullName -Destination $serverOutput -Force
   Copy-Item $sharedDll.FullName,$clientDll.FullName -Destination $clientOutput -Force

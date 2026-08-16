@@ -6,7 +6,7 @@ services:
       HOST: 0.0.0.0
       PORT: 8080
       NODE_ENV: ${NODE_ENV:-production}
-      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8080}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-https://mods.aic.la}
       PUBLIC_CDN_URL: ${PUBLIC_CDN_URL:-}
       PUBLIC_LAUNCHER_URL: ${PUBLIC_LAUNCHER_URL:-}
       ADMIN_TOKEN: ${ADMIN_TOKEN:?Set ADMIN_TOKEN in .env}

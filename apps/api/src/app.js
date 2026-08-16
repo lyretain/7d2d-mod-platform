@@ -15,8 +15,9 @@ import { consumeRateLimit, inspectRequest, routeLimit, securityHeaders } from '.
 import { notify } from './alerts.js';
 import { recordDownload, requireConfirm } from './catalog.js';
 import { artifactPublicUrl, cloudflareCacheHeaders, manifestPublicUrl, purgeCloudflare } from './cloudflare.js';
-import { denyReason, describePrincipal } from './roles.js';
+import { can, denyReason, describePrincipal } from './roles.js';
 import { exchangeGithubCode, githubAuthorizeUrl } from './github.js';
+import { renderUserGuide } from './guide.js';
 
 const ADMIN_HTML_V2 = readFileSync(new URL('./admin.html', import.meta.url), 'utf8');
 
@@ -92,6 +93,12 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
       if (await handleP1(req, res, { pathname, store, auth, signing, objects: objects || { localDir: objectDir, ready: async () => ({ ok: true, driver: 'local' }), listLocal: async () => [], remove: async () => {} }, metrics: metricsApi, config })) return;
       if (req.method === 'GET' && pathname === '/') {
         const body = Buffer.from(ADMIN_HTML_V2);
+        res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'content-length': body.length, 'x-content-type-options': 'nosniff' });
+        return res.end(body);
+      }
+      if (req.method === 'GET' && (pathname === '/guide' || pathname === '/docs/user')) {
+        const markdown = readFileSync(new URL('../../../docs/USER.zh-CN.md', import.meta.url), 'utf8');
+        const body = Buffer.from(renderUserGuide(markdown));
         res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'content-length': body.length, 'x-content-type-options': 'nosniff' });
         return res.end(body);
       }
@@ -436,14 +443,33 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
       }
 
       if (req.method === 'POST' && pathname === '/api/v1/servers') {
-        if (!requirePerm(req, res, 'server.manage')) return;
+        const owner = requirePerm(req, res, 'server.create');
+        if (!owner) return;
         const body = await readJson(req);
         requireFields(body, ['name', 'packId']);
-        if (!store.snapshot().packs[body.packId]) throw Object.assign(new Error('Unknown packId'), { code: 'VALIDATION' });
+        const snapshot = store.snapshot();
+        if (!snapshot.packs[body.packId]) throw Object.assign(new Error('Unknown packId'), { code: 'VALIDATION' });
+        const publicAddress = String(body.publicAddress || '').trim();
+        if (!can(owner, 'server.manage') && !publicAddress) throw Object.assign(new Error('publicAddress is required'), { code: 'VALIDATION' });
+        if (publicAddress && Object.values(snapshot.servers).some((item) => String(item.publicAddress || '').trim().toLocaleLowerCase('en-US') === publicAddress.toLocaleLowerCase('en-US'))) {
+          throw Object.assign(new Error('That public address is already registered'), { code: 'CONFLICT' });
+        }
         const serverId = id('srv');
         const token = randomBytes(32).toString('base64url');
-        await store.mutate((draft) => { draft.servers[serverId] = { id: serverId, name: body.name, packId: body.packId, publicAddress: body.publicAddress || null, tokenHash: tokenHash(token), createdAt: now(), lastSeenAt: null }; });
-        return json(res, 201, { serverId, token, packId: body.packId });
+        await store.mutate((draft) => {
+          draft.servers[serverId] = {
+            id: serverId,
+            name: body.name,
+            packId: body.packId,
+            publicAddress: publicAddress || null,
+            ownerId: owner.bootstrap ? null : owner.id,
+            tokenHash: tokenHash(token),
+            createdAt: now(),
+            lastSeenAt: null
+          };
+          recordAudit(draft, { actor: owner.username || owner.id, action: 'server.create', target: serverId, details: { packId: body.packId, publicAddress: publicAddress || null } });
+        });
+        return json(res, 201, { serverId, token, packId: body.packId, publicAddress: publicAddress || null });
       }
 
       if (req.method === 'GET' && pathname === '/api/v1/public/servers/resolve') {
@@ -478,9 +504,12 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
 
       const serverPatch = pathname.match(/^\/api\/v1\/servers\/([^/]+)$/);
       if (req.method === 'PATCH' && serverPatch) {
-        if (!requirePerm(req, res, 'server.manage')) return;
+        const principal = requireUser(req, res);
+        if (!principal) return;
+        const current = store.snapshot().servers[serverPatch[1]];
+        if (!current) return problem(res, 404, 'SERVER_NOT_FOUND', 'Server was not found');
+        if (!can(principal, 'server.manage') && current.ownerId !== principal.id) return problem(res, 403, 'FORBIDDEN', 'You can only update your own servers');
         const body = await readJson(req, 32 * 1024);
-        const principal = auth.principal(req);
         const result = await store.mutate((draft) => {
           const server = draft.servers[serverPatch[1]];
           if (!server) return null;

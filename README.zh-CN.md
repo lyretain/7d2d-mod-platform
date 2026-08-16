@@ -65,6 +65,8 @@ node apps/api/src/server.js
 
 首个用户注册后，`ADMIN_TOKEN` 默认停止作为后台身份使用。只有设置 `ALLOW_BOOTSTRAP_ADMIN=true` 才能继续使用它，建议仅在账户恢复时临时启用。
 
+玩家进服与服主登记服务器，参见 [玩家与服主教程](docs/USER.zh-CN.md)。线上也可打开 `https://mods.aic.la/guide`。
+
 详细部署步骤参见 [中文部署指南](docs/DEPLOYMENT.zh-CN.md)。
 
 ## 客户端同步
@@ -73,7 +75,7 @@ node apps/api/src/server.js
 
 ```powershell
 node apps/updater/src/cli.js `
-  --base-url https://mods.example.com `
+  --base-url https://mods.aic.la `
   --pack-id production-pack `
   --mods-dir "$env:APPDATA\7DaysToDie\Mods"
 ```
@@ -82,7 +84,7 @@ node apps/updater/src/cli.js `
 
 ```powershell
 node apps/updater/src/cli.js `
-  --base-url https://mods.example.com `
+  --base-url https://mods.aic.la `
   --server-address game.example.com:26900 `
   --mods-dir "$env:APPDATA\7DaysToDie\Mods"
 ```
@@ -90,7 +92,7 @@ node apps/updater/src/cli.js `
 玩家启动器（发现游戏目录、展示差异、同步、启动并重连）：
 
 ```powershell
-npm run launcher -- join --base-url https://mods.example.com --address game.example.com:26900
+npm run launcher -- join --base-url https://mods.aic.la --address game.example.com:26900
 ```
 
 便携包（目录内自带 node.exe，玩家不必先装 Node）：

@@ -187,3 +187,32 @@ test('can list, revoke, roll back releases and pause distribution', async (t) =>
   assert.equal(assigned.acceptingPlayers, false);
 });
 
+test('regular users can register a game server and open the user guide', async (t) => {
+  const { base } = await fixture(t);
+  const admin = { authorization: 'Bearer test-admin-token-1234', 'content-type': 'application/json' };
+  const archive = createStoredZip({ 'ExampleMod/ModInfo.xml': '<xml />' });
+  const artifactSha = sha256(archive);
+  await jsonRequest(`${base}/api/v1/artifacts/${artifactSha}`, { method: 'PUT', headers: { ...admin, 'content-type': 'application/zip' }, body: archive });
+  await jsonRequest(`${base}/api/v1/mods`, { method: 'POST', headers: admin, body: JSON.stringify({ id: 'example', name: 'Example', version: '1.0.0', artifactSha, gameVersions: ['3.10.14'], installRoots: ['ExampleMod'] }) });
+  await jsonRequest(`${base}/api/v1/packs`, { method: 'POST', headers: admin, body: JSON.stringify({ id: 'prod-pack', name: 'Prod', gameVersion: '3.10.14', entries: [{ modId: 'example', version: '1.0.0' }] }) });
+  await jsonRequest(`${base}/api/v1/packs/prod-pack/releases`, { method: 'POST', headers: admin, body: '{}' });
+
+  await jsonRequest(`${base}/api/v1/auth/register`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'HostUser', password: 'host user password' }) });
+  const host = await jsonRequest(`${base}/api/v1/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'hostuser', password: 'host user password' }) });
+  const hostHeaders = { authorization: `Bearer ${host.token}`, 'content-type': 'application/json' };
+  const created = await jsonRequest(`${base}/api/v1/servers`, { method: 'POST', headers: hostHeaders, body: JSON.stringify({ name: 'Weekend', packId: 'prod-pack', publicAddress: 'play.example.com:26900' }) });
+  assert.match(created.serverId, /^srv_/);
+  assert.ok(created.token);
+  const resolved = await jsonRequest(`${base}/api/v1/public/servers/resolve?address=play.example.com:26900`);
+  assert.equal(resolved.packId, 'prod-pack');
+  assert.equal((await fetch(`${base}/api/v1/servers`, { method: 'POST', headers: hostHeaders, body: JSON.stringify({ name: 'NoAddr', packId: 'prod-pack' }) })).status, 422);
+
+  await jsonRequest(`${base}/api/v1/auth/register`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'OtherUser', password: 'other user password' }) });
+  const other = await jsonRequest(`${base}/api/v1/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'otheruser', password: 'other user password' }) });
+  assert.equal((await fetch(`${base}/api/v1/servers/${created.serverId}`, { method: 'PATCH', headers: { authorization: `Bearer ${other.token}`, 'content-type': 'application/json' }, body: JSON.stringify({ name: 'Stolen' }) })).status, 403);
+
+  const guide = await fetch(`${base}/guide`);
+  assert.equal(guide.status, 200);
+  assert.match(await guide.text(), /玩家与服主教程/);
+});
+

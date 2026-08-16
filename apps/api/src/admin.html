@@ -144,7 +144,8 @@
   <div class="community">
     <div class="hero">
       <h1>七日杀 Mod 社区</h1>
-      <p>面向服主与玩家的验签分发平台。社区成员按邀请加入，更新器只安装已签名的 Pack。</p>
+      <p>面向服主与玩家的验签分发平台。普通用户可直接注册并登记服务器，更新器只安装已签名的 Pack。</p>
+      <p><a href="/guide" style="color:var(--accent)">阅读玩家与服主教程</a></p>
       <ul>
         <li><strong>验签分发</strong><span>Ed25519 签名的不可变 Release，防止被篡改的 ZIP 进服。</span></li>
         <li><strong>服务器同步</strong><span>按公开地址解析当前 Pack，玩家与专用服保持同一版本。</span></li>
@@ -196,7 +197,10 @@
       <h1 id="pageTitle">Mod</h1>
       <p id="pageHint">上传 ZIP、登记版本；点击表格行可回填表单</p>
     </div>
-    <button class="ghost" onclick="logout()">退出登录</button>
+    <div class="actions" style="width:auto">
+      <a class="ghost" href="/guide" style="display:inline-block;padding:9px 10px;text-decoration:none;color:#fff;background:#2a2f38;border-radius:7px">教程</a>
+      <button class="ghost" onclick="logout()">退出登录</button>
+    </div>
   </div>
 
   <div class="page" id="tab-account">
@@ -301,20 +305,24 @@
   <div class="page" id="tab-servers">
     <div class="grid">
       <article class="card">
-        <h2>绑定 Pack</h2>
-        <p class="hint">把专用服指到当前要分发的 Pack。</p>
+        <h2>登记服务器</h2>
+        <p class="hint">普通用户可登记自己的专用服。令牌只显示一次，请立刻保存到 server.config.json。</p>
+        <label class="field">名称</label>
+        <input id="serverName" placeholder="周末 PVE">
         <div class="row">
-          <div><label class="field">Server ID</label><input id="serverId" placeholder="srv_..."></div>
-          <div><label class="field">新的 Pack ID</label><input id="serverPackId" placeholder="production-pack"></div>
+          <div><label class="field">Server ID</label><input id="serverId" placeholder="新建后自动填写"></div>
+          <div><label class="field">Pack ID</label><input id="serverPackId" placeholder="production-pack"></div>
         </div>
         <label class="field">公开地址</label>
-        <input id="serverAddress" placeholder="host:port">
+        <input id="serverAddress" placeholder="host:port，例如 play.example.com:26900">
         <div class="actions">
-          <button onclick="updateServer()">更新绑定</button>
+          <button onclick="createServer()">登记服务器</button>
+          <button class="secondary" onclick="updateServer()">更新绑定</button>
           <button class="secondary" onclick="loadServers()">刷新状态</button>
         </div>
+        <pre id="serverTokenResult">登记成功后，令牌会显示在这里。</pre>
       </article>
-      <article class="card danger">
+      <article class="card danger" id="pauseCard">
         <h2>紧急停发</h2>
         <p class="hint">停止后更新器将无法拉取新包，不影响已安装玩家继续游戏。</p>
         <label class="field">停发原因</label>
@@ -393,7 +401,7 @@ const PAGES = {
   account: { title: '账户', hint: '邀请新管理员或只读用户' },
   mods: { title: 'Mod', hint: '上传 ZIP、登记版本；点击表格行可回填表单' },
   packs: { title: 'Pack', hint: '组装发布包。吊销与回滚会影响玩家下载' },
-  servers: { title: '服务器', hint: '绑定当前 Pack，必要时紧急停发' },
+  servers: { title: '服务器', hint: '登记专用服并绑定已发布的 Pack；玩家按公开地址同步' },
   ops: { title: '运维', hint: '审核、审计、统计与会话' }
 };
 const LABELS = {
@@ -531,8 +539,9 @@ function paint(data) {
     releaseId.value = r.id;
     if (data.packId) releasePackId.value = data.packId;
   });
-  if (data.servers) table('list-servers', data.servers, ['id', 'packId', 'publicAddress', 'online', 'acceptingPlayers', 'lastSeenAt'], (r) => {
+  if (data.servers) table('list-servers', data.servers, ['id', 'name', 'packId', 'publicAddress', 'online', 'acceptingPlayers', 'lastSeenAt'], (r) => {
     serverId.value = r.id || '';
+    serverName.value = r.name || '';
     serverPackId.value = r.packId || '';
     serverAddress.value = r.publicAddress || '';
   });
@@ -581,10 +590,28 @@ function show(value, opts = {}) {
   if (!opts.silent) toast(opts.message || '已更新', 'ok');
 }
 
+function applyRole(user) {
+  window.__me = user || null;
+  const perms = new Set((user && user.permissions) || []);
+  const show = (tab, on) => {
+    const btn = document.querySelector('nav button[data-tab="' + tab + '"]');
+    if (btn) btn.hidden = !on;
+  };
+  show('mods', perms.has('catalog.write'));
+  show('packs', true);
+  show('servers', true);
+  show('ops', perms.has('ops.read'));
+  show('account', true);
+  const pause = document.getElementById('pauseCard');
+  if (pause) pause.hidden = !perms.has('server.manage');
+  return perms.has('catalog.write') ? 'mods' : 'servers';
+}
+
 async function refreshMe() {
   const token = localStorage.getItem('modPlatformToken');
   if (!token) {
     authStatus.textContent = '尚未登录';
+    applyRole(null);
     return false;
   }
   try {
@@ -592,10 +619,11 @@ async function refreshMe() {
     const labels = { superadmin: '超级管理员', community: '社区管理员', developer: '开发者', user: '普通用户' };
     authStatus.textContent = me.user.username + ' · ' + (labels[me.user.role] || me.user.role);
     if (me.user.role === 'community' && !me.user.githubBound) toast('社区管理员需要先绑定 GitHub', 'warn');
-    return true;
+    return applyRole(me.user);
   } catch {
     localStorage.removeItem('modPlatformToken');
     authStatus.textContent = '尚未登录';
+    applyRole(null);
     return false;
   }
 }
@@ -610,10 +638,10 @@ async function setupPlatform() {
     setupPassword.value = '';
     setupPassword2.value = '';
     window.__initialized = true;
-    await refreshMe();
+    const home = await refreshMe();
     setMode('authed');
     show('社区已初始化');
-    showTab('mods');
+    showTab(home || 'mods');
   } catch (e) {
     const text = e.message === 'Invalid setup token'
       ? 'ADMIN_TOKEN 不正确。'
@@ -635,10 +663,10 @@ async function login() {
       localStorage.setItem('modPlatformToken', r.token);
     }
     loginPassword.value = '';
-    await refreshMe();
+    const home = await refreshMe();
     setMode('authed');
     show('登录成功');
-    showTab('mods');
+    showTab(home || 'servers');
   } catch (e) { show(e.message); }
 }
 
@@ -792,6 +820,17 @@ async function rollbackRelease() {
   } catch (e) { show(e.message); }
 }
 
+async function createServer() {
+  try {
+    const created = await request('/api/v1/servers', { method: 'POST', headers: headers(), body: JSON.stringify({ name: serverName.value, packId: serverPackId.value, publicAddress: serverAddress.value }) });
+    serverId.value = created.serverId || '';
+    const box = document.getElementById('serverTokenResult');
+    if (box) box.textContent = '请立即保存令牌，页面刷新后不会再显示。\n\n' + JSON.stringify(created, null, 2);
+    show(created, { message: '服务器已登记，请保存令牌' });
+    await loadServers({ silent: true });
+  } catch (e) { show(e.message); }
+}
+
 async function updateServer() {
   try {
     show(await request('/api/v1/servers/' + encodeURIComponent(serverId.value), { method: 'PATCH', headers: headers(), body: JSON.stringify({ packId: serverPackId.value || undefined, publicAddress: serverAddress.value || undefined }) }), { message: '服务器已更新' });
@@ -881,7 +920,7 @@ setupPassword2.addEventListener('keydown', (e) => { if (e.key === 'Enter') setup
   const ok = await refreshMe();
   if (ok) {
     setMode('authed');
-    showTab('mods');
+    showTab(ok);
     return;
   }
   setMode(window.__initialized ? 'guest' : 'setup');

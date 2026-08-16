@@ -34,6 +34,8 @@ node apps/api/src/server.js
 
 Open `http://localhost:8080`, enter the administrator token, then upload a ZIP, register its metadata and publish a pack.
 
+Player and server-owner tutorial: [docs/USER.zh-CN.md](docs/USER.zh-CN.md) or `/guide` on a running instance.
+
 ### Run with Docker
 
 Copy `.env.example` to `.env`, change `ADMIN_TOKEN` and `PUBLIC_BASE_URL`, then:
@@ -49,13 +51,13 @@ The named Docker volume stores metadata, artifacts and the development signing k
 By pack ID:
 
 ```powershell
-node apps/updater/src/cli.js --base-url https://mods.example.com --pack-id production-pack --mods-dir "$env:APPDATA\7DaysToDie\Mods"
+node apps/updater/src/cli.js --base-url https://mods.aic.la --pack-id production-pack --mods-dir "$env:APPDATA\7DaysToDie\Mods"
 ```
 
 By registered game-server address:
 
 ```powershell
-node apps/updater/src/cli.js --base-url https://mods.example.com --server-address game.example.com:26900 --mods-dir "$env:APPDATA\7DaysToDie\Mods"
+node apps/updater/src/cli.js --base-url https://mods.aic.la --server-address game.example.com:26900 --mods-dir "$env:APPDATA\7DaysToDie\Mods"
 ```
 
 On first use the updater pins the platform public key. A later key change fails closed. For managed deployments, pass the expected base64 SPKI key using `--public-key`.
@@ -63,7 +65,7 @@ On first use the updater pins the platform public key. A later key change fails 
 Player launcher (discover install, show the plan, sync, start, reconnect):
 
 ```powershell
-npm run launcher -- join --base-url https://mods.example.com --address game.example.com:26900
+npm run launcher -- join --base-url https://mods.aic.la --address game.example.com:26900
 ```
 
 Build a portable folder that includes `node.exe` and `ModPlatformLauncher.exe`:

@@ -17,7 +17,7 @@
 cd E:\Project
 $env:HOST = "0.0.0.0"
 $env:PORT = "8080"
-$env:PUBLIC_BASE_URL = "https://mods.example.com"
+$env:PUBLIC_BASE_URL = "https://mods.aic.la"
 $env:ADMIN_TOKEN = "使用密码管理器生成的长随机令牌"
 node apps/api/src/server.js
 ```

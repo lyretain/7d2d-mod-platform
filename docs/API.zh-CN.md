@@ -60,12 +60,12 @@ Authorization: Bearer <ADMIN_TOKEN>
 | POST | `/api/v1/mods` | 管理员 | 注册 Mod 版本 |
 | POST | `/api/v1/packs` | 管理员 | 创建或更新 ModPack 草稿 |
 | POST | `/api/v1/packs/{id}/releases` | 管理员 | 发布签名版本 |
-| POST | `/api/v1/servers` | 管理员 | 注册游戏服务器 |
+| POST | `/api/v1/servers` | 登录用户 | 登记游戏服务器；普通用户必须填写公开地址 |
 | GET | `/api/v1/admin/state` | 管理员 | 查看平台状态 |
 | GET | `/api/v1/packs/{id}/releases` | 登录用户 | 列出 Release，并提示回滚可能影响存档 |
 | POST | `/api/v1/packs/{id}/releases/{releaseId}/revoke` | 管理员 | 吊销 Release |
 | POST | `/api/v1/packs/{id}/rollback` | 管理员 | 将 latest 指针回滚到指定 Release |
-| PATCH | `/api/v1/servers/{id}` | 管理员 | 修改服务器 Pack 绑定或地址 |
+| PATCH | `/api/v1/servers/{id}` | 登录用户 | 修改自己的服务器；社区管理员可改全部 |
 | POST | `/api/v1/admin/distribution` | 管理员 | 紧急停止或恢复分发 |
 | GET | `/api/v1/admin/audit` | 登录用户 | 查看发布审计 |
 | POST | `/api/v1/servers/{id}/sync-status` | 服务端令牌 | 上报同步状态 |
