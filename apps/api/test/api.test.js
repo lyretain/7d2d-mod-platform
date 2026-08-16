@@ -240,6 +240,10 @@ test('regular users can register a game server and open the user guide', async (
   await jsonRequest(`${base}/api/v1/auth/register`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'OtherUser', password: 'other user password' }) });
   const other = await jsonRequest(`${base}/api/v1/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'otheruser', password: 'other user password' }) });
   assert.equal((await fetch(`${base}/api/v1/servers/${created.serverId}`, { method: 'PATCH', headers: { authorization: `Bearer ${other.token}`, 'content-type': 'application/json' }, body: JSON.stringify({ name: 'Stolen' }) })).status, 403);
+  assert.equal((await fetch(`${base}/api/v1/servers/${created.serverId}`, { method: 'DELETE', headers: { authorization: `Bearer ${other.token}` } })).status, 403);
+  const removed = await jsonRequest(`${base}/api/v1/servers/${noAddr.serverId}`, { method: 'DELETE', headers: hostHeaders });
+  assert.equal(removed.deleted, true);
+  assert.equal((await fetch(`${base}/api/v1/public/servers/resolve?serverId=${encodeURIComponent(noAddr.serverId)}`)).status, 404);
 
   const guide = await fetch(`${base}/guide`);
   assert.equal(guide.status, 200);

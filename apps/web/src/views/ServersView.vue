@@ -6,7 +6,7 @@ import UiTable from '../components/UiTable.vue';
 import { i18n, t } from '../i18n';
 import { confirmAction, fail, ok } from '../lib/feedback';
 import { catalog, loadPacks, packOptionLabel } from '../stores/catalog';
-import { can } from '../stores/session';
+import { can, session } from '../stores/session';
 
 const name = ref('');
 const serverId = ref('');
@@ -17,6 +17,7 @@ const configText = ref('');
 const configJson = ref('');
 const selected = ref(-1);
 const servers = ref<Record<string, unknown>[]>([]);
+const paused = ref(false);
 
 function pluginConfig(created: any) {
   if (created?.config) return created.config;
@@ -39,10 +40,20 @@ function showConfig(created: any) {
   configText.value = t('srv.configPrefix') + json;
 }
 
+async function loadPauseState() {
+  try {
+    const status = await api<{ distributionPaused?: boolean }>('/status');
+    paused.value = Boolean(status.distributionPaused);
+  } catch {
+    /* keep last known */
+  }
+}
+
 async function loadServers(opts?: { silent?: boolean }) {
   try {
     const data = await api<{ servers: Record<string, unknown>[] }>('/api/v1/servers');
     servers.value = data.servers || [];
+    await loadPauseState();
     ok(data, t('srv.loaded'), opts?.silent);
   } catch (error) {
     fail(error);
@@ -77,6 +88,29 @@ async function updateServer() {
   }
 }
 
+function canDeleteSelected() {
+  const row = selected.value >= 0 ? servers.value[selected.value] : null;
+  if (!row || !serverId.value) return false;
+  return can('server.manage') || row.ownerId === session.user?.id;
+}
+
+async function deleteServer() {
+  try {
+    if (!serverId.value) throw new Error(t('srv.needSelect'));
+    if (!window.confirm(t('srv.confirmDelete'))) throw new Error(t('cancelled'));
+    const result = await api(`/api/v1/servers/${encodeURIComponent(serverId.value)}`, { method: 'DELETE' });
+    serverId.value = '';
+    name.value = '';
+    packId.value = '';
+    addresses.value = '';
+    selected.value = -1;
+    ok(result, t('srv.deleted'));
+    await loadServers({ silent: true });
+  } catch (error) {
+    fail(error);
+  }
+}
+
 async function copyConfig() {
   if (!configJson.value) return fail(t('srv.noCopy'));
   try {
@@ -87,14 +121,14 @@ async function copyConfig() {
   }
 }
 
-async function pause(paused: boolean) {
+async function pause(next: boolean) {
   try {
-    const token = await confirmAction(paused ? 'distribution.pause' : 'distribution.resume', paused ? t('srv.confirmPause') : t('srv.confirmResume'));
+    const token = await confirmAction(next ? 'distribution.pause' : 'distribution.resume', next ? t('srv.confirmPause') : t('srv.confirmResume'));
     const result = await api('/api/v1/admin/distribution', {
       method: 'POST',
-      body: JSON.stringify({ paused, reason: pauseReason.value || undefined, confirmToken: token })
+      body: JSON.stringify({ paused: next, reason: pauseReason.value || undefined, confirmToken: token })
     });
-    ok(result, paused ? t('srv.paused') : t('srv.resumed'));
+    ok(result, next ? t('srv.paused') : t('srv.resumed'));
     await loadServers({ silent: true });
   } catch (error) {
     fail(error);
@@ -139,12 +173,16 @@ onMounted(async () => {
       <div class="flex flex-wrap gap-2">
         <button type="button" class="btn-primary" @click="createServer">{{ t('srv.create') }}</button>
         <button type="button" class="btn-secondary" @click="updateServer">{{ t('srv.update') }}</button>
+        <button type="button" class="btn-danger" :disabled="!canDeleteSelected()" @click="deleteServer">{{ t('srv.delete') }}</button>
         <button type="button" class="btn-secondary" @click="loadServers()">{{ t('srv.refresh') }}</button>
         <button type="button" class="btn-secondary" @click="copyConfig">{{ t('srv.copy') }}</button>
       </div>
       <pre class="max-h-56 overflow-auto rounded-lg bg-gray-950 p-3 text-theme-xs text-gray-300">{{ configText }}</pre>
     </UiCard>
     <UiCard v-if="can('server.manage')" :title="t('srv.pauseTitle')" :desc="t('srv.pauseHint')" danger>
+      <p class="rounded-lg px-3 py-2 text-sm" :class="paused ? 'bg-error-500/10 text-error-500' : 'bg-success-500/10 text-success-500'">
+        {{ paused ? t('srv.pauseOn') : t('srv.pauseOff') }}
+      </p>
       <label class="field">{{ t('srv.pauseReason') }}</label>
       <input v-model="pauseReason" class="input" :placeholder="t('srv.phReason')">
       <div class="flex flex-wrap gap-2">

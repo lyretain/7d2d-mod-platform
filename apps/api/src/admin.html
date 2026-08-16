@@ -415,6 +415,7 @@
         <div class="actions">
           <button onclick="createServer()" data-i18n="srv.create">登记服务器</button>
           <button class="secondary" onclick="updateServer()" data-i18n="srv.update">更新绑定</button>
+          <button onclick="deleteServer()" data-i18n="srv.delete">删除服务器</button>
           <button class="secondary" onclick="loadServers()" data-i18n="srv.refresh">刷新状态</button>
         </div>
         <div class="actions">
@@ -423,8 +424,8 @@
         <pre id="serverTokenResult" data-i18n="srv.tokenIdle">登记成功后，这里会给出可直接覆盖到插件目录的 server.config.json。</pre>
       </article>
       <article class="card danger" id="pauseCard">
-        <h2 data-i18n="srv.pauseTitle">紧急停发</h2>
-        <p class="hint" data-i18n="srv.pauseHint">停止后更新器将无法拉取新包，不影响已安装玩家继续游戏。</p>
+        <h2 data-i18n="srv.pauseTitle">全平台紧急停发</h2>
+        <p class="hint" data-i18n="srv.pauseHint">这是平台级开关，不是某一台服务器，也不是某一个 Mod 包。开启后，所有 Pack 的更新器下载和进服握手都会被拒绝；已经装好的玩家可以继续玩。</p>
         <label class="field" data-i18n="srv.pauseReason">停发原因</label>
         <input id="pauseReason" data-i18n-placeholder="srv.phReason" placeholder="可选">
         <div class="actions">
@@ -1364,6 +1365,18 @@ async function createServer() {
 async function updateServer() {
   try {
     show(await request('/api/v1/servers/' + encodeURIComponent(serverId.value), { method: 'PATCH', headers: headers(), body: JSON.stringify({ packId: serverPackId.value || undefined, publicAddresses: serverAddress.value }) }), { message: t('srv.updated') });
+    await loadServers({ silent: true });
+  } catch (e) { show(e.message); }
+}
+
+async function deleteServer() {
+  try {
+    if (!serverId.value) throw new Error(t('srv.needSelect'));
+    if (!confirm(t('srv.confirmDelete'))) throw new Error(t('cancelled'));
+    show(await request('/api/v1/servers/' + encodeURIComponent(serverId.value), { method: 'DELETE', headers: headers() }), { message: t('srv.deleted') });
+    serverId.value = '';
+    serverName.value = '';
+    serverAddress.value = '';
     await loadServers({ silent: true });
   } catch (e) { show(e.message); }
 }

@@ -23,6 +23,7 @@ All administrator routes require `Authorization: Bearer <ADMIN_TOKEN>`.
 | POST | `/api/v1/packs/{id}/releases/{releaseId}/revoke` | Revoke a release |
 | POST | `/api/v1/packs/{id}/rollback` | Point the pack back at a previous release |
 | PATCH | `/api/v1/servers/{id}` | Change the bound pack or public address |
+| DELETE | `/api/v1/servers/{id}` | Delete a server you own; community admins can delete any |
 | POST | `/api/v1/admin/distribution` | Emergency pause or resume distribution |
 | GET | `/api/v1/admin/audit` | Publication audit log |
 | POST | `/api/v1/servers/{id}/sync-status` | Dedicated-server sync heartbeat |

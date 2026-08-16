@@ -703,6 +703,24 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
         return json(res, 200, result);
       }
 
+      if (req.method === 'DELETE' && serverPatch) {
+        const principal = requireUser(req, res);
+        if (!principal) return;
+        const current = store.snapshot().servers[serverPatch[1]];
+        if (!current) return problem(res, 404, 'SERVER_NOT_FOUND', 'Server was not found');
+        if (!can(principal, 'server.manage') && current.ownerId !== principal.id) return problem(res, 403, 'FORBIDDEN', 'You can only delete your own servers');
+        const result = await store.mutate((draft) => {
+          const server = draft.servers[serverPatch[1]];
+          if (!server) return null;
+          delete draft.servers[server.id];
+          if (draft.handshakes) delete draft.handshakes[server.id];
+          recordAudit(draft, { actor: principal.username || principal.id, action: 'server.delete', target: server.id, details: { packId: server.packId, name: server.name } });
+          return { deleted: true, id: server.id };
+        });
+        if (!result) return problem(res, 404, 'SERVER_NOT_FOUND', 'Server was not found');
+        return json(res, 200, result);
+      }
+
       const addressesMatch = pathname.match(/^\/api\/v1\/servers\/([^/]+)\/addresses$/);
       if (req.method === 'PUT' && addressesMatch) {
         const snapshot = store.snapshot();
