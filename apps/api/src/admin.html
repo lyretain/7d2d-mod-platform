@@ -752,7 +752,7 @@ async function upload() {
     uploadResult.textContent = '正在上传 ' + file.name + ' …';
     const bytes = await file.arrayBuffer();
     const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map((x) => x.toString(16).padStart(2, '0')).join('');
-    const r = await request('/api/v1/artifacts/' + hash, { method: 'PUT', headers: { authorization: headers().authorization, 'content-type': 'application/zip', 'x-file-name': file.name }, body: bytes });
+    const r = await request('/api/v1/artifacts/' + hash, { method: 'PUT', headers: { authorization: headers().authorization, 'content-type': 'application/zip', 'x-file-name': encodeURIComponent(file.name) }, body: bytes });
     artifactSha.value = hash;
     uploadResult.textContent = 'SHA-256：' + hash + '\n状态：' + (r.review && r.review.status || '已上传') + '\n大小：' + prettyBytes(r.size);
     show(r, { message: '上传完成' });

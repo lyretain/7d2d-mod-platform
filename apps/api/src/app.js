@@ -7,7 +7,7 @@ import { pipeline } from 'node:stream/promises';
 import { prepareDiagnostic } from './diagnostics.js';
 import { createAuthService } from './auth.js';
 import { activeRelease, handshakePolicy, recordAudit, releaseDiff } from './protocol.js';
-import { bearer, id, isSafeId, json, now, problem, readJson, requireFields } from './util.js';
+import { bearer, decodeHeaderFileName, id, isSafeId, json, now, problem, readJson, requireFields } from './util.js';
 import { analyzeZipFile, scanFile } from './analyze.js';
 import { ingestDiagnostic, shouldBlockInstalls } from './compatibility.js';
 import { handleP1 } from './p1-routes.js';
@@ -222,14 +222,15 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
         if (store.snapshot().bannedHashes?.[expected]) return problem(res, 409, 'HASH_BANNED', 'This artifact hash is banned');
         const received = await receiveArtifact(req, target, expected, maxArtifactBytes);
         if (objects?.put) await objects.put(expected, target, received.size);
-        const analysis = await analyzeZipFile(target, req.headers['x-file-name'] || 'upload.zip');
+        const fileName = decodeHeaderFileName(req.headers['x-file-name']);
+        const analysis = await analyzeZipFile(target, fileName);
         const scan = config.production ? await scanFile(target) : { skipped: true, ok: true };
         const highRisk = analysis.findings.some((item) => item.severity === 'high') || scan.ok === false;
         const review = await store.mutate((draft) => {
           draft.reviews = draft.reviews || {};
           const value = {
             sha256: expected,
-            fileName: req.headers['x-file-name'] || null,
+            fileName,
             size: received.size,
             status: highRisk || analysis.containsDll ? 'pending' : 'approved',
             licenseConfirmed: false,
@@ -240,7 +241,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
           draft.reviews[expected] = value;
           return value;
         });
-        return json(res, 201, { sha256: expected, size: received.size, fileName: req.headers['x-file-name'] || null, review });
+        return json(res, 201, { sha256: expected, size: received.size, fileName, review });
       }
 
       const publicArtifact = pathname.match(/^\/api\/v1\/public\/artifacts\/([a-f0-9]{64})$/);

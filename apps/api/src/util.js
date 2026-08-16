@@ -64,6 +64,16 @@ export function isSafeId(value) {
   return typeof value === 'string' && /^[a-zA-Z0-9][a-zA-Z0-9._-]{1,127}$/.test(value);
 }
 
+export function decodeHeaderFileName(value, fallback = 'upload.zip') {
+  const raw = String(value || '').trim();
+  if (!raw) return fallback;
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
+
 export function bearer(req) {
   const header = req.headers.authorization || '';
   return header.startsWith('Bearer ') ? header.slice(7) : '';

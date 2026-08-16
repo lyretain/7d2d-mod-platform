@@ -100,7 +100,8 @@ test('review, license gate, hash ban and public key ring', async (t) => {
   const admin = { authorization: 'Bearer test-admin-token-1234', 'content-type': 'application/json' };
   const archive = createStoredZip({ 'ExampleMod/ModInfo.xml': '<xml />' });
   const artifactSha = sha256(archive);
-  const uploaded = await jsonRequest(`${base}/api/v1/artifacts/${artifactSha}`, { method: 'PUT', headers: { authorization: admin.authorization, 'content-type': 'application/zip' }, body: archive });
+  const uploaded = await jsonRequest(`${base}/api/v1/artifacts/${artifactSha}`, { method: 'PUT', headers: { authorization: admin.authorization, 'content-type': 'application/zip', 'x-file-name': encodeURIComponent('载具扩展.zip') }, body: archive });
+  assert.equal(uploaded.fileName, '载具扩展.zip');
   assert.equal(uploaded.review.status, 'approved');
   const denied = await fetch(`${base}/api/v1/mods`, { method: 'POST', headers: admin, body: JSON.stringify({ id: 'example', name: 'Example', version: '1.0.0', artifactSha, gameVersions: ['2.6'], installRoots: ['ExampleMod'] }) });
   assert.equal(denied.status, 422);
