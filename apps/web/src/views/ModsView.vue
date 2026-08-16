@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { api, uploadZip } from '../api/client';
+import { api, hashAndUploadZip, type UploadProgress } from '../api/client';
 import UiCard from '../components/UiCard.vue';
+import UiProgress from '../components/UiProgress.vue';
 import UiTable from '../components/UiTable.vue';
 import { i18n, t } from '../i18n';
 import { fail, ok } from '../lib/feedback';
-import { prettyBytes, sha256Hex } from '../lib/format';
+import { prettyBytes } from '../lib/format';
 import { catalog, loadMods, type ModRow } from '../stores/catalog';
 import { can } from '../stores/session';
 
@@ -32,6 +33,8 @@ const form = ref({
 });
 const suggestedSlots = ref<Array<{ id: string; path: string; label?: string }>>([]);
 const reviewHint = ref('');
+const uploading = ref(false);
+const progress = ref({ active: false, percent: 0, label: '' });
 
 function refreshHint() {
   dropHint.value = file.value ? t('mod.chosen', { name: file.value.name, size: prettyBytes(file.value.size) }) : t('mod.drop');
@@ -42,14 +45,21 @@ function onFile(list: FileList | null) {
   refreshHint();
 }
 
+function trackProgress(event: UploadProgress) {
+  const percent = event.total ? Math.round((event.loaded / event.total) * 100) : 0;
+  if (event.phase === 'hash') progress.value = { active: true, percent, label: t('mod.hashing', { percent }) };
+  else if (event.phase === 'upload') progress.value = { active: true, percent, label: t('mod.uploadProgress', { percent, loaded: prettyBytes(event.loaded), total: prettyBytes(event.total) }) };
+  else progress.value = { active: true, percent: 100, label: t('mod.analyzing') };
+}
+
 async function upload() {
   try {
     if (!file.value) throw new Error(t('mod.needZip'));
+    uploading.value = true;
     uploadResult.value = t('mod.uploading', { name: file.value.name });
-    const bytes = await file.value.arrayBuffer();
-    const hash = await sha256Hex(bytes);
-    const result = await uploadZip(hash, file.value);
-    form.value.artifactSha = hash;
+    trackProgress({ phase: 'hash', loaded: 0, total: file.value.size || 1 });
+    const result = await hashAndUploadZip(file.value, trackProgress);
+    form.value.artifactSha = result.hash;
     const analysis = result.review?.analysis;
     if (analysis) {
       if (analysis.roots?.length && !form.value.installRoots) form.value.installRoots = analysis.roots.join(',');
@@ -67,11 +77,15 @@ async function upload() {
     const status = result.review?.status || t('mod.uploaded');
     const nextKey = status === 'pending' ? 'mod.pendingHint' : 'mod.readyHint';
     reviewHint.value = t(nextKey);
-    uploadResult.value = t('mod.uploadResult', { hash, status, size: prettyBytes(result.size), next: t(nextKey) });
+    uploadResult.value = t('mod.uploadResult', { hash: result.hash, status, size: prettyBytes(result.size), next: t(nextKey) });
+    progress.value = { active: false, percent: 100, label: '' };
     ok(result, t('mod.uploadOk'));
   } catch (error) {
+    progress.value.active = false;
     uploadResult.value = error instanceof Error ? error.message : String(error);
     fail(error);
+  } finally {
+    uploading.value = false;
   }
 }
 
@@ -152,10 +166,11 @@ onMounted(() => {
     <div class="grid gap-6 xl:grid-cols-2">
       <UiCard :title="t('mod.uploadTitle')" :desc="t('mod.uploadHint')">
         <label class="drop-zone" :class="{ over }" @dragenter.prevent="over = true" @dragover.prevent="over = true" @dragleave.prevent="over = false" @drop.prevent="over = false; onFile(($event as DragEvent).dataTransfer?.files || null)">
-          <input type="file" accept=".zip" @change="onFile(($event.target as HTMLInputElement).files)">
+          <input type="file" accept=".zip" :disabled="uploading" @change="onFile(($event.target as HTMLInputElement).files)">
           <span>{{ dropHint }}</span>
         </label>
-        <button type="button" class="btn-primary" @click="upload">{{ t('mod.upload') }}</button>
+        <button type="button" class="btn-primary disabled:cursor-not-allowed disabled:opacity-50" :disabled="uploading" @click="upload">{{ t('mod.upload') }}</button>
+        <UiProgress class="mt-3" :active="progress.active" :value="progress.percent" :label="progress.label" />
         <pre class="max-h-52 overflow-auto rounded-lg bg-gray-950 p-3 text-theme-xs text-gray-300">{{ uploadResult }}</pre>
       </UiCard>
       <UiCard :title="t('mod.registerTitle')">

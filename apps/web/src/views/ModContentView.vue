@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { api, uploadZip } from '../api/client';
+import { api, hashAndUploadZip, type UploadProgress } from '../api/client';
 import UiCard from '../components/UiCard.vue';
+import UiProgress from '../components/UiProgress.vue';
 import { i18n, t } from '../i18n';
 import { fail, ok } from '../lib/feedback';
-import { prettyBytes, sha256Hex } from '../lib/format';
+import { prettyBytes } from '../lib/format';
 import { can } from '../stores/session';
 import type { ModRow } from '../stores/catalog';
 
@@ -19,6 +20,7 @@ const newPath = ref('');
 const newLabel = ref('');
 const license = ref(false);
 const busy = ref('');
+const progress = ref({ active: false, percent: 0, label: '' });
 
 const slots = computed(() => mod.value?.contentSlots || []);
 const contents = computed(() => (mod.value?.slotContents || {}) as Record<string, SlotContent>);
@@ -69,6 +71,13 @@ async function removeSlot(slotId: string) {
   }
 }
 
+function trackProgress(event: UploadProgress) {
+  const percent = event.total ? Math.round((event.loaded / event.total) * 100) : 0;
+  if (event.phase === 'hash') progress.value = { active: true, percent, label: t('mod.hashing', { percent }) };
+  else if (event.phase === 'upload') progress.value = { active: true, percent, label: t('mod.uploadProgress', { percent, loaded: prettyBytes(event.loaded), total: prettyBytes(event.total) }) };
+  else progress.value = { active: true, percent: 100, label: t('mod.analyzing') };
+}
+
 async function attach(slot: Slot, file: File | null, clear = false) {
   try {
     if (!clear && !license.value) throw new Error(t('mod.needLicense'));
@@ -76,20 +85,22 @@ async function attach(slot: Slot, file: File | null, clear = false) {
     let artifactSha = '';
     if (!clear) {
       if (!file) throw new Error(t('mod.needZip'));
-      const hash = await sha256Hex(await file.arrayBuffer());
-      await uploadZip(hash, file);
+      trackProgress({ phase: 'hash', loaded: 0, total: file.size || 1 });
+      const uploaded = await hashAndUploadZip(file, trackProgress);
       if (can('review.approve')) {
-        await api(`/api/v1/reviews/${hash}`, { method: 'POST', body: JSON.stringify({ status: 'approved', licenseConfirmed: true }) });
+        await api(`/api/v1/reviews/${uploaded.hash}`, { method: 'POST', body: JSON.stringify({ status: 'approved', licenseConfirmed: true }) });
       }
-      artifactSha = hash;
+      artifactSha = uploaded.hash;
     }
     const result = await api(`/api/v1/mods/${encodeURIComponent(String(route.params.id))}/slots/${encodeURIComponent(slot.id)}`, {
       method: 'POST',
       body: JSON.stringify({ artifactSha: artifactSha || undefined })
     });
     await load();
+    progress.value = { active: false, percent: 100, label: '' };
     ok(result, t(clear ? 'mod.slotCleared' : 'mod.slotAttached'));
   } catch (error) {
+    progress.value.active = false;
     fail(error);
   } finally {
     busy.value = '';
@@ -123,9 +134,10 @@ onMounted(load);
       </p>
       <label class="mb-3 flex items-center gap-2 text-sm text-gray-500"><input v-model="license" type="checkbox"><span>{{ t('mod.license') }}</span></label>
       <label class="drop-zone mb-3">
-        <input type="file" accept=".zip" @change="attach(slot, ($event.target as HTMLInputElement).files?.[0] || null)">
+        <input type="file" accept=".zip" :disabled="Boolean(busy)" @change="attach(slot, ($event.target as HTMLInputElement).files?.[0] || null)">
         <span>{{ t('mod.slotUpload') }}{{ busy === slot.id ? ' …' : '' }}</span>
       </label>
+      <UiProgress v-if="busy === slot.id" class="mb-3" :active="progress.active" :value="progress.percent" :label="progress.label" />
       <div class="flex flex-wrap gap-2">
         <button type="button" class="btn-secondary" @click="attach(slot, null, true)">{{ t('mod.slotClear') }}</button>
         <button type="button" class="btn-secondary" @click="removeSlot(slot.id)">{{ t('mod.slotDelete') }}</button>

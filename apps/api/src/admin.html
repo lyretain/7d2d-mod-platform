@@ -105,6 +105,11 @@
     .drop { position: relative; display: flex; align-items: center; justify-content: center; min-height: 118px; margin-bottom: 10px; border: 1px dashed #4a5160; border-radius: 10px; background: #14171d; color: var(--muted); text-align: center; }
     .drop input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
     .drop.over { border-color: var(--accent); color: var(--accent); background: #241c10; }
+    .progress { display: none; margin: 0 0 10px; }
+    .progress.on { display: block; }
+    .progress-label { display: flex; justify-content: space-between; gap: 12px; margin: 0 0 6px; color: var(--muted); font-size: 12px; }
+    .progress-track { height: 8px; overflow: hidden; background: #14171d; border: 1px solid var(--line); border-radius: 999px; }
+    .progress-bar { height: 100%; width: 0; background: var(--accent); border-radius: 999px; transition: width .15s ease; }
     .table-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 8px; background: #14171d; }
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
     th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
@@ -341,6 +346,10 @@
           <input id="artifact" type="file" accept=".zip">
           <span id="dropHint" data-i18n="mod.drop">拖入 ZIP，或点击选择</span>
         </label>
+        <div class="progress" id="uploadProgress">
+          <div class="progress-label"><span id="uploadProgressLabel"></span><span id="uploadProgressPercent">0%</span></div>
+          <div class="progress-track"><div class="progress-bar" id="uploadProgressBar"></div></div>
+        </div>
         <div class="actions"><button onclick="upload()" data-i18n="mod.upload">上传并计算哈希</button></div>
         <pre id="uploadResult" data-i18n="mod.uploadIdle">上传结果会显示在这里。</pre>
       </article>
@@ -688,7 +697,8 @@ function prettyBytes(n) {
   n = Number(n) || 0;
   if (n < 1024) return n + ' B';
   if (n < 1048576) return (n / 1024).toFixed(1) + ' KB';
-  return (n / 1048576).toFixed(1) + ' MB';
+  if (n < 1073741824) return (n / 1048576).toFixed(1) + ' MB';
+  return (n / 1073741824).toFixed(1) + ' GB';
 }
 
 function fmt(key, v) {
@@ -988,25 +998,29 @@ function renderModContent(mod) {
     const status = current.sha256 ? t('mod.slotCurrent', { name: current.fileName || (current.sha256 || '').slice(0, 10) + '…', size: prettyBytes(current.size || 0) }) : t('mod.slotNone');
     return '<div class="depends-box"><strong>' + esc(slot.label || slot.path) + '</strong> <span class="hint">' + esc(slot.path) + '</span><p class="hint">' + esc(status) + '</p>'
       + '<input type="file" accept=".zip" onchange=\'uploadSlotContent(' + JSON.stringify(mod.id) + ',' + JSON.stringify(slot.id) + ', this.files && this.files[0])\'>'
+      + '<div class="progress" id="slotProgress-' + esc(slot.id) + '"><div class="progress-label"><span></span><span>0%</span></div><div class="progress-track"><div class="progress-bar"></div></div></div>'
       + '<div class="actions"><button type="button" class="secondary" onclick=\'clearSlotContent(' + JSON.stringify(mod.id) + ',' + JSON.stringify(slot.id) + ')\'>' + esc(t('mod.slotClear')) + '</button>'
       + '<button type="button" class="secondary" onclick=\'deleteContentSlot(' + JSON.stringify(mod.id) + ',' + JSON.stringify(slot.id) + ')\'>' + esc(t('mod.slotDelete')) + '</button></div></div>';
   }).join('');
 }
 
 async function uploadSlotContent(modId, slotId, file) {
+  const progressRoot = document.getElementById('slotProgress-' + slotId);
   try {
     if (!file) throw new Error(t('mod.needZip'));
     if (!licenseConfirm.checked) throw new Error(t('mod.needLicense'));
-    const bytes = await file.arrayBuffer();
-    const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map((x) => x.toString(16).padStart(2, '0')).join('');
-    await request('/api/v1/artifacts/' + hash, { method: 'PUT', headers: { authorization: headers().authorization, 'content-type': 'application/zip', 'x-file-name': encodeURIComponent(file.name) }, body: bytes });
+    const uploaded = await hashAndPutArtifact(file, progressRoot);
     const perms = new Set((window.__me && window.__me.permissions) || []);
     if (perms.has('review.approve')) {
-      await request('/api/v1/reviews/' + hash, { method: 'POST', headers: headers(), body: JSON.stringify({ status: 'approved', licenseConfirmed: true }) });
+      await request('/api/v1/reviews/' + uploaded.hash, { method: 'POST', headers: headers(), body: JSON.stringify({ status: 'approved', licenseConfirmed: true }) });
     }
-    show(await request('/api/v1/mods/' + encodeURIComponent(modId) + '/slots/' + encodeURIComponent(slotId), { method: 'POST', headers: headers(), body: JSON.stringify({ artifactSha: hash }) }), { message: t('mod.slotAttached') });
+    show(await request('/api/v1/mods/' + encodeURIComponent(modId) + '/slots/' + encodeURIComponent(slotId), { method: 'POST', headers: headers(), body: JSON.stringify({ artifactSha: uploaded.hash }) }), { message: t('mod.slotAttached') });
+    setUploadProgress(progressRoot);
     await loadMods({ silent: true });
-  } catch (e) { show(e.message); }
+  } catch (e) {
+    setUploadProgress(progressRoot);
+    show(e.message);
+  }
 }
 
 async function clearSlotContent(modId, slotId) {
@@ -1374,14 +1388,61 @@ async function loadState() {
   } catch (e) { show(e.message); }
 }
 
+function setUploadProgress(root, event) {
+  const box = typeof root === 'string' ? document.getElementById(root) : root;
+  if (!box) return;
+  const label = box.querySelector('.progress-label span') || document.getElementById('uploadProgressLabel');
+  const percentEl = box.querySelector('.progress-label span:last-child') || document.getElementById('uploadProgressPercent');
+  const bar = box.querySelector('.progress-bar') || document.getElementById('uploadProgressBar');
+  if (!event) {
+    box.classList.remove('on');
+    return;
+  }
+  const percent = event.total ? Math.round((event.loaded / event.total) * 100) : 0;
+  let text = t('mod.analyzing');
+  if (event.phase === 'hash') text = t('mod.hashing', { percent });
+  else if (event.phase === 'upload') text = t('mod.uploadProgress', { percent, loaded: prettyBytes(event.loaded), total: prettyBytes(event.total) });
+  box.classList.add('on');
+  if (label) label.textContent = text;
+  if (percentEl) percentEl.textContent = percent + '%';
+  if (bar) bar.style.width = Math.min(100, Math.max(0, percent)) + '%';
+}
+
+async function hashAndPutArtifact(file, progressRoot) {
+  setUploadProgress(progressRoot, { phase: 'hash', loaded: 0, total: file.size || 1 });
+  const bytes = await file.arrayBuffer();
+  setUploadProgress(progressRoot, { phase: 'hash', loaded: file.size, total: file.size || 1 });
+  const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map((x) => x.toString(16).padStart(2, '0')).join('');
+  const result = await new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', '/api/v1/artifacts/' + hash);
+    xhr.setRequestHeader('authorization', headers().authorization);
+    xhr.setRequestHeader('content-type', 'application/zip');
+    xhr.setRequestHeader('x-file-name', encodeURIComponent(file.name));
+    xhr.upload.onprogress = (event) => {
+      setUploadProgress(progressRoot, { phase: 'upload', loaded: event.loaded, total: event.lengthComputable ? event.total : file.size });
+    };
+    xhr.onload = () => {
+      let body = {};
+      try { body = JSON.parse(xhr.responseText || '{}'); } catch { /* empty */ }
+      if (xhr.status >= 200 && xhr.status < 300) resolve(body);
+      else reject(new Error((body.error && body.error.message) || ('HTTP ' + xhr.status)));
+    };
+    xhr.onerror = () => reject(new Error('Upload failed'));
+    setUploadProgress(progressRoot, { phase: 'upload', loaded: 0, total: file.size });
+    xhr.send(file);
+  });
+  setUploadProgress(progressRoot, { phase: 'analyze', loaded: 1, total: 1 });
+  return { hash, ...result };
+}
+
 async function upload() {
   try {
     const file = artifact.files[0];
     if (!file) throw Error(t('mod.needZip'));
     uploadResult.textContent = t('mod.uploading', { name: file.name });
-    const bytes = await file.arrayBuffer();
-    const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map((x) => x.toString(16).padStart(2, '0')).join('');
-    const r = await request('/api/v1/artifacts/' + hash, { method: 'PUT', headers: { authorization: headers().authorization, 'content-type': 'application/zip', 'x-file-name': encodeURIComponent(file.name) }, body: bytes });
+    const r = await hashAndPutArtifact(file, 'uploadProgress');
+    const hash = r.hash;
     artifactSha.value = hash;
     if (document.getElementById('reviewSha')) reviewSha.value = hash;
     const analysis = r.review && r.review.analysis;
@@ -1406,8 +1467,10 @@ async function upload() {
     uploadResult.dataset.size = prettyBytes(r.size);
     uploadResult.dataset.nextKey = nextKey;
     uploadResult.textContent = t('mod.uploadResult', { hash, status, size: prettyBytes(r.size), next: t(nextKey) });
+    setUploadProgress('uploadProgress');
     show(r, { message: t('mod.uploadOk') });
   } catch (e) {
+    setUploadProgress('uploadProgress');
     uploadResult.textContent = e.message;
     show(e.message);
   }
