@@ -68,11 +68,13 @@ Player launcher (discover install, show the plan, sync, start, reconnect):
 npm run launcher -- join --base-url https://mods.aic.la --address game.example.com:26900
 ```
 
-Build a portable folder that includes `node.exe` and `ModPlatformLauncher.exe`:
+Build a portable folder that includes `node.exe` and `ModPlatformLauncher.exe`. The script also writes a SHA-256 ZIP for signed self-update:
 
 ```powershell
 .\deploy\build-launcher.ps1
 ```
+
+Publish that ZIP from the admin Ops page. The portable launcher checks `GET /api/v1/public/launcher/latest` before pack sync and only replaces itself after Ed25519 and SHA-256 verification.
 
 ## Crash guardian
 

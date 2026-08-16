@@ -29,6 +29,10 @@ All administrator routes require `Authorization: Bearer <ADMIN_TOKEN>`.
 | GET | `/api/v1/diagnostics/summary` | Aggregated fingerprints |
 | GET | `/api/v1/mods?q=&gameVersion=&dll=` | List registered mods; `q` searches id/name/author/description |
 | GET | `/api/v1/public/packs/{id}/latest` | Retrieve signed manifest |
+| GET | `/api/v1/public/launcher/latest?platform=win32` | Retrieve the signed launcher self-update manifest |
+| POST | `/api/v1/admin/launcher` | Publish a launcher ZIP already stored as an artifact |
+| POST | `/api/v1/admin/launcher/revoke` | Revoke the current launcher for a platform |
+| GET | `/api/v1/admin/launcher` | Show published launcher channels |
 | GET | `/api/v1/public/artifacts/{sha256}` | Retrieve immutable artifact |
 | GET | `/api/v1/public/servers/resolve?address=host:port` | Resolve a server to its pack |
 | POST | `/api/v1/public/handshakes` | Client plugin deposits a pending hello for a registered address |

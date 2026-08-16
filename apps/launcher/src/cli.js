@@ -4,6 +4,8 @@ import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { discoverEnvironment, listInstalledMods, readFavorites } from './discover.js';
 import { planPack, syncPack } from '../../updater/src/installer.js';
+import { applyLauncherUpdate, checkLauncherUpdate } from './self-update.js';
+import { LAUNCHER_VERSION } from './version.js';
 
 function args(argv) {
   const parsed = { _: [] };
@@ -11,6 +13,7 @@ function args(argv) {
     const value = argv[index];
     if (value === '--force') parsed.force = true;
     else if (value === '--no-launch') parsed.noLaunch = true;
+    else if (value === '--skip-self-update') parsed.skipSelfUpdate = true;
     else if (value.startsWith('--')) parsed[value.slice(2).replace(/-([a-z])/g, (_, c) => c.toUpperCase())] = argv[++index];
     else parsed._.push(value);
   }
@@ -61,7 +64,28 @@ const command = options._[0] || 'join';
 try {
   const env = await discoverEnvironment({ steamPath: options.steamPath, gameDir: options.gameDir });
   if (command === 'discover') {
-    console.log(JSON.stringify({ ...env, installedMods: await listInstalledMods(env.modsDir) }, null, 2));
+    console.log(JSON.stringify({ ...env, version: LAUNCHER_VERSION, installedMods: await listInstalledMods(env.modsDir) }, null, 2));
+    process.exit(0);
+  }
+  if (command === 'update') {
+    if (!options.baseUrl) throw new Error('update requires --base-url');
+    const checked = await checkLauncherUpdate({ baseUrl: options.baseUrl, explicitPublicKey: options.publicKey });
+    if (!checked.update) {
+      console.log(JSON.stringify({ ok: true, update: false, version: checked.currentVersion, remoteVersion: checked.remoteVersion || null, reason: checked.reason }, null, 2));
+      process.exit(0);
+    }
+    if (!checked.installRoot) {
+      console.log(JSON.stringify({ ok: true, update: true, applied: false, version: checked.currentVersion, remoteVersion: checked.remoteVersion, reason: 'not-portable' }, null, 2));
+      process.exit(0);
+    }
+    const applied = await applyLauncherUpdate({
+      baseUrl: options.baseUrl,
+      explicitPublicKey: options.publicKey,
+      checked,
+      relaunchArgs: options.noRelaunch ? null : ['update', '--base-url', options.baseUrl, '--skip-self-update']
+    });
+    console.log(JSON.stringify({ ok: true, update: true, applied: applied.applied, restarting: Boolean(applied.restarting), version: checked.currentVersion, remoteVersion: checked.remoteVersion }, null, 2));
+    if (applied.restarting) process.exit(0);
     process.exit(0);
   }
   if (command === 'servers') {
@@ -76,8 +100,27 @@ try {
   const address = options.serverAddress || options.address;
   const baseUrl = options.baseUrl;
   if (!baseUrl || (!options.packId && !address) || !env.modsDir) {
-    console.error('Usage: node apps/launcher/src/cli.js <discover|plan|join|servers> --base-url URL (--pack-id ID | --address host:port | --address srv_...) [--public-key KEY] [--no-launch]');
+    console.error('Usage: node apps/launcher/src/cli.js <discover|plan|join|update|servers> --base-url URL (--pack-id ID | --address host:port | --address srv_...) [--public-key KEY] [--no-launch] [--skip-self-update]');
     process.exit(2);
+  }
+  if (!options.skipSelfUpdate) {
+    try {
+      const checked = await checkLauncherUpdate({ baseUrl, explicitPublicKey: options.publicKey });
+      if (checked.update && checked.installRoot) {
+        const applied = await applyLauncherUpdate({
+          baseUrl,
+          explicitPublicKey: options.publicKey,
+          checked,
+          relaunchArgs: process.argv.slice(2)
+        });
+        if (applied.restarting) process.exit(0);
+      } else if (checked.update) {
+        console.error(`Launcher ${checked.remoteVersion} is available (current ${checked.currentVersion}). Use the portable folder to apply it.`);
+      }
+    } catch (error) {
+      if (error.code === 'SIGNATURE') throw error;
+      console.error(`Launcher self-update check skipped: ${error.message}`);
+    }
   }
   let packId = options.packId;
   let resolved = null;

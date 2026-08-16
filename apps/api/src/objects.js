@@ -128,5 +128,6 @@ export function referencedHashes(snapshot) {
     for (const version of Object.values(mod.versions || {})) if (version.artifactSha) hashes.add(version.artifactSha);
   }
   for (const review of Object.values(snapshot.reviews || {})) if (review.sha256) hashes.add(review.sha256);
+  for (const channel of Object.values(snapshot.launcher?.channels || {})) if (channel.sha256 && !channel.revokedAt) hashes.add(channel.sha256);
   return hashes;
 }

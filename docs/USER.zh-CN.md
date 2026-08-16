@@ -146,7 +146,11 @@ ModPlatformLauncher.exe join --base-url https://mods.aic.la --address 服主给�
 npm run launcher -- join --base-url https://mods.aic.la --address play.example.com:26900
 ```
 
-启动器会发现游戏和 Mods 目录，列出要安装、更新或删除的内容，标出含 DLL 的 Mod，同步完成后启动游戏并尝试重连。
+启动器会发现游戏和 Mods 目录，列出要安装、更新或删除的内容，标出含 DLL 的 Mod，同步完成后启动游戏并尝试重连。便携目录会在进服前检查启动器自身更新：只安装带平台 Ed25519 签名且 SHA-256 相符的 ZIP。从源码目录运行时只提示有新版本，不会覆盖开发树。也可单独执行：
+
+```powershell
+ModPlatformLauncher.exe update --base-url https://mods.aic.la
+```
 
 第一次同步会钉住平台公钥。以后公钥变了会拒绝安装，这是正常保护。
 

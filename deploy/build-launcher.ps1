@@ -45,5 +45,17 @@ if (Test-Path -LiteralPath $csc) {
   & $csc /nologo /target:exe "/out:$exe" $stubFile
   if ($LASTEXITCODE -ne 0) { throw "Launcher stub compilation failed." }
 }
+$version = "0.3.0"
+$pkg = Get-Content (Join-Path $root "package.json") -Raw | ConvertFrom-Json
+if ($pkg.version) { $version = $pkg.version }
+@{ version = $version; builtAt = (Get-Date).ToUniversalTime().ToString("o") } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $OutputDir "launcher-version.json") -Encoding UTF8
+
+$zip = Join-Path (Split-Path $OutputDir) "ModPlatformLauncher-$version-win32.zip"
+if (Test-Path -LiteralPath $zip) { Remove-Item -LiteralPath $zip -Force }
+Compress-Archive -Path (Join-Path $OutputDir "*") -DestinationPath $zip -Force
+$hash = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
 Write-Host "Portable launcher folder: $OutputDir"
+Write-Host "Signed-update ZIP: $zip"
+Write-Host "SHA-256: $hash"
+Write-Host "Publish with POST /api/v1/admin/launcher after uploading this ZIP as an artifact."
 Write-Host "This folder includes node.exe so players do not need a global Node.js install."

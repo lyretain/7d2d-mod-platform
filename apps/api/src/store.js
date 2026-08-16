@@ -23,7 +23,8 @@ export const EMPTY = {
   maintenance: { enabled: false, message: null },
   stats: { downloads: 0, bytes: 0, artifacts: {}, gameVersions: {} },
   confirmations: {},
-  handshakes: {}
+  handshakes: {},
+  launcher: { channels: {} }
 };
 
 export class JsonStore {
@@ -52,6 +53,7 @@ export class JsonStore {
         stats: { ...structuredClone(EMPTY.stats), ...(loaded.stats || {}) },
         confirmations: loaded.confirmations || {},
         handshakes: loaded.handshakes || {},
+        launcher: { channels: {}, ...(loaded.launcher || {}) },
         schemaVersion: 3
       };
     } catch (error) {

@@ -95,11 +95,13 @@ node apps/updater/src/cli.js `
 npm run launcher -- join --base-url https://mods.aic.la --address game.example.com:26900
 ```
 
-便携包（目录内自带 node.exe，玩家不必先装 Node）：
+便携包（目录内自带 node.exe，玩家不必先装 Node）。脚本会额外打出带 SHA-256 的 ZIP，供后台发布启动器自更新：
 
 ```powershell
 .\deploy\build-launcher.ps1
 ```
+
+便携启动器在同步 Pack 前会检查 `GET /api/v1/public/launcher/latest`，只在 Ed25519 签名和文件哈希都通过后替换自身。
 
 第一次连接时，更新器会保存平台公钥。以后如果公钥发生变化，更新器会停止安装并要求管理员确认。生产环境建议使用 `--public-key` 显式指定可信公钥。
 

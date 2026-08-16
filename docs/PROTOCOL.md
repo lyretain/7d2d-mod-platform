@@ -14,6 +14,8 @@ Artifacts are immutable and addressed by lowercase SHA-256. A client must verify
 4. The updater verifies the signature, downloads missing artifacts and installs declared top-level roots.
 5. DLL-containing releases set `requiresRestart`; the game must start after installation.
 
+The portable launcher also checks `GET /api/v1/public/launcher/latest?platform=win32` before pack sync. The response is an Ed25519-signed object (`kind: launcher`) with `version`, `sha256`, `size` and an artifact URL. The launcher pins the same platform public key used for ModPacks, verifies the ZIP hash, extracts with the existing ZIP safety rules, then replaces the portable folder. Signature failures fail closed. A missing release or a network error does not block joining a server. Authenticode signing of `ModPlatformLauncher.exe` is separate from this package signature.
+
 The client plugin also resolves the same address, downloads the signed latest pack into the user Mods directory, then sends the handshake. DLL-containing packs require a game restart; the plugin writes a reconnect hint and can quit so the next launch loads the new assemblies. Launcher preflight is still optional for installing files before the first game start.
 
 ## Handshake v1

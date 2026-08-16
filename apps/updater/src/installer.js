@@ -107,7 +107,7 @@ async function pruneDir(dir, { keep = new Set(), maxAgeMs = 14 * 86400_000 } = {
   }
 }
 
-async function download(url, target, expectedSha, expectedSize, { signal, onProgress, resume = true, bandwidth } = {}) {
+export async function download(url, target, expectedSha, expectedSize, { signal, onProgress, resume = true, bandwidth } = {}) {
   const partial = `${target}.partial`;
   let existing = 0;
   if (resume && await exists(partial)) existing = (await stat(partial)).size;

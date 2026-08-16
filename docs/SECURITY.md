@@ -23,6 +23,7 @@
 - Add organization accounts, RBAC, audit logs, key rotation and release revocation UI.
 - Obtain redistribution permission for every hosted Mod.
 - Package the updater as a signed standalone executable and publish its checksum.
+- The portable launcher already verifies Ed25519-signed self-update ZIPs against the pinned platform key; Authenticode on `ModPlatformLauncher.exe` is still recommended for first install.
 - Perform a game-version-specific review of the 7DTD adapter before release.
 
 Never silently install a DLL from a manifest that was not verified against a pinned key. EAC compatibility is outside this project; DLL/Harmony Mods generally require EAC to be disabled.

@@ -21,6 +21,7 @@ import { exchangeGithubCode, githubAuthorizeUrl } from './github.js';
 import { renderUserGuide } from './guide.js';
 import { claimHandshake, normalizePlayerIds, sanitizeHello, storeHandshake } from './handshakes.js';
 import { applyAddresses, parseAddresses, publicAddressView, resolveRegisteredServer } from './servers.js';
+import { currentLauncher, launcherArtifactUrl, launcherManifestPayload, normalizePlatform, validateLauncherZip } from './launcher-update.js';
 
 const ADMIN_HTML_V2 = readFileSync(new URL('./admin.html', import.meta.url), 'utf8');
 
@@ -400,6 +401,85 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
         const release = pack && activeRelease(snapshot, pack);
         if (!release) return problem(res, 404, 'RELEASE_NOT_FOUND', 'No active release was found');
         return json(res, 200, release.manifest, cloudflareCacheHeaders('manifest'));
+      }
+
+      if (req.method === 'GET' && pathname === '/api/v1/public/launcher/latest') {
+        const platform = normalizePlatform(url.searchParams.get('platform') || 'win32');
+        const current = currentLauncher(store.snapshot(), platform);
+        if (!current?.manifest) return problem(res, 404, 'LAUNCHER_NOT_FOUND', 'No launcher release was published');
+        return json(res, 200, current.manifest, cloudflareCacheHeaders('manifest'));
+      }
+
+      if (req.method === 'GET' && pathname === '/api/v1/admin/launcher') {
+        if (!requirePerm(req, res, 'ops.read')) return;
+        return json(res, 200, { channels: store.snapshot().launcher?.channels || {} });
+      }
+
+      if (req.method === 'POST' && pathname === '/api/v1/admin/launcher') {
+        if (!requirePerm(req, res, 'platform.manage')) return;
+        const body = await readJson(req, 32 * 1024);
+        requireFields(body, ['sha256', 'version', 'platform']);
+        const platform = normalizePlatform(body.platform);
+        if (!platform) return problem(res, 400, 'VALIDATION', 'Unsupported launcher platform');
+        const file = path.join(objectDir, body.sha256);
+        const info = await stat(file).catch(() => null);
+        if (!info) return problem(res, 404, 'ARTIFACT_NOT_FOUND', 'Upload the launcher ZIP first');
+        await validateLauncherZip(file);
+        const principal = auth.principal(req);
+        const payload = launcherManifestPayload({
+          version: body.version,
+          platform,
+          sha256: body.sha256,
+          size: info.size,
+          fileName: body.fileName,
+          notes: body.notes,
+          minVersion: body.minVersion,
+          url: launcherArtifactUrl(body.sha256, config, publicBaseUrl)
+        });
+        const manifest = await signing.signObject({
+          ...payload,
+          publishedAt: now(),
+          expiresAt: new Date(Date.now() + 365 * 86400_000).toISOString()
+        });
+        const published = await store.mutate((draft) => {
+          requireConfirm(config, draft, body, 'launcher.publish');
+          draft.launcher = draft.launcher || { channels: {} };
+          draft.launcher.channels = draft.launcher.channels || {};
+          draft.launcher.channels[platform] = {
+            version: payload.version,
+            platform,
+            sha256: payload.sha256,
+            size: payload.size,
+            fileName: payload.fileName,
+            notes: payload.notes,
+            publishedAt: now(),
+            publishedBy: principal.username || principal.id,
+            revokedAt: null,
+            manifest
+          };
+          recordAudit(draft, { actor: principal.username || principal.id, action: 'launcher.publish', target: `${platform}:${payload.version}`, details: { sha256: payload.sha256, size: payload.size } });
+          return draft.launcher.channels[platform];
+        });
+        await purgeCloudflare(config, [`${String(publicBaseUrl || '').replace(/\/$/, '')}/api/v1/public/launcher/latest?platform=${platform}`]);
+        return json(res, 201, published);
+      }
+
+      if (req.method === 'POST' && pathname === '/api/v1/admin/launcher/revoke') {
+        if (!requirePerm(req, res, 'platform.manage')) return;
+        const body = await readJson(req, 32 * 1024);
+        const platform = normalizePlatform(body.platform || 'win32');
+        const principal = auth.principal(req);
+        const result = await store.mutate((draft) => {
+          requireConfirm(config, draft, body, 'launcher.revoke');
+          const channel = draft.launcher?.channels?.[platform];
+          if (!channel) return null;
+          channel.revokedAt = now();
+          recordAudit(draft, { actor: principal.username || principal.id, action: 'launcher.revoke', target: `${platform}:${channel.version}`, reason: body.reason, details: { sha256: channel.sha256 } });
+          return channel;
+        });
+        if (!result) return problem(res, 404, 'LAUNCHER_NOT_FOUND', 'No launcher release was published');
+        await purgeCloudflare(config, [`${String(publicBaseUrl || '').replace(/\/$/, '')}/api/v1/public/launcher/latest?platform=${platform}`]);
+        return json(res, 200, result);
       }
 
       const releaseListMatch = pathname.match(/^\/api\/v1\/packs\/([^/]+)\/releases$/);

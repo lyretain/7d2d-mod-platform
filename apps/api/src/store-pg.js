@@ -17,6 +17,7 @@ function hydrateState(value) {
     stats: { ...structuredClone(EMPTY.stats), ...(parsed.stats || {}) },
     confirmations: parsed.confirmations || {},
     handshakes: parsed.handshakes || {},
+    launcher: { channels: {}, ...(parsed.launcher || {}) },
     audit: Array.isArray(parsed.audit) ? parsed.audit : [],
     schemaVersion: 3
   };
