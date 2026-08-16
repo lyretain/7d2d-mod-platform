@@ -67,7 +67,7 @@ public sealed class ModPlatformServerPlugin : IModApi
         {
             clients[Key(client)] = new ClientHandshake { Verified = decision.Ok, Reason = decision.Reason, Message = decision.Message, JoinedAt = DateTime.UtcNow, Client = client };
         }
-        Log.Out("[ModPlatform] Handshake from " + client.playerName + " => " + decision.Reason);
+        Log.Out("[ModPlatform] Handshake from " + client.playerName + " => " + decision.Reason + " client=" + (hello == null ? "" : hello.GameVersion) + " pack=" + (policy == null ? "" : policy.GameVersion) + " server=" + DetectGameVersion());
         if (!decision.Ok) Kick(client, decision.Reason, decision.Message);
         else Ignore(SendAsync("handshake_ok", client, null, HandshakeReasons.Ok));
     }
@@ -236,8 +236,9 @@ public sealed class ModPlatformServerPlugin : IModApi
         if (current.DistributionPaused) return Deny(HandshakeReasons.DistributionPaused, "Mod distribution is paused.");
         if (hello == null || hello.ProtocolVersion != PluginIdentity.ProtocolVersion) return Deny(HandshakeReasons.InvalidHello, "Unsupported handshake protocol.");
         if (string.IsNullOrEmpty(current.PackId) || current.PackVersion == null || string.IsNullOrEmpty(current.ArtifactFingerprint)) return Deny(HandshakeReasons.Revoked, "The assigned release is missing or revoked.");
-        if (!string.IsNullOrEmpty(hello.GameVersion) && !string.IsNullOrEmpty(current.GameVersion) && !VersionsCompatible(hello.GameVersion, current.GameVersion))
-            return Deny(HandshakeReasons.GameVersion, "Game version " + hello.GameVersion + " does not match required " + current.GameVersion + ".");
+        var liveVersion = DetectGameVersion();
+        if (!string.IsNullOrEmpty(hello.GameVersion) && !GameVersions.Compatible(hello.GameVersion, liveVersion) && !GameVersions.Compatible(hello.GameVersion, current.GameVersion))
+            return Deny(HandshakeReasons.GameVersion, "Game version " + hello.GameVersion + " does not match server " + liveVersion + " or pack " + current.GameVersion + ".");
         if (hello.PackId != current.PackId || hello.PackVersion != current.PackVersion.Value)
             return Deny(HandshakeReasons.PackMismatch, "Client ModPack " + hello.PackId + " v" + hello.PackVersion + " does not match required " + current.PackId + " v" + current.PackVersion + ".");
         if (!string.IsNullOrEmpty(hello.KeyId) && !string.IsNullOrEmpty(current.KeyId) && hello.KeyId != current.KeyId)
@@ -245,12 +246,6 @@ public sealed class ModPlatformServerPlugin : IModApi
         if (hello.ArtifactFingerprint != current.ArtifactFingerprint)
             return Deny(HandshakeReasons.PackMismatch, "Installed Mod hashes do not match the signed manifest.");
         return new Decision { Ok = true, Reason = HandshakeReasons.Ok, Message = HandshakeReasons.Ok };
-    }
-
-    static bool VersionsCompatible(string actual, string required)
-    {
-        if (string.Equals(actual, required, StringComparison.OrdinalIgnoreCase)) return true;
-        return actual.Replace("V ", "").Replace("v ", "") == required.Replace("V ", "").Replace("v ", "");
     }
 
     static Decision Deny(string reason, string detail) { return new Decision { Ok = false, Reason = reason, Message = DenyMessage(reason, detail) }; }

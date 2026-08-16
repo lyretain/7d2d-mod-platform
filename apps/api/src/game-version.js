@@ -24,6 +24,16 @@ export function normalizeGameVersionSpec(value) {
   return String(value || '').trim().replace(/\+$/u, '').replace(/\.x$/iu, '');
 }
 
+export function normalizeHandshakeVersion(value) {
+  const text = String(value || '').trim().replace(/^v\s*/i, '').replace(/\s*[\(\-]?b\d+\)?\s*$/i, '').trim();
+  return text === '3.10.14' ? '3.1.0' : text;
+}
+
+export function handshakeVersionsCompatible(actual, required) {
+  if (!actual || !required) return true;
+  return normalizeHandshakeVersion(actual).toLowerCase() === normalizeHandshakeVersion(required).toLowerCase();
+}
+
 export function gameVersionMatches(declared, packGameVersion, range = 'exact') {
   const wanted = String(packGameVersion || '').trim();
   const list = Array.isArray(declared) ? declared.map((item) => String(item || '').trim()).filter(Boolean) : [];

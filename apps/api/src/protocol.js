@@ -1,3 +1,5 @@
+import { handshakeVersionsCompatible } from './game-version.js';
+
 export const PROTOCOL_VERSION = 1;
 export const PLUGIN_VERSION = '0.2.0';
 
@@ -45,7 +47,7 @@ export function evaluateHello(hello, policy) {
   if (policy.distributionPaused) return { ok: false, reason: HANDSHAKE_REASON.DISTRIBUTION_PAUSED };
   if (!hello || hello.protocolVersion !== PROTOCOL_VERSION) return { ok: false, reason: HANDSHAKE_REASON.INVALID_HELLO };
   if (!policy.packVersion || !policy.artifactFingerprint) return { ok: false, reason: HANDSHAKE_REASON.REVOKED };
-  if (hello.gameVersion && policy.gameVersion && hello.gameVersion !== policy.gameVersion) return { ok: false, reason: HANDSHAKE_REASON.GAME_VERSION };
+  if (hello.gameVersion && policy.gameVersion && !handshakeVersionsCompatible(hello.gameVersion, policy.gameVersion)) return { ok: false, reason: HANDSHAKE_REASON.GAME_VERSION };
   if (hello.packId !== policy.packId || Number(hello.packVersion) !== Number(policy.packVersion)) return { ok: false, reason: HANDSHAKE_REASON.PACK_MISMATCH };
   if (hello.keyId && policy.keyId && hello.keyId !== policy.keyId) return { ok: false, reason: HANDSHAKE_REASON.PACK_MISMATCH };
   if (hello.artifactFingerprint !== policy.artifactFingerprint) return { ok: false, reason: HANDSHAKE_REASON.PACK_MISMATCH };

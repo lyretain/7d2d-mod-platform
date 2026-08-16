@@ -2,7 +2,7 @@ param(
   [Parameter(Mandatory=$true)][string]$GameManagedDir,
   [string]$Configuration = "Release",
   [string]$SteamBuildId = "",
-  [string]$GameVersion = "3.10.14"
+  [string]$GameVersion = "3.1.0"
 )
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
@@ -32,7 +32,7 @@ namespace ModPlatform.Shared
 {
     public static class PluginIdentity
     {
-        public const string PluginVersion = "0.2.3";
+        public const string PluginVersion = "0.2.4";
         public const int ProtocolVersion = 1;
         public const string TargetGameVersion = "$GameVersion";
         public const string TargetSteamBuild = "$SteamBuildId";
@@ -42,7 +42,7 @@ namespace ModPlatform.Shared
 Set-Content -LiteralPath (Join-Path $root "plugins\shared\PluginIdentity.cs") -Value $identity -Encoding UTF8
 
 $versionInfo = @{
-  pluginVersion = "0.2.3"
+  pluginVersion = "0.2.4"
   protocolVersion = 1
   targetGameVersion = $GameVersion
   targetSteamBuild = $SteamBuildId
@@ -79,7 +79,8 @@ if (Get-Command dotnet -ErrorAction SilentlyContinue) {
     "$root\plugins\shared\Handshake.cs",
     "$root\plugins\shared\LocalState.cs",
     "$root\plugins\shared\PluginPaths.cs",
-    "$root\plugins\shared\PackSync.cs"
+    "$root\plugins\shared\PackSync.cs",
+    "$root\plugins\shared\GameVersions.cs"
   )
   & $csc @common "/out:$build\ModPlatform.Shared.dll" @sharedSources
   if ($LASTEXITCODE -ne 0) { throw "Shared plugin compilation failed." }
