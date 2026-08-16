@@ -294,6 +294,8 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
             installRoots: Array.isArray(body.installRoots) && body.installRoots.length ? body.installRoots : (analysis?.roots || []),
             containsDll: Boolean(body.containsDll || analysis?.containsDll),
             requiresRestart: Boolean(body.requiresRestart || body.containsDll || analysis?.containsDll),
+            author: body.author || analysis?.modInfo?.author || null,
+            description: body.description || analysis?.modInfo?.description || null,
             sbom: analysis?.sbom || null,
             createdAt: now()
           };

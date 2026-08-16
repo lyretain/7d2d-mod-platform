@@ -115,6 +115,27 @@
     .raw { margin-top: 16px; border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; background: var(--card); color: var(--muted); }
     .raw summary { cursor: pointer; font-weight: 600; }
     .raw pre { max-height: 360px; }
+    .workshop-toolbar { display: grid; grid-template-columns: 1.6fr .8fr .7fr .7fr auto; gap: 10px; align-items: end; margin-bottom: 4px; }
+    .workshop-toolbar .field { margin-top: 0; }
+    .workshop-toolbar input, .workshop-toolbar select, .workshop-toolbar button { margin: 0; }
+    .workshop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+    .mod-card { display: flex; flex-direction: column; min-height: 210px; padding: 14px; background: #14171d; border: 1px solid var(--line); border-radius: 12px; }
+    .mod-card.picked { border-color: #8a6918; background: #1d1912; }
+    .mod-card .cover { display: flex; align-items: center; justify-content: center; height: 72px; margin-bottom: 10px; border-radius: 8px; background: linear-gradient(135deg, #2a2114, #1a2230); color: var(--accent); font-weight: 750; letter-spacing: .04em; }
+    .mod-card h3 { margin: 0 0 4px; font-size: 15px; }
+    .mod-card .meta { margin: 0 0 8px; color: var(--muted); font-size: 12px; }
+    .mod-card .desc { flex: 1; margin: 0 0 10px; color: #c6c3bb; font-size: 13px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+    .mod-card .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+    .tag { padding: 2px 7px; border-radius: 999px; background: #222733; color: var(--muted); font-size: 11px; }
+    .tag.dll { background: #2a2114; color: var(--accent); }
+    .mod-card .actions { margin-top: auto; }
+    .workshop-tray { position: sticky; bottom: 12px; z-index: 6; display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 14px; padding: 12px 14px; background: #171a20; border: 1px solid #5a4316; border-radius: 12px; box-shadow: 0 12px 30px rgba(0,0,0,.35); }
+    .workshop-tray .chips { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; background: #2a2114; border-radius: 999px; font-size: 12px; }
+    .chip button { width: auto; margin: 0; padding: 0 4px; background: transparent; color: var(--muted); }
+    .dialog { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(8, 9, 12, .72); }
+    .dialog[hidden] { display: none; }
+    .dialog-card { width: min(460px, 100%); background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px 18px 14px; }
     @media (max-width: 1100px) {
       .card { grid-column: span 12; }
       .stats { grid-template-columns: repeat(3, 1fr); }
@@ -129,7 +150,8 @@
       nav { flex-direction: row; width: 100%; overflow: auto; }
       nav button { width: auto; white-space: nowrap; }
       .workspace { padding: 16px 14px 28px; }
-      .row, .three, .stats { grid-template-columns: 1fr; }
+      .row, .three, .stats, .workshop-toolbar { grid-template-columns: 1fr; }
+      .workshop-tray { flex-direction: column; align-items: stretch; }
     }
   </style>
 </head>
@@ -160,11 +182,12 @@
       <ul>
         <li><strong>验签分发</strong><span>Ed25519 签名的不可变 Release，防止被篡改的 ZIP 进服。</span></li>
         <li><strong>服务器同步</strong><span>按公开地址解析当前 Pack，玩家与专用服保持同一版本。</span></li>
+        <li><strong>工坊浏览</strong><span>登录后像创意工坊一样查找 Mod，浏览时加入已有 Pack 或创建新 Pack。</span></li>
         <li><strong>邀请制社区</strong><span>管理员邀请服主或只读成员，审核、停发和回滚都留审计。</span></li>
       </ul>
     </div>
     <div class="auth-card">
-      <div class="brand"><strong>加入社区</strong><span>登录后管理 Pack，或使用邀请码注册</span></div>
+      <div class="brand"><strong>加入社区</strong><span>登录后浏览工坊、管理 Pack，或使用邀请码注册</span></div>
       <div class="auth-tabs">
         <button class="active" data-auth="login" onclick="showAuth('login')">登录</button>
         <button data-auth="register" onclick="showAuth('register')">注册</button>
@@ -194,7 +217,8 @@
 <aside class="sidebar">
   <div class="brand"><strong>七日杀 Mod 社区</strong><span>运营后台</span></div>
   <nav>
-    <button class="active" data-tab="mods" onclick="showTab('mods')">Mod</button>
+    <button class="active" data-tab="workshop" onclick="showTab('workshop')">工坊</button>
+    <button data-tab="mods" onclick="showTab('mods')">Mod</button>
     <button data-tab="packs" onclick="showTab('packs')">Pack</button>
     <button data-tab="servers" onclick="showTab('servers')">服务器</button>
     <button data-tab="ops" onclick="showTab('ops')">运维</button>
@@ -205,8 +229,8 @@
 <main class="workspace">
   <div class="top">
     <div>
-      <h1 id="pageTitle">Mod</h1>
-      <p id="pageHint">上传 ZIP、登记版本；点击表格行可回填表单</p>
+      <h1 id="pageTitle">工坊</h1>
+      <p id="pageHint">浏览、搜索已登记 Mod，挑选后加入 Pack 或创建新 Pack</p>
     </div>
     <div class="actions" style="width:auto">
       <a class="ghost" href="/guide" style="display:inline-block;padding:9px 10px;text-decoration:none;color:#fff;background:#2a2f38;border-radius:7px">教程</a>
@@ -230,7 +254,54 @@
     </div>
   </div>
 
-  <div class="page on" id="tab-mods">
+  <div class="page on" id="tab-workshop">
+    <div class="grid">
+      <article class="card stretch">
+        <div class="workshop-toolbar">
+          <div>
+            <label class="field">搜索</label>
+            <input id="workshopQuery" placeholder="名称、作者、简介或 Mod ID" oninput="scheduleWorkshopSearch()">
+          </div>
+          <div>
+            <label class="field">游戏版本</label>
+            <input id="workshopGame" placeholder="例如 3.10.14" oninput="scheduleWorkshopSearch()">
+          </div>
+          <div>
+            <label class="field">类型</label>
+            <select id="workshopDll" onchange="loadWorkshop({ silent: true })">
+              <option value="">全部</option>
+              <option value="yes">含 DLL</option>
+              <option value="no">无 DLL</option>
+            </select>
+          </div>
+          <div>
+            <label class="field">排序</label>
+            <select id="workshopSort" onchange="renderWorkshop()">
+              <option value="name">名称</option>
+              <option value="downloads">下载</option>
+              <option value="updated">最近更新</option>
+            </select>
+          </div>
+          <div class="actions" style="min-width:110px"><button class="secondary" onclick="loadWorkshop()">刷新</button></div>
+        </div>
+        <p class="hint" id="workshopCount">登录后自动加载已登记 Mod</p>
+        <div id="workshopGrid" class="workshop-grid"></div>
+        <div class="workshop-tray" id="workshopTray">
+          <div>
+            <strong id="workshopTrayTitle">尚未挑选</strong>
+            <div class="chips" id="workshopChips"><span class="hint">点卡片上的「加入挑选」开始组 Pack</span></div>
+          </div>
+          <div class="actions" id="workshopTrayActions" style="width:auto">
+            <button class="secondary" onclick="clearWorkshopCart()">清空</button>
+            <button class="secondary" onclick="openWorkshopAdd()">加入已有 Pack</button>
+            <button onclick="openWorkshopCreate()">创建新 Pack</button>
+          </div>
+        </div>
+      </article>
+    </div>
+  </div>
+
+  <div class="page" id="tab-mods">
     <div class="grid">
       <article class="card">
         <h2>上传 Mod ZIP</h2>
@@ -276,7 +347,7 @@
     <div class="grid">
       <article class="card">
         <h2>创建并发布</h2>
-        <p class="hint">新建时自动生成 Pack ID。点表格行可改已有 Pack 后再发布。</p>
+        <p class="hint">新建时自动生成 Pack ID。也可先到「工坊」浏览挑选，再回来发布。<a href="#" onclick="showTab('workshop'); return false;" style="color:var(--accent)">去工坊挑选</a></p>
         <div class="row">
           <div><label class="field">Pack ID</label><input id="packId" readonly placeholder="创建后自动生成"></div>
           <div><label class="field">名称</label><input id="packName" placeholder="正式服 Pack"></div>
@@ -405,6 +476,27 @@
   </details>
 </main>
 
+<div id="workshopDialog" class="dialog" hidden onclick="if (event.target === this) closeWorkshopDialog()">
+  <div class="dialog-card">
+    <h2 id="workshopDialogTitle">创建 Pack</h2>
+    <p class="hint" id="workshopDialogHint">用当前挑选的 Mod 创建并发布。</p>
+    <div id="workshopCreateFields">
+      <label class="field">名称</label>
+      <input id="workshopPackName" placeholder="例如 周末 PVE">
+      <label class="field">游戏版本</label>
+      <input id="workshopPackGame" placeholder="3.10.14">
+    </div>
+    <div id="workshopAddFields" hidden>
+      <label class="field">加入哪个 Pack</label>
+      <select id="workshopPackId"><option value="">请选择 Pack</option></select>
+    </div>
+    <label class="check"><input id="workshopPublish" type="checkbox" checked> 同时发布新的 Release</label>
+    <div class="actions">
+      <button class="secondary" onclick="closeWorkshopDialog()">取消</button>
+      <button id="workshopDialogSubmit" onclick="submitWorkshopDialog()">确定</button>
+    </div>
+  </div>
+</div>
 <div id="inviteBox" hidden>
   <p class="hint">还没有管理员时，填写 ADMIN_TOKEN 创建第一张邀请码。已经注册过管理员后，必须先登录，ADMIN_TOKEN 会失效。</p>
   <label class="field">ADMIN_TOKEN（仅首次部署）</label>
@@ -420,6 +512,7 @@
 <script>
 const PAGES = {
   account: { title: '账户', hint: '邀请新管理员或只读用户' },
+  workshop: { title: '工坊', hint: '浏览、搜索已登记 Mod，挑选后加入 Pack 或创建新 Pack' },
   mods: { title: 'Mod', hint: '上传 ZIP、登记版本；点击表格行可回填表单' },
   packs: { title: 'Pack', hint: '组装发布包。吊销与回滚会影响玩家下载' },
   servers: { title: '服务器', hint: '登记专用服并绑定已发布的 Pack；玩家按公开地址同步' },
@@ -458,6 +551,7 @@ function showTab(name) {
   document.querySelectorAll('nav button').forEach((el) => el.classList.toggle('active', el.getAttribute('data-tab') === name));
   pageTitle.textContent = PAGES[name].title;
   pageHint.textContent = PAGES[name].hint;
+  if (name === 'workshop') { loadMods({ silent: true }); loadPacks({ silent: true }); loadWorkshop({ silent: true }); }
   if (name === 'mods') loadMods({ silent: true });
   if (name === 'packs') { loadMods({ silent: true }); loadPacks({ silent: true }); }
   if (name === 'servers') { loadPacks({ silent: true }); loadServers({ silent: true }); }
@@ -543,6 +637,161 @@ function fillStats(s) {
 
 let catalogMods = [];
 let catalogPacks = [];
+let workshopMods = [];
+let workshopCart = [];
+let workshopTimer;
+let workshopMode = 'create';
+
+function canPublishPack() {
+  return Boolean(window.__me && (window.__me.permissions || []).includes('pack.publish'));
+}
+
+function renderWorkshop() {
+  const grid = document.getElementById('workshopGrid');
+  const count = document.getElementById('workshopCount');
+  if (!grid) return;
+  const sort = (workshopSort && workshopSort.value) || 'name';
+  const rows = workshopMods.slice().sort((a, b) => {
+    if (sort === 'downloads') return (b.downloads || 0) - (a.downloads || 0);
+    if (sort === 'updated') return String(b.updatedAt || '').localeCompare(String(a.updatedAt || ''));
+    return String(a.name || a.id).localeCompare(String(b.name || b.id), 'zh-CN');
+  });
+  if (count) count.textContent = rows.length ? ('找到 ' + rows.length + ' 个 Mod') : '没有符合条件的 Mod';
+  if (!rows.length) {
+    grid.innerHTML = '<p class="empty">没有符合条件的 Mod。开发者可到 Mod 页上传登记。</p>';
+    return;
+  }
+  grid.innerHTML = rows.map((mod) => {
+    const picked = workshopCart.some((item) => item.modId === mod.id);
+    const desc = mod.description || '暂无简介。上传 ZIP 时若包含 ModInfo.xml，会自动带上作者和说明。';
+    const games = (mod.gameVersions || []).join(' / ') || '未标注游戏版本';
+    return '<article class="mod-card' + (picked ? ' picked' : '') + '">'
+      + '<div class="cover">' + esc((mod.name || mod.id).slice(0, 2).toUpperCase()) + '</div>'
+      + '<h3>' + esc(mod.name || mod.id) + '</h3>'
+      + '<p class="meta">' + esc(mod.author || '未知作者') + ' · v' + esc(mod.latestVersion || '—') + ' · ' + esc(prettyBytes(mod.artifactSize)) + '</p>'
+      + '<p class="desc">' + esc(desc) + '</p>'
+      + '<div class="tags"><span class="tag">' + esc(games) + '</span>'
+      + (mod.containsDll ? '<span class="tag dll">含 DLL</span>' : '')
+      + (mod.downloads ? '<span class="tag">下载 ' + esc(mod.downloads) + '</span>' : '')
+      + '</div>'
+      + '<div class="actions"><button class="' + (picked ? 'secondary' : 'ok') + '" onclick=\'toggleWorkshopMod(' + JSON.stringify(mod.id) + ')\'>' + (picked ? '移出挑选' : '加入挑选') + '</button></div>'
+      + '</article>';
+  }).join('');
+}
+
+function renderWorkshopTray() {
+  const title = document.getElementById('workshopTrayTitle');
+  const chips = document.getElementById('workshopChips');
+  if (title) title.textContent = workshopCart.length ? ('已挑选 ' + workshopCart.length + ' 个 Mod') : '尚未挑选';
+  if (chips) {
+    chips.innerHTML = workshopCart.length
+      ? workshopCart.map((item) => '<span class="chip">' + esc(item.name || item.modId) + '<button type="button" onclick=\'toggleWorkshopMod(' + JSON.stringify(item.modId) + ')\'>×</button></span>').join('')
+      : '<span class="hint">点卡片上的「加入挑选」开始组 Pack</span>';
+  }
+}
+
+function toggleWorkshopMod(modId) {
+  const existing = workshopCart.findIndex((item) => item.modId === modId);
+  if (existing >= 0) workshopCart.splice(existing, 1);
+  else {
+    const mod = workshopMods.concat(catalogMods).find((item) => item.id === modId);
+    if (!mod || !mod.latestVersion) return toast('这个 Mod 还没有可用版本', 'warn');
+    workshopCart.push({ modId: mod.id, version: mod.latestVersion, name: mod.name || mod.id, gameVersions: mod.gameVersions || [] });
+  }
+  renderWorkshop();
+  renderWorkshopTray();
+}
+
+function clearWorkshopCart() {
+  workshopCart = [];
+  renderWorkshop();
+  renderWorkshopTray();
+}
+
+function workshopEntries() {
+  return workshopCart.map((item) => ({ modId: item.modId, version: item.version, required: true }));
+}
+
+function scheduleWorkshopSearch() {
+  clearTimeout(workshopTimer);
+  workshopTimer = setTimeout(() => loadWorkshop({ silent: true }), 250);
+}
+
+async function loadWorkshop(opts) {
+  try {
+    const q = new URLSearchParams();
+    if (workshopQuery && workshopQuery.value.trim()) q.set('q', workshopQuery.value.trim());
+    if (workshopGame && workshopGame.value.trim()) q.set('gameVersion', workshopGame.value.trim());
+    if (workshopDll && workshopDll.value) q.set('dll', workshopDll.value);
+    const data = await request('/api/v1/mods' + (q.toString() ? '?' + q.toString() : ''), { headers: headers() });
+    workshopMods = data.mods || [];
+    renderWorkshop();
+    renderWorkshopTray();
+    if (!opts || !opts.silent) toast('已加载工坊', 'ok');
+  } catch (e) { show(e.message); }
+}
+
+function fillWorkshopPackSelect() {
+  const el = document.getElementById('workshopPackId');
+  if (!el) return;
+  el.innerHTML = '<option value="">请选择 Pack</option>' + catalogPacks.map((pack) =>
+    '<option value="' + esc(pack.id) + '">' + esc(packOptionLabel(pack)) + '</option>'
+  ).join('');
+}
+
+function openWorkshopDialog(mode) {
+  if (!workshopCart.length) return toast('请先挑选至少一个 Mod', 'warn');
+  if (!canPublishPack()) return toast('创建或更新 Pack 需要社区管理员或超级管理员', 'warn');
+  workshopMode = mode;
+  workshopDialogTitle.textContent = mode === 'create' ? '创建新 Pack' : '加入已有 Pack';
+  workshopDialogHint.textContent = mode === 'create'
+    ? '用当前挑选的 ' + workshopCart.length + ' 个 Mod 创建 Pack。'
+    : '把挑选的 Mod 合并进已有 Pack，同名 Mod 使用工坊里的最新版本。';
+  workshopCreateFields.hidden = mode !== 'create';
+  workshopAddFields.hidden = mode !== 'add';
+  if (mode === 'create') {
+    if (!workshopPackName.value) workshopPackName.value = workshopCart.map((item) => item.name).slice(0, 2).join(' + ');
+    if (!workshopPackGame.value) workshopPackGame.value = (workshopGame && workshopGame.value) || (workshopCart[0].gameVersions || [])[0] || '';
+    workshopPublish.checked = true;
+  } else {
+    fillWorkshopPackSelect();
+    workshopPublish.checked = false;
+  }
+  workshopDialog.hidden = false;
+}
+
+function openWorkshopCreate() { openWorkshopDialog('create'); }
+function openWorkshopAdd() { openWorkshopDialog('add'); }
+function closeWorkshopDialog() { workshopDialog.hidden = true; }
+
+async function submitWorkshopDialog() {
+  try {
+    const entries = workshopEntries();
+    if (!entries.length) throw new Error('请先挑选至少一个 Mod');
+    let pack;
+    if (workshopMode === 'create') {
+      if (!workshopPackName.value.trim() || !workshopPackGame.value.trim()) throw new Error('请填写 Pack 名称和游戏版本');
+      pack = await request('/api/v1/packs', { method: 'POST', headers: headers(), body: JSON.stringify({ name: workshopPackName.value.trim(), gameVersion: workshopPackGame.value.trim(), entries }) });
+    } else {
+      const current = catalogPacks.find((item) => item.id === workshopPackId.value);
+      if (!current) throw new Error('请选择要加入的 Pack');
+      const merged = new Map((current.entries || []).map((entry) => [entry.modId, entry]));
+      entries.forEach((entry) => merged.set(entry.modId, entry));
+      pack = await request('/api/v1/packs', { method: 'POST', headers: headers(), body: JSON.stringify({ id: current.id, name: current.name, gameVersion: current.gameVersion, entries: [...merged.values()] }) });
+    }
+    packId.value = pack.id || '';
+    packName.value = pack.name || '';
+    packGame.value = pack.gameVersion || '';
+    if (workshopPublish.checked) {
+      show(await request('/api/v1/packs/' + encodeURIComponent(pack.id) + '/releases', { method: 'POST', headers: headers(), body: JSON.stringify({ reason: workshopMode === 'create' ? 'workshop.create' : 'workshop.add' }) }), { message: workshopMode === 'create' ? '已创建并发布 Pack' : '已加入 Pack 并发布' });
+    } else {
+      show(pack, { message: workshopMode === 'create' ? '已创建 Pack 草稿' : '已加入 Pack，尚未发布' });
+    }
+    closeWorkshopDialog();
+    clearWorkshopCart();
+    await loadPacks({ silent: true });
+  } catch (e) { show(e.message); }
+}
 
 function packOptionLabel(pack) {
   return (pack.name || pack.id) + (pack.packVersion != null ? ' · v' + pack.packVersion : '');
@@ -732,6 +981,7 @@ function applyRole(user) {
     const btn = document.querySelector('nav button[data-tab="' + tab + '"]');
     if (btn) btn.hidden = !on;
   };
+  show('workshop', true);
   show('mods', perms.has('catalog.write'));
   show('packs', true);
   show('servers', true);
@@ -739,7 +989,7 @@ function applyRole(user) {
   show('account', true);
   const pause = document.getElementById('pauseCard');
   if (pause) pause.hidden = !perms.has('server.manage');
-  return perms.has('catalog.write') ? 'mods' : 'servers';
+  return 'workshop';
 }
 
 async function refreshMe() {
@@ -776,7 +1026,7 @@ async function setupPlatform() {
     const home = await refreshMe();
     setMode('authed');
     show('社区已初始化');
-    showTab(home || 'mods');
+    showTab(home || 'workshop');
   } catch (e) {
     const text = e.message === 'Invalid setup token'
       ? 'ADMIN_TOKEN 不正确。'
@@ -801,7 +1051,7 @@ async function login() {
     const home = await refreshMe();
     setMode('authed');
     show('登录成功');
-    showTab(home || 'servers');
+    showTab(home || 'workshop');
   } catch (e) { show(e.message); }
 }
 

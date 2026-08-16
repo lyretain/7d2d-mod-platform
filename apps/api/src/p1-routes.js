@@ -225,7 +225,7 @@ export async function handleP1(req, res, ctx) {
   if (req.method === 'GET' && pathname === '/api/v1/mods') {
     if (!requireUser()) return true;
     const url = new URL(req.url, 'http://localhost');
-    return json(res, 200, { mods: listMods(store.snapshot(), url.searchParams.get('q')) }), true;
+    return json(res, 200, { mods: listMods(store.snapshot(), url.searchParams.get('q'), { gameVersion: url.searchParams.get('gameVersion'), dll: url.searchParams.get('dll') }) }), true;
   }
   const modMatch = pathname.match(/^\/api\/v1\/mods\/([^/]+)$/);
   if (req.method === 'GET' && modMatch) {

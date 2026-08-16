@@ -283,3 +283,33 @@ test('client can deposit a handshake and the dedicated server claims it once', a
   })).status, 404);
 });
 
+test('workshop list searches description and filters by game version', async (t) => {
+  const { base } = await fixture(t);
+  const admin = { authorization: 'Bearer test-admin-token-1234', 'content-type': 'application/json' };
+  const mapZip = createStoredZip({
+    'PoiMap/ModInfo.xml': '<xml><Name value="PoiMap" /><DisplayName value="地图显示建筑" /><Author value="CariYui" /><Description value="在地图上显示建筑" /></xml>'
+  });
+  const dllZip = createStoredZip({ 'GunMod/ModInfo.xml': '<xml><Name value="GunMod" /><Description value="extra guns" /></xml>', 'GunMod/GunMod.dll': 'fake' });
+  const mapSha = sha256(mapZip);
+  const dllSha = sha256(dllZip);
+  await jsonRequest(`${base}/api/v1/artifacts/${mapSha}`, { method: 'PUT', headers: { authorization: admin.authorization, 'content-type': 'application/zip' }, body: mapZip });
+  await jsonRequest(`${base}/api/v1/artifacts/${dllSha}`, { method: 'PUT', headers: { authorization: admin.authorization, 'content-type': 'application/zip' }, body: dllZip });
+  await jsonRequest(`${base}/api/v1/mods`, { method: 'POST', headers: admin, body: JSON.stringify({ id: 'poimap', name: 'PoiMap', version: '1.0.0', artifactSha: mapSha, gameVersions: ['3.0'], gameVersionRange: 'major', installRoots: ['PoiMap'] }) });
+  await jsonRequest(`${base}/api/v1/mods`, { method: 'POST', headers: admin, body: JSON.stringify({ id: 'gunmod', name: 'GunMod', version: '2.0.0', artifactSha: dllSha, gameVersions: ['2.6'], containsDll: true, installRoots: ['GunMod'] }) });
+
+  const listed = await jsonRequest(`${base}/api/v1/mods`, { headers: { authorization: admin.authorization } });
+  const map = listed.mods.find((item) => item.id === 'poimap');
+  assert.equal(map.author, 'CariYui');
+  assert.match(map.description, /地图上显示建筑/);
+  assert.equal(map.containsDll, false);
+
+  const searched = await jsonRequest(`${base}/api/v1/mods?q=${encodeURIComponent('建筑')}`, { headers: { authorization: admin.authorization } });
+  assert.deepEqual(searched.mods.map((item) => item.id), ['poimap']);
+
+  const byGame = await jsonRequest(`${base}/api/v1/mods?gameVersion=3.10.14`, { headers: { authorization: admin.authorization } });
+  assert.deepEqual(byGame.mods.map((item) => item.id), ['poimap']);
+
+  const dlls = await jsonRequest(`${base}/api/v1/mods?dll=yes`, { headers: { authorization: admin.authorization } });
+  assert.deepEqual(dlls.mods.map((item) => item.id), ['gunmod']);
+});
+

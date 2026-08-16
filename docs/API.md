@@ -27,6 +27,7 @@ All administrator routes require `Authorization: Bearer <ADMIN_TOKEN>`.
 | GET | `/api/v1/admin/audit` | Publication audit log |
 | POST | `/api/v1/servers/{id}/sync-status` | Dedicated-server sync heartbeat |
 | GET | `/api/v1/diagnostics/summary` | Aggregated fingerprints |
+| GET | `/api/v1/mods?q=&gameVersion=&dll=` | List registered mods; `q` searches id/name/author/description |
 | GET | `/api/v1/public/packs/{id}/latest` | Retrieve signed manifest |
 | GET | `/api/v1/public/artifacts/{sha256}` | Retrieve immutable artifact |
 | GET | `/api/v1/public/servers/resolve?address=host:port` | Resolve a server to its pack |

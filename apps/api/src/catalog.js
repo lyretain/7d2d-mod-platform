@@ -1,19 +1,48 @@
 import { randomBytes } from 'node:crypto';
 import { activeRelease, releaseDiff } from './protocol.js';
+import { gameVersionMatches } from './game-version.js';
 
-export function listMods(snapshot, query = '') {
+function modInfoFrom(snapshot, version) {
+  if (!version) return { author: null, description: null };
+  const review = snapshot.reviews?.[version.artifactSha]?.analysis?.modInfo || {};
+  return {
+    author: version.author || review.author || null,
+    description: version.description || review.description || null
+  };
+}
+
+export function listMods(snapshot, query = '', options = {}) {
   const needle = String(query || '').trim().toLocaleLowerCase('en-US');
+  const wantedGame = String(options.gameVersion || '').trim();
+  const dll = String(options.dll || '').trim().toLocaleLowerCase('en-US');
   return Object.values(snapshot.mods || {}).map((mod) => {
-    const versions = Object.values(mod.versions || {}).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    const versions = Object.values(mod.versions || {}).sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+    const latest = versions[0];
+    const info = modInfoFrom(snapshot, latest);
+    const gameVersions = [...new Set(versions.flatMap((item) => item.gameVersions || []))];
+    const downloads = versions.reduce((sum, item) => sum + Number(snapshot.stats?.artifacts?.[item.artifactSha] || 0), 0);
     return {
       id: mod.id,
       name: mod.name,
       versionCount: versions.length,
-      latestVersion: versions[0]?.version || null,
+      latestVersion: latest?.version || null,
       containsDll: versions.some((item) => item.containsDll),
+      author: info.author,
+      description: info.description,
+      gameVersions,
+      artifactSize: latest?.artifactSize || 0,
+      downloads,
+      updatedAt: latest?.createdAt || null,
       versions: versions.map((item) => ({ version: item.version, artifactSha: item.artifactSha, artifactSize: item.artifactSize, gameVersions: item.gameVersions, gameVersionRange: item.gameVersionRange || 'exact', containsDll: item.containsDll, createdAt: item.createdAt }))
     };
-  }).filter((mod) => !needle || mod.id.includes(needle) || String(mod.name || '').toLocaleLowerCase('en-US').includes(needle));
+  }).filter((mod) => {
+    if (wantedGame && !(mod.versions || []).some((item) => gameVersionMatches(item.gameVersions, wantedGame, item.gameVersionRange))) return false;
+    if (dll === 'yes' && !mod.containsDll) return false;
+    if (dll === 'no' && mod.containsDll) return false;
+    if (!needle) return true;
+    const hay = [mod.id, mod.name, mod.author, mod.description].join(' ').toLocaleLowerCase('en-US');
+    return hay.includes(needle);
+  });
 }
 
 export function listPacks(snapshot) {
