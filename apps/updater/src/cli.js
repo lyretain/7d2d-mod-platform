@@ -28,7 +28,10 @@ try {
     packId: options.packId,
     modsDir: options.modsDir,
     explicitPublicKey: options.publicKey,
-    force: Boolean(options.force)
+    profile: options.profile,
+    force: Boolean(options.force),
+    concurrency: options.concurrency ? Number(options.concurrency) : 2,
+    bandwidth: options.bandwidth ? Number(options.bandwidth) : undefined
   });
   console.log(JSON.stringify({ ok: true, packId: result.state.packId, packVersion: result.state.packVersion, requiresRestart: result.state.requiresRestart }, null, 2));
 } catch (error) {

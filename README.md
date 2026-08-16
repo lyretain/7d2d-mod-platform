@@ -60,6 +60,18 @@ node apps/updater/src/cli.js --base-url https://mods.example.com --server-addres
 
 On first use the updater pins the platform public key. A later key change fails closed. For managed deployments, pass the expected base64 SPKI key using `--public-key`.
 
+Player launcher (discover install, show the plan, sync, start, reconnect):
+
+```powershell
+npm run launcher -- join --base-url https://mods.example.com --address game.example.com:26900
+```
+
+Build a portable folder that includes `node.exe` and `ModPlatformLauncher.exe`:
+
+```powershell
+.\deploy\build-launcher.ps1
+```
+
 ## Crash guardian
 
 Copy `deploy/guardian.config.example.json`, adjust the game command and log path, then:
@@ -86,7 +98,7 @@ On the development machine, both plugins were successfully compiled against 7DTD
 
 Copy each built DLL, its `ModInfo.xml`, `ModPlatform.Shared.dll`, and the renamed example configuration into the matching `Mods/ModPlatformServer` or `Mods/ModPlatformClient` directory.
 
-The current adapter implements cloud assignment polling and in-process diagnostics. The reliable MVP connection flow is launcher preflight using the public server-address resolver. A native 7DTD connection interception adapter must be compiled and tested against the exact game build before it can safely block world entry; the protocol boundary is documented in `docs/PROTOCOL.md`.
+Plugins are compiled against 7DTD `V 3.10.14` / Steam build `24436778`. They poll assignments, send diagnostics, and run handshake protocol v1 so unsynced clients are rejected before world entry. Launcher preflight is still required to install files before the game loads DLLs. Live join tests on this machine are still outstanding.
 
 ## Test
 

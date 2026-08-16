@@ -6,7 +6,15 @@ import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { prepareDiagnostic } from './diagnostics.js';
 import { createAuthService } from './auth.js';
-import { bearer, id, isSafeId, json, now, problem, readBody, readJson, requireFields, sha256 } from './util.js';
+import { activeRelease, handshakePolicy, recordAudit, releaseDiff } from './protocol.js';
+import { bearer, id, isSafeId, json, now, problem, readJson, requireFields } from './util.js';
+import { analyzeZipFile, scanFile } from './analyze.js';
+import { ingestDiagnostic, shouldBlockInstalls } from './compatibility.js';
+import { handleP1 } from './p1-routes.js';
+import { consumeRateLimit, inspectRequest, routeLimit, securityHeaders } from './security.js';
+import { notify } from './alerts.js';
+import { recordDownload, requireConfirm } from './catalog.js';
+import { artifactPublicUrl, cloudflareCacheHeaders, manifestPublicUrl, purgeCloudflare } from './cloudflare.js';
 
 const ADMIN_HTML = `<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -40,6 +48,9 @@ section{background:#1d1d1d;padding:18px;margin:16px 0;border-radius:10px}input,s
 <section><h2>上传 Mod ZIP</h2><input id="artifact" type="file" accept=".zip"><button onclick="upload()">上传并计算哈希</button><pre id="uploadResult"></pre></section>
 <section><h2>注册 Mod 版本</h2><div class="row"><input id="modId" placeholder="Mod ID"><input id="modName" placeholder="显示名称"><input id="modVersion" placeholder="版本"><input id="artifactSha" placeholder="文件 SHA-256"></div><input id="gameVersions" placeholder="游戏版本，逗号分隔，例如 3.0.1-b4"><input id="installRoots" placeholder="ZIP 顶层目录，逗号分隔"><label><input id="containsDll" type="checkbox" style="width:auto"> 包含客户端 DLL / 需要重启</label><button onclick="registerMod()">注册 Mod 版本</button></section>
 <section><h2>创建并发布 ModPack</h2><div class="row"><input id="packId" placeholder="Pack ID"><input id="packName" placeholder="名称"><input id="packGame" placeholder="游戏版本"><input id="packEntries" placeholder="mod@version,mod2@version"></div><button onclick="publishPack()">创建并发布</button></section>
+<section><h2>发布、吊销与回滚</h2><p>回滚可能影响已有存档，请确认后再执行。</p><div class="row"><input id="releasePackId" placeholder="Pack ID"><input id="releaseId" placeholder="Release ID"></div><div class="row"><input id="releaseReason" placeholder="原因（发布/吊销/回滚）"><button onclick="listReleases()">列出 Release</button></div><div class="row"><button onclick="revokeRelease()">吊销 Release</button><button onclick="rollbackRelease()">回滚到该 Release</button></div></section>
+<section><h2>服务器绑定与紧急停发</h2><div class="row"><input id="serverId" placeholder="Server ID"><input id="serverPackId" placeholder="新的 Pack ID"></div><div class="row"><input id="serverAddress" placeholder="公开地址 host:port"><input id="pauseReason" placeholder="停发原因"></div><div class="row"><button onclick="updateServer()">更新服务器绑定</button><button onclick="pauseDistribution(true)">紧急停止分发</button></div><button class="secondary" onclick="pauseDistribution(false)">恢复分发</button></section>
+<section><h2>目录与运维</h2><div class="row"><button onclick="loadMods()">Mod 列表</button><button onclick="loadPacks()">ModPack 列表</button></div><div class="row"><button onclick="loadServers()">服务器状态</button><button onclick="loadUsers()">用户列表</button></div><div class="row"><button onclick="loadReviews()">审核队列</button><button onclick="loadMatrix()">兼容性矩阵</button></div><div class="row"><input id="auditAction" placeholder="审计 action 过滤"><input id="reviewSha" placeholder="审核 SHA-256"></div><div class="row"><button onclick="loadAudit()">查询审计</button><button onclick="approveReview()">确认许可证并批准</button></div><div class="row"><button onclick="loadStats()">下载统计</button><button onclick="loadSessions()">登录会话</button></div></section>
 <section><h2>平台状态</h2><button onclick="loadState()">刷新状态</button><pre id="out">尚未读取</pre></section>
 <script>
 const savedToken=()=>localStorage.getItem('modPlatformToken')||bootstrapToken.value;
@@ -47,14 +58,30 @@ const headers=()=>({'authorization':'Bearer '+savedToken(),'content-type':'appli
 async function request(url,options={}){const r=await fetch(url,options);let b={};try{b=await r.json()}catch{}if(!r.ok)throw new Error(b.error?.message||('HTTP '+r.status));return b}
 function show(value){out.textContent=typeof value==='string'?value:JSON.stringify(value,null,2)}
 async function refreshMe(){const token=savedToken();if(!token){authStatus.textContent='尚未登录';return}try{const me=await request('/api/v1/auth/me',{headers:headers()});authStatus.textContent='已登录：'+me.user.username+'（'+me.user.role+'）'}catch{authStatus.textContent='登录已失效';localStorage.removeItem('modPlatformToken')}}
-async function login(){try{const r=await request('/api/v1/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({username:loginUser.value,password:loginPassword.value})});localStorage.setItem('modPlatformToken',r.token);loginPassword.value='';await refreshMe();show('登录成功')}catch(e){show(e.message)}}
+async function login(){try{const r=await request('/api/v1/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({username:loginUser.value,password:loginPassword.value})});if(r.requiresTotp){const code=prompt('请输入两步验证码或恢复码');const done=await request('/api/v1/auth/login/totp',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({ticket:r.ticket,code})});localStorage.setItem('modPlatformToken',done.token)}else localStorage.setItem('modPlatformToken',r.token);loginPassword.value='';await refreshMe();show('登录成功')}catch(e){show(e.message)}}
 async function logout(){try{await request('/api/v1/auth/logout',{method:'POST',headers:headers(),body:'{}'})}catch{}localStorage.removeItem('modPlatformToken');bootstrapToken.value='';await refreshMe();show('已退出登录')}
 async function register(){try{const r=await request('/api/v1/auth/register',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({username:registerUser.value,password:registerPassword.value,inviteCode:registerInvite.value})});registerPassword.value='';registerInvite.value='';show({message:'注册成功，请登录',user:r.user})}catch(e){show(e.message)}}
 async function createInvite(){try{const r=await request('/api/v1/invites',{method:'POST',headers:headers(),body:JSON.stringify({role:inviteRole.value,maxUses:Number(inviteUses.value),expiresInHours:Number(inviteHours.value)})});inviteResult.textContent='邀请码（只显示一次）：\n'+r.code+'\n\n'+JSON.stringify(r.invite,null,2)}catch(e){inviteResult.textContent=e.message}}
 async function loadState(){try{show(await request('/api/v1/admin/state',{headers:headers()}))}catch(e){show(e.message)}}
 async function upload(){try{const file=artifact.files[0];if(!file)throw Error('请选择 ZIP');const bytes=await file.arrayBuffer();const hash=[...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(x=>x.toString(16).padStart(2,'0')).join('');const r=await request('/api/v1/artifacts/'+hash,{method:'PUT',headers:{authorization:headers().authorization,'content-type':'application/zip','x-file-name':file.name},body:bytes});artifactSha.value=hash;uploadResult.textContent=JSON.stringify(r,null,2)}catch(e){uploadResult.textContent=e.message}}
 async function registerMod(){try{const body={id:modId.value,name:modName.value,version:modVersion.value,artifactSha:artifactSha.value,gameVersions:gameVersions.value.split(',').map(x=>x.trim()).filter(Boolean),installRoots:installRoots.value.split(',').map(x=>x.trim()).filter(Boolean),containsDll:containsDll.checked,requiresRestart:containsDll.checked};show(await request('/api/v1/mods',{method:'POST',headers:headers(),body:JSON.stringify(body)}))}catch(e){show(e.message)}}
-async function publishPack(){try{const entries=packEntries.value.split(',').map(x=>{const parts=x.trim().split('@');return{modId:parts[0],version:parts[1],required:true}});await request('/api/v1/packs',{method:'POST',headers:headers(),body:JSON.stringify({id:packId.value,name:packName.value,gameVersion:packGame.value,entries})});show(await request('/api/v1/packs/'+encodeURIComponent(packId.value)+'/releases',{method:'POST',headers:headers(),body:'{}'}))}catch(e){show(e.message)}}
+async function publishPack(){try{const entries=packEntries.value.split(',').map(x=>{const parts=x.trim().split('@');return{modId:parts[0],version:parts[1],required:true}});await request('/api/v1/packs',{method:'POST',headers:headers(),body:JSON.stringify({id:packId.value,name:packName.value,gameVersion:packGame.value,entries})});show(await request('/api/v1/packs/'+encodeURIComponent(packId.value)+'/releases',{method:'POST',headers:headers(),body:JSON.stringify({reason:releaseReason.value||'publish'})}))}catch(e){show(e.message)}}
+async function listReleases(){try{show(await request('/api/v1/packs/'+encodeURIComponent(releasePackId.value||packId.value)+'/releases',{headers:headers()}))}catch(e){show(e.message)}}
+async function confirmToken(action,message){if(!confirm(message))throw new Error('已取消');const r=await request('/api/v1/admin/confirm',{method:'POST',headers:headers(),body:JSON.stringify({action})});return r.token}
+async function revokeRelease(){try{const token=await confirmToken('release.revoke','确认吊销该 Release？玩家将无法再下载此版本。');show(await request('/api/v1/packs/'+encodeURIComponent(releasePackId.value||packId.value)+'/releases/'+encodeURIComponent(releaseId.value)+'/revoke',{method:'POST',headers:headers(),body:JSON.stringify({reason:releaseReason.value||'revoke',confirmToken:token})}))}catch(e){show(e.message)}}
+async function rollbackRelease(){try{const token=await confirmToken('pack.rollback','确认回滚？可能影响已有存档。');show(await request('/api/v1/packs/'+encodeURIComponent(releasePackId.value||packId.value)+'/rollback',{method:'POST',headers:headers(),body:JSON.stringify({releaseId:releaseId.value,reason:releaseReason.value||'rollback',confirmToken:token})}))}catch(e){show(e.message)}}
+async function updateServer(){try{show(await request('/api/v1/servers/'+encodeURIComponent(serverId.value),{method:'PATCH',headers:headers(),body:JSON.stringify({packId:serverPackId.value||undefined,publicAddress:serverAddress.value||undefined})}))}catch(e){show(e.message)}}
+async function pauseDistribution(paused){try{const action=paused?'distribution.pause':'distribution.resume';const token=await confirmToken(action,paused?'确认紧急停止分发？':'确认恢复分发？');show(await request('/api/v1/admin/distribution',{method:'POST',headers:headers(),body:JSON.stringify({paused,reason:pauseReason.value||undefined,confirmToken:token})}))}catch(e){show(e.message)}}
+async function loadMods(){try{show(await request('/api/v1/mods',{headers:headers()}))}catch(e){show(e.message)}}
+async function loadPacks(){try{show(await request('/api/v1/packs',{headers:headers()}))}catch(e){show(e.message)}}
+async function loadServers(){try{show(await request('/api/v1/servers',{headers:headers()}))}catch(e){show(e.message)}}
+async function loadUsers(){try{show(await request('/api/v1/users',{headers:headers()}))}catch(e){show(e.message)}}
+async function loadReviews(){try{show(await request('/api/v1/reviews',{headers:headers()}))}catch(e){show(e.message)}}
+async function loadMatrix(){try{show(await request('/api/v1/diagnostics/matrix',{headers:headers()}))}catch(e){show(e.message)}}
+async function loadAudit(){try{show(await request('/api/v1/admin/audit'+(auditAction.value?'?action='+encodeURIComponent(auditAction.value):''),{headers:headers()}))}catch(e){show(e.message)}}
+async function loadStats(){try{show(await request('/api/v1/admin/stats',{headers:headers()}))}catch(e){show(e.message)}}
+async function loadSessions(){try{show(await request('/api/v1/sessions',{headers:headers()}))}catch(e){show(e.message)}}
+async function approveReview(){try{show(await request('/api/v1/reviews/'+reviewSha.value,{method:'POST',headers:headers(),body:JSON.stringify({status:'approved',licenseConfirmed:true})}))}catch(e){show(e.message)}}
 refreshMe();
 </script></body></html>`;
 
@@ -87,9 +114,11 @@ async function receiveArtifact(req, target, expectedHash, limit) {
   }
 }
 
-export function createApp({ store, signing, dataDir, adminToken, allowBootstrapAdmin = false, publicBaseUrl, maxArtifactBytes = 2_147_483_648, maxDiagnosticBytes = 262_144 }) {
-  const objectDir = path.join(dataDir, 'objects');
-  const auth = createAuthService({ store, bootstrapToken: adminToken, allowBootstrapAfterSetup: allowBootstrapAdmin });
+export function createApp({ store, signing, dataDir, adminToken, allowBootstrapAdmin = false, bootstrapDisabled = false, publicBaseUrl, launcherUrl, cdnBaseUrl, maxArtifactBytes = 2_147_483_648, maxDiagnosticBytes = 262_144, objects, metrics, config = {}, requireReview = false }) {
+  const objectDir = objects?.localDir || path.join(dataDir, 'objects');
+  const auth = createAuthService({ store, bootstrapToken: adminToken, allowBootstrapAfterSetup: allowBootstrapAdmin, bootstrapDisabled });
+  const artifactBase = (cdnBaseUrl || publicBaseUrl || '').replace(/\/$/, '');
+  const metricsApi = metrics || { snapshot: () => ({}), observe() {} };
 
   function isAdmin(req) {
     return auth.principal(req)?.role === 'admin';
@@ -111,7 +140,19 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
   async function handler(req, res) {
     const url = new URL(req.url, publicBaseUrl);
     const pathname = decodeURIComponent(url.pathname);
+    const originalWriteHead = res.writeHead.bind(res);
+    res.writeHead = (status, headers = {}) => originalWriteHead(status, { ...securityHeaders(req, { forceHttps: config.forceHttps, adminHost: config.adminHost }), ...headers });
     try {
+      const inspection = inspectRequest(req, { trustedProxy: config.trustedProxy });
+      if (inspection.blocked) return problem(res, 403, inspection.reason, 'Request blocked by security policy');
+      if (config.adminHost && req.headers.host && req.headers.host.split(':')[0] !== config.adminHost && (pathname === '/' || pathname.startsWith('/api/v1/admin') || pathname.startsWith('/api/v1/users'))) {
+        return problem(res, 404, 'NOT_FOUND', 'Route not found');
+      }
+      const limit = routeLimit(pathname, req.method);
+      if (limit && !await consumeRateLimit(store, { key: `${limit.key}:${inspection.ip}`, limit: limit.limit, windowMs: limit.windowMs })) {
+        return problem(res, 429, 'RATE_LIMITED', 'Too many requests');
+      }
+      if (await handleP1(req, res, { pathname, store, auth, signing, objects: objects || { localDir: objectDir, ready: async () => ({ ok: true, driver: 'local' }), listLocal: async () => [], remove: async () => {} }, metrics: metricsApi, config })) return;
       if (req.method === 'GET' && pathname === '/') {
         const body = Buffer.from(ADMIN_HTML_V2);
         res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'content-length': body.length, 'x-content-type-options': 'nosniff' });
@@ -124,13 +165,19 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
         const body = await readJson(req, 32 * 1024);
         requireFields(body, ['username', 'password', 'inviteCode']);
         const user = await auth.register(body);
+        metricsApi.observe('register');
         return json(res, 201, { user });
       }
 
       if (req.method === 'POST' && pathname === '/api/v1/auth/login') {
         const body = await readJson(req, 32 * 1024);
         requireFields(body, ['username', 'password']);
-        return json(res, 200, await auth.login(req, body));
+        try {
+          return json(res, 200, await auth.login(req, body));
+        } catch (error) {
+          if (error.code === 'INVALID_CREDENTIALS' || error.code === 'RATE_LIMITED') metricsApi.observe('loginFail');
+          throw error;
+        }
       }
 
       if (req.method === 'POST' && pathname === '/api/v1/auth/logout') {
@@ -149,6 +196,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
         if (!principal || principal.role !== 'admin') return problem(res, 403, 'FORBIDDEN', 'Administrator role required');
         const body = await readJson(req, 32 * 1024);
         const result = await auth.createInvite({ ...body, createdBy: principal.id });
+        metricsApi.observe('invites');
         return json(res, 201, result);
       }
 
@@ -168,6 +216,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
         if (!requireUser(req, res)) return;
         const state = store.snapshot();
         state.diagnostics = state.diagnostics.slice(-20);
+        state.audit = (state.audit || []).slice(-30);
         for (const server of Object.values(state.servers)) delete server.tokenHash;
         for (const user of Object.values(state.users)) delete user.passwordHash;
         for (const invite of Object.values(state.invites)) delete invite.codeHash;
@@ -181,21 +230,51 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
         const expected = artifactMatch[1];
         await mkdir(objectDir, { recursive: true });
         const target = path.join(objectDir, expected);
+        if (store.snapshot().bannedHashes?.[expected]) return problem(res, 409, 'HASH_BANNED', 'This artifact hash is banned');
         const received = await receiveArtifact(req, target, expected, maxArtifactBytes);
-        return json(res, 201, { sha256: expected, size: received.size, fileName: req.headers['x-file-name'] || null });
+        if (objects?.put) await objects.put(expected, target, received.size);
+        const analysis = await analyzeZipFile(target, req.headers['x-file-name'] || 'upload.zip');
+        const scan = config.production ? await scanFile(target) : { skipped: true, ok: true };
+        const highRisk = analysis.findings.some((item) => item.severity === 'high') || scan.ok === false;
+        const review = await store.mutate((draft) => {
+          draft.reviews = draft.reviews || {};
+          const value = {
+            sha256: expected,
+            fileName: req.headers['x-file-name'] || null,
+            size: received.size,
+            status: highRisk || analysis.containsDll ? 'pending' : 'approved',
+            licenseConfirmed: false,
+            analysis,
+            scan,
+            createdAt: now()
+          };
+          draft.reviews[expected] = value;
+          return value;
+        });
+        return json(res, 201, { sha256: expected, size: received.size, fileName: req.headers['x-file-name'] || null, review });
       }
 
       const publicArtifact = pathname.match(/^\/api\/v1\/public\/artifacts\/([a-f0-9]{64})$/);
       if (req.method === 'GET' && publicArtifact) {
         const file = path.join(objectDir, publicArtifact[1]);
         const info = await stat(file);
-        res.writeHead(200, {
+        const range = String(req.headers.range || '').match(/^bytes=(\d+)-(\d*)$/);
+        const headers = {
           'content-type': 'application/zip',
-          'content-length': info.size,
-          'cache-control': 'public, max-age=31536000, immutable',
-          'etag': `"${publicArtifact[1]}"`,
+          ...cloudflareCacheHeaders('artifact'),
+          etag: `"${publicArtifact[1]}"`,
           'x-content-type-options': 'nosniff'
-        });
+        };
+        const start = range ? Number(range[1]) : 0;
+        const end = range && range[2] ? Number(range[2]) : info.size - 1;
+        if (range && (start >= info.size || end >= info.size || start > end)) return problem(res, 416, 'RANGE_NOT_SATISFIABLE', 'Requested range is invalid');
+        const served = range ? end - start + 1 : info.size;
+        store.mutate((draft) => recordDownload(draft, { sha256: publicArtifact[1], bytes: served, gameVersion: url.searchParams.get('gameVersion') })).catch(() => {});
+        if (range) {
+          res.writeHead(206, { ...headers, 'content-length': served, 'content-range': `bytes ${start}-${end}/${info.size}` });
+          return createReadStream(file, { start, end }).pipe(res);
+        }
+        res.writeHead(200, { ...headers, 'content-length': info.size });
         return createReadStream(file).pipe(res);
       }
 
@@ -206,6 +285,10 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
         if (!isSafeId(body.id) || !isSafeId(body.version) || !/^[a-f0-9]{64}$/.test(body.artifactSha)) throw Object.assign(new Error('Invalid id, version, or SHA-256'), { code: 'VALIDATION' });
         const artifact = path.join(objectDir, body.artifactSha);
         const artifactInfo = await stat(artifact);
+        const review = store.snapshot().reviews?.[body.artifactSha];
+        if (store.snapshot().bannedHashes?.[body.artifactSha]) throw Object.assign(new Error('Artifact hash is banned'), { code: 'VALIDATION' });
+        if (requireReview && (!review || review.status !== 'approved' || !review.licenseConfirmed)) throw Object.assign(new Error('Artifact must be reviewed and have a confirmed redistribution license'), { code: 'VALIDATION' });
+        const analysis = review?.analysis;
         const result = await store.mutate((draft) => {
           const mod = draft.mods[body.id] || { id: body.id, name: body.name, versions: {} };
           mod.name = body.name;
@@ -214,9 +297,10 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
             artifactSha: body.artifactSha,
             artifactSize: artifactInfo.size,
             gameVersions: Array.isArray(body.gameVersions) ? body.gameVersions : [],
-            installRoots: Array.isArray(body.installRoots) ? body.installRoots : [],
-            containsDll: Boolean(body.containsDll),
-            requiresRestart: Boolean(body.requiresRestart || body.containsDll),
+            installRoots: Array.isArray(body.installRoots) && body.installRoots.length ? body.installRoots : (analysis?.roots || []),
+            containsDll: Boolean(body.containsDll || analysis?.containsDll),
+            requiresRestart: Boolean(body.requiresRestart || body.containsDll || analysis?.containsDll),
+            sbom: analysis?.sbom || null,
             createdAt: now()
           };
           draft.mods[body.id] = mod;
@@ -235,6 +319,10 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
           const version = snapshot.mods[entry.modId]?.versions?.[entry.version];
           if (!version) throw Object.assign(new Error(`Unknown mod version: ${entry.modId}@${entry.version}`), { code: 'VALIDATION' });
           if (version.gameVersions.length && !version.gameVersions.includes(body.gameVersion)) throw Object.assign(new Error(`${entry.modId}@${entry.version} does not declare compatibility with game ${body.gameVersion}`), { code: 'VALIDATION' });
+          if (requireReview) {
+            const review = snapshot.reviews?.[version.artifactSha];
+            if (!review || review.status !== 'approved' || !review.licenseConfirmed) throw Object.assign(new Error(`${entry.modId}@${entry.version} is not approved for redistribution`), { code: 'VALIDATION' });
+          }
         }
         const pack = await store.mutate((draft) => {
           const existing = draft.packs[body.id];
@@ -252,6 +340,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
         const pack = snapshot.packs[releaseMatch[1]];
         if (!pack) return problem(res, 404, 'PACK_NOT_FOUND', 'ModPack was not found');
         const releaseNumber = Object.values(snapshot.releases).filter((item) => item.packId === pack.id).length + 1;
+        const previous = activeRelease(snapshot, pack);
         const unsigned = {
           schemaVersion: 1,
           packId: pack.id,
@@ -269,16 +358,32 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
               installRoots: version.installRoots,
               size: version.artifactSize,
               sha256: version.artifactSha,
-              url: `${publicBaseUrl.replace(/\/$/, '')}/api/v1/public/artifacts/${version.artifactSha}`
+              url: artifactPublicUrl(version.artifactSha, config, artifactBase)
             };
           })
         };
-        const manifest = signing.signObject(unsigned);
+        const manifest = await signing.signObject(unsigned);
+        const principal = auth.principal(req);
+        const body = await readJson(req, 32 * 1024).catch(() => ({}));
         const release = await store.mutate((draft) => {
           const releaseId = id('rel');
-          const value = { id: releaseId, packId: pack.id, packVersion: releaseNumber, manifest, createdAt: now(), revokedAt: null };
+          const value = {
+            id: releaseId,
+            packId: pack.id,
+            packVersion: releaseNumber,
+            manifest,
+            createdAt: now(),
+            createdBy: principal?.id || 'unknown',
+            reason: body.reason || null,
+            diff: releaseDiff(previous?.manifest, manifest),
+            previousReleaseId: previous?.id || null,
+            revokedAt: null,
+            revokedBy: null,
+            revokeReason: null
+          };
           draft.releases[releaseId] = value;
           draft.packs[pack.id].latestReleaseId = releaseId;
+          recordAudit(draft, { actor: principal?.username || principal?.id, action: 'release.publish', target: releaseId, reason: body.reason, details: { packId: pack.id, packVersion: releaseNumber, diff: value.diff } });
           return value;
         });
         return json(res, 201, release);
@@ -287,10 +392,65 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
       const manifestMatch = pathname.match(/^\/api\/v1\/public\/packs\/([^/]+)\/latest$/);
       if (req.method === 'GET' && manifestMatch) {
         const snapshot = store.snapshot();
+        if (snapshot.settings?.distributionPaused) return problem(res, 503, 'DISTRIBUTION_PAUSED', 'Mod distribution is paused');
+        const crashGate = shouldBlockInstalls(snapshot, { threshold: config.crashRateBlockThreshold, minSamples: config.crashRateMinSamples });
+        if (crashGate.blocked) return problem(res, 503, 'CRASH_RATE_BLOCKED', 'New installs are paused because the crash rate exceeded the safety threshold');
         const pack = snapshot.packs[manifestMatch[1]];
-        const release = pack && snapshot.releases[pack.latestReleaseId];
-        if (!release || release.revokedAt) return problem(res, 404, 'RELEASE_NOT_FOUND', 'No active release was found');
-        return json(res, 200, release.manifest, { 'cache-control': 'public, max-age=30' });
+        const release = pack && activeRelease(snapshot, pack);
+        if (!release) return problem(res, 404, 'RELEASE_NOT_FOUND', 'No active release was found');
+        return json(res, 200, release.manifest, cloudflareCacheHeaders('manifest'));
+      }
+
+      const releaseListMatch = pathname.match(/^\/api\/v1\/packs\/([^/]+)\/releases$/);
+      if (req.method === 'GET' && releaseListMatch) {
+        if (!requireUser(req, res)) return;
+        const snapshot = store.snapshot();
+        const pack = snapshot.packs[releaseListMatch[1]];
+        if (!pack) return problem(res, 404, 'PACK_NOT_FOUND', 'ModPack was not found');
+        const releases = Object.values(snapshot.releases).filter((item) => item.packId === pack.id).sort((a, b) => b.packVersion - a.packVersion);
+        return json(res, 200, { packId: pack.id, latestReleaseId: pack.latestReleaseId, mayAffectSaves: true, releases });
+      }
+
+      const revokeMatch = pathname.match(/^\/api\/v1\/packs\/([^/]+)\/releases\/([^/]+)\/revoke$/);
+      if (req.method === 'POST' && revokeMatch) {
+        if (!requireAdmin(req, res)) return;
+        const body = await readJson(req, 32 * 1024);
+        const principal = auth.principal(req);
+        const result = await store.mutate((draft) => {
+          requireConfirm(config, draft, body, 'release.revoke');
+          const release = draft.releases[revokeMatch[2]];
+          if (!release || release.packId !== revokeMatch[1]) return null;
+          release.revokedAt = now();
+          release.revokedBy = principal.id;
+          release.revokeReason = body.reason || null;
+          recordAudit(draft, { actor: principal.username || principal.id, action: 'release.revoke', target: release.id, reason: body.reason, details: { packId: release.packId, packVersion: release.packVersion } });
+          return release;
+        });
+        if (!result) return problem(res, 404, 'RELEASE_NOT_FOUND', 'Release was not found');
+        await purgeCloudflare(config, [manifestPublicUrl(revokeMatch[1], config, publicBaseUrl)]);
+        return json(res, 200, result);
+      }
+
+      const rollbackMatch = pathname.match(/^\/api\/v1\/packs\/([^/]+)\/rollback$/);
+      if (req.method === 'POST' && rollbackMatch) {
+        if (!requireAdmin(req, res)) return;
+        const body = await readJson(req, 32 * 1024);
+        requireFields(body, ['releaseId']);
+        const principal = auth.principal(req);
+        const result = await store.mutate((draft) => {
+          requireConfirm(config, draft, body, 'pack.rollback');
+          const pack = draft.packs[rollbackMatch[1]];
+          const release = draft.releases[body.releaseId];
+          if (!pack || !release || release.packId !== pack.id) return null;
+          if (release.revokedAt) throw Object.assign(new Error('Cannot roll back to a revoked release'), { code: 'VALIDATION' });
+          const previousId = pack.latestReleaseId;
+          pack.latestReleaseId = release.id;
+          pack.updatedAt = now();
+          recordAudit(draft, { actor: principal.username || principal.id, action: 'pack.rollback', target: pack.id, reason: body.reason, details: { from: previousId, to: release.id, packVersion: release.packVersion, mayAffectSaves: true } });
+          return { pack, release, mayAffectSaves: true };
+        });
+        if (!result) return problem(res, 404, 'RELEASE_NOT_FOUND', 'Rollback target was not found');
+        return json(res, 200, result);
       }
 
       if (req.method === 'POST' && pathname === '/api/v1/servers') {
@@ -311,8 +471,14 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
         const server = Object.values(snapshot.servers).find((item) => String(item.publicAddress || '').trim().toLocaleLowerCase('en-US') === address);
         if (!server) return problem(res, 404, 'SERVER_NOT_FOUND', 'No registered server uses that public address');
         const pack = snapshot.packs[server.packId];
-        const release = pack && snapshot.releases[pack.latestReleaseId];
-        return json(res, 200, { serverId: server.id, packId: server.packId, packVersion: release?.packVersion || null, gameVersion: release?.manifest?.gameVersion || null });
+        const policy = handshakePolicy(snapshot, pack, signing, { launcherUrl, publicBaseUrl });
+        return json(res, 200, {
+          serverId: server.id,
+          packId: server.packId,
+          packVersion: policy.packVersion,
+          gameVersion: policy.gameVersion,
+          handshake: policy
+        });
       }
 
       const assignmentMatch = pathname.match(/^\/api\/v1\/servers\/([^/]+)\/assignment$/);
@@ -322,25 +488,85 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
         if (!server || tokenHash(bearer(req)) !== server.tokenHash) return problem(res, 401, 'UNAUTHORIZED', 'Invalid server credential');
         await store.mutate((draft) => { draft.servers[server.id].lastSeenAt = now(); });
         const pack = snapshot.packs[server.packId];
-        const release = pack && snapshot.releases[pack.latestReleaseId];
-        return json(res, 200, { serverId: server.id, packId: server.packId, manifest: release?.manifest || null });
+        const release = pack && activeRelease(snapshot, pack);
+        const policy = handshakePolicy(snapshot, pack, signing, { launcherUrl, publicBaseUrl });
+        const acceptingPlayers = Boolean(release) && !policy.distributionPaused && server.sync?.ok !== false;
+        return json(res, 200, { serverId: server.id, packId: server.packId, manifest: release?.manifest || null, handshake: policy, acceptingPlayers });
+      }
+
+      const serverPatch = pathname.match(/^\/api\/v1\/servers\/([^/]+)$/);
+      if (req.method === 'PATCH' && serverPatch) {
+        if (!requireAdmin(req, res)) return;
+        const body = await readJson(req, 32 * 1024);
+        const principal = auth.principal(req);
+        const result = await store.mutate((draft) => {
+          const server = draft.servers[serverPatch[1]];
+          if (!server) return null;
+          if (body.packId) {
+            if (!draft.packs[body.packId]) throw Object.assign(new Error('Unknown packId'), { code: 'VALIDATION' });
+            server.packId = body.packId;
+          }
+          if (body.publicAddress !== undefined) server.publicAddress = body.publicAddress || null;
+          if (body.name) server.name = body.name;
+          server.updatedAt = now();
+          recordAudit(draft, { actor: principal.username || principal.id, action: 'server.update', target: server.id, reason: body.reason, details: { packId: server.packId, publicAddress: server.publicAddress } });
+          return { id: server.id, name: server.name, packId: server.packId, publicAddress: server.publicAddress };
+        });
+        if (!result) return problem(res, 404, 'SERVER_NOT_FOUND', 'Server was not found');
+        return json(res, 200, result);
+      }
+
+      const syncStatusMatch = pathname.match(/^\/api\/v1\/servers\/([^/]+)\/sync-status$/);
+      if (req.method === 'POST' && syncStatusMatch) {
+        const snapshot = store.snapshot();
+        const server = snapshot.servers[syncStatusMatch[1]];
+        if (!server || tokenHash(bearer(req)) !== server.tokenHash) return problem(res, 401, 'UNAUTHORIZED', 'Invalid server credential');
+        const body = await readJson(req, 32 * 1024);
+        requireFields(body, ['stage']);
+        const status = await store.mutate((draft) => {
+          const current = draft.servers[server.id];
+          current.lastSeenAt = now();
+          current.sync = {
+            stage: body.stage,
+            ok: body.ok !== false,
+            packId: body.packId || current.packId,
+            packVersion: body.packVersion || null,
+            message: body.message || null,
+            requiresRestart: Boolean(body.requiresRestart),
+            updatedAt: now()
+          };
+          return current.sync;
+        });
+        return json(res, 202, { accepted: true, sync: status });
+      }
+
+      if (req.method === 'POST' && pathname === '/api/v1/admin/distribution') {
+        if (!requireAdmin(req, res)) return;
+        const body = await readJson(req, 32 * 1024);
+        const principal = auth.principal(req);
+        const settings = await store.mutate((draft) => {
+          requireConfirm(config, draft, body, body.paused ? 'distribution.pause' : 'distribution.resume');
+          draft.settings.distributionPaused = Boolean(body.paused);
+          draft.settings.distributionPausedAt = draft.settings.distributionPaused ? now() : null;
+          draft.settings.distributionPausedBy = draft.settings.distributionPaused ? principal.id : null;
+          draft.settings.distributionPausedReason = draft.settings.distributionPaused ? (body.reason || null) : null;
+          recordAudit(draft, { actor: principal.username || principal.id, action: draft.settings.distributionPaused ? 'distribution.pause' : 'distribution.resume', target: 'platform', reason: body.reason });
+          return draft.settings;
+        });
+        if (settings.distributionPaused) notify(config.webhookUrl, { type: 'distribution.pause', reason: body.reason }).catch(() => {});
+        return json(res, 200, settings);
       }
 
       if (req.method === 'POST' && pathname === '/api/v1/diagnostics') {
         const body = await readJson(req, maxDiagnosticBytes);
         requireFields(body, ['sessionId', 'side', 'gameVersion', 'stage']);
         const event = prepareDiagnostic({ ...body, id: id('diag'), occurredAt: body.occurredAt || now(), receivedAt: now() });
-        await store.mutate((draft) => {
-          draft.diagnostics.push(event);
-          if (draft.diagnostics.length > 10_000) draft.diagnostics.splice(0, draft.diagnostics.length - 10_000);
-          const fingerprint = draft.fingerprints[event.fingerprint] || { fingerprint: event.fingerprint, count: 0, firstSeenAt: event.receivedAt, lastSeenAt: event.receivedAt, gameVersions: {}, packs: {}, sampleEventId: event.id };
-          fingerprint.count += 1;
-          fingerprint.lastSeenAt = event.receivedAt;
-          fingerprint.gameVersions[event.gameVersion] = (fingerprint.gameVersions[event.gameVersion] || 0) + 1;
-          if (event.packId) fingerprint.packs[event.packId] = (fingerprint.packs[event.packId] || 0) + 1;
-          draft.fingerprints[event.fingerprint] = fingerprint;
-        });
-        return json(res, 202, { accepted: true, eventId: event.id, fingerprint: event.fingerprint });
+        const fingerprint = await store.mutate((draft) => ingestDiagnostic(draft, event));
+        const success = event.exceptionType === 'Success' || event.stage === 'successful_session' || event.stage === 'plugin_initialized';
+        metricsApi.observe(success ? 'syncOk' : 'crashes');
+        const crashGate = shouldBlockInstalls(store.snapshot(), { threshold: config.crashRateBlockThreshold, minSamples: config.crashRateMinSamples });
+        if (crashGate.blocked) notify(config.webhookUrl, { type: 'crash-rate', ...crashGate }).catch(() => {});
+        return json(res, 202, { accepted: true, eventId: event.id, fingerprint: event.fingerprint, conclusion: fingerprint.conclusion });
       }
 
       if (req.method === 'GET' && pathname === '/api/v1/diagnostics/summary') {

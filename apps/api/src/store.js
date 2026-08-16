@@ -1,8 +1,8 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-const EMPTY = {
-  schemaVersion: 2,
+export const EMPTY = {
+  schemaVersion: 3,
   mods: {},
   packs: {},
   releases: {},
@@ -11,7 +11,18 @@ const EMPTY = {
   invites: {},
   sessions: {},
   diagnostics: [],
-  fingerprints: {}
+  fingerprints: {},
+  settings: { distributionPaused: false, distributionPausedAt: null, distributionPausedBy: null, distributionPausedReason: null },
+  audit: [],
+  reviews: {},
+  bannedHashes: {},
+  rateLimits: {},
+  signingKeys: {},
+  passwordResets: {},
+  webhooks: [],
+  maintenance: { enabled: false, message: null },
+  stats: { downloads: 0, bytes: 0, artifacts: {}, gameVersions: {} },
+  confirmations: {}
 };
 
 export class JsonStore {
@@ -24,7 +35,23 @@ export class JsonStore {
   async init() {
     await mkdir(path.dirname(this.file), { recursive: true });
     try {
-      this.data = { ...structuredClone(EMPTY), ...JSON.parse(await readFile(this.file, 'utf8')), schemaVersion: 2 };
+      const loaded = JSON.parse(await readFile(this.file, 'utf8'));
+      this.data = {
+        ...structuredClone(EMPTY),
+        ...loaded,
+        settings: { ...structuredClone(EMPTY.settings), ...(loaded.settings || {}) },
+        audit: Array.isArray(loaded.audit) ? loaded.audit : [],
+        reviews: loaded.reviews || {},
+        bannedHashes: loaded.bannedHashes || {},
+        rateLimits: loaded.rateLimits || {},
+        signingKeys: loaded.signingKeys || {},
+        passwordResets: loaded.passwordResets || {},
+        webhooks: Array.isArray(loaded.webhooks) ? loaded.webhooks : [],
+        maintenance: { ...structuredClone(EMPTY.maintenance), ...(loaded.maintenance || {}) },
+        stats: { ...structuredClone(EMPTY.stats), ...(loaded.stats || {}) },
+        confirmations: loaded.confirmations || {},
+        schemaVersion: 3
+      };
     } catch (error) {
       if (error.code !== 'ENOENT') throw error;
       await this.persist();

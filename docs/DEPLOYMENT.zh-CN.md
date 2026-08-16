@@ -2,9 +2,12 @@
 
 ## 一、部署模式
 
-当前版本适合单机、内网测试和小规模服务器。元数据保存在 JSON 文件中，Mod 文件保存在本地内容寻址目录中。
+当前版本支持两种模式：
 
-生产公开部署前，建议将元数据迁移到 PostgreSQL，将文件迁移到 S3、MinIO、R2 或 OSS，并将签名私钥放入 KMS/HSM。
+- 单节点：不设 `DATABASE_URL` 时使用 JSON 文件，对象存在 `data/objects/`。
+- 生产：设置 `DATABASE_URL`、S3/MinIO 和 `SIGNING_PRIVATE_KEY` 或 `SIGNING_SERVICE_URL`。多实例必须走 PostgreSQL 和共享对象存储。
+
+完整应急步骤见 `docs/RUNBOOK.zh-CN.md`。Cloudflare CDN / R2 见 `docs/CLOUDFLARE.zh-CN.md`。
 
 ## 二、直接运行
 
@@ -29,11 +32,29 @@ node apps/api/src/server.js
 | `ADMIN_TOKEN` | 后台管理员令牌，至少 16 位 |
 | `ALLOW_BOOTSTRAP_ADMIN` | 首个用户注册后是否继续允许 `ADMIN_TOKEN` 登录，默认 `false` |
 | `DATA_DIR` | 数据、Mod 文件和开发签名密钥目录 |
-| `SIGNING_PRIVATE_KEY` | Base64 PKCS#8 Ed25519 私钥；生产环境建议由密钥服务提供 |
+| `SIGNING_PRIVATE_KEY` | Base64 PKCS#8 Ed25519 私钥；生产环境必须提供，或改用 `SIGNING_SERVICE_URL` |
+| `SIGNING_SERVICE_URL` | 独立签名服务。设置后应用进程不持有私钥 |
+| `DATABASE_URL` | PostgreSQL 连接串；为空则继续使用 JSON |
+| `PUBLIC_CDN_URL` | 写入 manifest 的对象下载根地址 |
+| `FORCE_HTTPS` | 在可信代理后将 HTTP 永久重定向到 HTTPS，并启用 HSTS |
+| `TRUSTED_PROXY` | 仅在此时信任 `X-Forwarded-For` |
+| `REQUIRE_REVIEW` | 生产默认开启：未审核且未确认许可证的 Mod 不能发布 |
+| `ALERT_WEBHOOK_URL` | 停发、崩溃率熔断等告警 |
+| `S3_*` | 可选对象存储。未配置时只写本地 |
 | `MAX_ARTIFACT_BYTES` | 单个 Mod ZIP 最大字节数 |
 | `MAX_DIAGNOSTIC_BYTES` | 单条诊断请求最大字节数 |
 
-如果未配置 `SIGNING_PRIVATE_KEY`，程序会在数据目录生成开发密钥。该方式只适合测试，部署时必须备份整个数据目录。
+`NODE_ENV=production` 时禁止自动生成开发密钥，且默认关闭引导管理员令牌。JSON 单节点可执行：
+
+```powershell
+node deploy/migrate-json-to-pg.js .\data\state\database.json $env:DATABASE_URL
+```
+
+完整基础设施可用：
+
+```powershell
+docker compose --profile full up --build -d
+```
 
 ## 三、Docker Compose
 

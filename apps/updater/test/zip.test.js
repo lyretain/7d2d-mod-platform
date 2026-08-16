@@ -3,7 +3,8 @@ import { mkdtemp, readFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { extractZip, listZip, safeEntryName } from '../src/zip.js';
+import { writeFile } from 'node:fs/promises';
+import { extractZip, extractZipFile, listZip, listZipFile, safeEntryName } from '../src/zip.js';
 import { createStoredZip } from './zip-helper.js';
 
 test('extracts a valid ZIP and preserves content', async () => {
@@ -24,4 +25,14 @@ test('rejects path traversal', () => {
 test('rejects duplicate paths ignoring case', () => {
   const archive = createStoredZip({ 'Mod/a.txt': 'a', 'mod/A.txt': 'b' });
   assert.throws(() => listZip(archive), /Duplicate ZIP path/);
+});
+
+test('lists and extracts a ZIP from disk without loading the whole archive in the caller', async () => {
+  const archive = createStoredZip({ 'ExampleMod/ModInfo.xml': '<xml />', 'ExampleMod/Config/a.txt': 'streamed' });
+  const root = await mkdtemp(path.join(os.tmpdir(), 'mod-platform-zipfile-'));
+  const zipPath = path.join(root, 'mod.zip');
+  await writeFile(zipPath, archive);
+  assert.equal((await listZipFile(zipPath)).length, 2);
+  await extractZipFile(zipPath, path.join(root, 'out'));
+  assert.equal(await readFile(path.join(root, 'out', 'ExampleMod', 'Config', 'a.txt'), 'utf8'), 'streamed');
 });

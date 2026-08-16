@@ -97,3 +97,43 @@ test('requires a one-use invitation for registration and supports login sessions
   const afterLogout = await fetch(`${base}/api/v1/auth/me`, { headers: sessionHeaders });
   assert.equal(afterLogout.status, 401);
 });
+
+test('can list, revoke, roll back releases and pause distribution', async (t) => {
+  const { base } = await fixture(t);
+  const admin = { authorization: 'Bearer test-admin-token-1234', 'content-type': 'application/json' };
+  const archive = createStoredZip({ 'ExampleMod/ModInfo.xml': '<xml />' });
+  const artifactSha = sha256(archive);
+  await jsonRequest(`${base}/api/v1/artifacts/${artifactSha}`, { method: 'PUT', headers: { authorization: admin.authorization, 'content-type': 'application/zip' }, body: archive });
+  await jsonRequest(`${base}/api/v1/mods`, { method: 'POST', headers: admin, body: JSON.stringify({ id: 'example', name: 'Example', version: '1.0.0', artifactSha, gameVersions: ['2.6'], installRoots: ['ExampleMod'] }) });
+  await jsonRequest(`${base}/api/v1/packs`, { method: 'POST', headers: admin, body: JSON.stringify({ id: 'ops-pack', name: 'Ops', gameVersion: '2.6', entries: [{ modId: 'example', version: '1.0.0' }] }) });
+  const first = await jsonRequest(`${base}/api/v1/packs/ops-pack/releases`, { method: 'POST', headers: admin, body: JSON.stringify({ reason: 'initial' }) });
+  const second = await jsonRequest(`${base}/api/v1/packs/ops-pack/releases`, { method: 'POST', headers: admin, body: JSON.stringify({ reason: 'bump' }) });
+  assert.equal(second.packVersion, 2);
+  assert.ok(second.diff);
+  const listed = await jsonRequest(`${base}/api/v1/packs/ops-pack/releases`, { headers: { authorization: admin.authorization } });
+  assert.equal(listed.releases.length, 2);
+  assert.equal(listed.mayAffectSaves, true);
+
+  await jsonRequest(`${base}/api/v1/packs/ops-pack/releases/${second.id}/revoke`, { method: 'POST', headers: admin, body: JSON.stringify({ reason: 'broken dll' }) });
+  assert.equal((await fetch(`${base}/api/v1/public/packs/ops-pack/latest`)).status, 404);
+
+  const rolled = await jsonRequest(`${base}/api/v1/packs/ops-pack/rollback`, { method: 'POST', headers: admin, body: JSON.stringify({ releaseId: first.id, reason: 'restore last good' }) });
+  assert.equal(rolled.release.id, first.id);
+  assert.equal(rolled.mayAffectSaves, true);
+  const latest = await jsonRequest(`${base}/api/v1/public/packs/ops-pack/latest`);
+  assert.equal(latest.packVersion, 1);
+
+  const server = await jsonRequest(`${base}/api/v1/servers`, { method: 'POST', headers: admin, body: JSON.stringify({ name: 'Test', packId: 'ops-pack', publicAddress: 'game.example.com:26900' }) });
+  await jsonRequest(`${base}/api/v1/servers/${server.serverId}`, { method: 'PATCH', headers: admin, body: JSON.stringify({ publicAddress: 'pve.example.com:26900' }) });
+  const resolved = await jsonRequest(`${base}/api/v1/public/servers/resolve?address=pve.example.com:26900`);
+  assert.equal(resolved.handshake.packId, 'ops-pack');
+  assert.equal(resolved.handshake.pluginRequired, true);
+
+  await jsonRequest(`${base}/api/v1/admin/distribution`, { method: 'POST', headers: admin, body: JSON.stringify({ paused: true, reason: 'incident' }) });
+  assert.equal((await fetch(`${base}/api/v1/public/packs/ops-pack/latest`)).status, 503);
+  const assignment = await fetch(`${base}/api/v1/servers/${server.serverId}/assignment`, { headers: { authorization: `Bearer ${server.token}` } });
+  const assigned = await assignment.json();
+  assert.equal(assigned.handshake.distributionPaused, true);
+  assert.equal(assigned.acceptingPlayers, false);
+});
+

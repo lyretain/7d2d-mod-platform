@@ -2,11 +2,13 @@
 
 ## 一、当前验证环境
 
-- 七日杀：`V 3.0.1 (b4)`
-- Steam Build：`24117861`
+- 七日杀：`V 3.10.14`
+- Steam Build：`24436778`
 - 游戏目录：`G:\SteamLibrary\steamapps\common\7 Days To Die`
 - Unity：`2022.3.62f2`
-- 插件目标运行时：`v4.0.30319`
+- 插件目标框架：`netstandard2.1`
+- 握手协议：`1`
+- 插件版本：`0.2.0`
 
 ## 二、使用现成插件包
 
@@ -50,10 +52,10 @@ E:\Project\artifacts\plugins\ModPlatformServer
 构建脚本会优先使用现代 .NET SDK；如果没有 SDK，则使用 Windows 自带的 C# 编译器。
 
 ```powershell
-cd E:\Project
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File .\deploy\build-plugins.ps1 `
-  -GameManagedDir "G:\SteamLibrary\steamapps\common\7 Days To Die\7DaysToDie_Data\Managed"
+  -GameManagedDir "G:\SteamLibrary\steamapps\common\7 Days To Die\7DaysToDie_Data\Managed" `
+  -GameVersion "3.10.14"
 ```
 
 输出目录：
@@ -131,4 +133,14 @@ E:\Project\artifacts\plugins
 
 ## 八、当前限制
 
-当前插件已实现后台分配轮询和诊断上报。客户端在进入服务器前的可靠同步仍由外部启动器完成。原生游戏联网拦截必须针对具体七日杀构建继续集成和运行验证后，才能用于阻止未同步客户端进入世界。
+当前插件已实现：
+
+- 后台 assignment 轮询和诊断上报；
+- 握手协议 v1：客户端发送 Pack、版本、签名 Key 和已安装文件指纹；
+- 服务端在 `PlayerLogin` / `PlayerSpawning` 拒绝未同步、版本不符或超时的玩家，踢出原因包含启动器地址。
+
+进游戏前的文件安装仍由启动器完成。请用当前 Steam Build 的 `Assembly-CSharp.dll` 重新编译后再做一次真实进服验证。
+
+```powershell
+npm run launcher -- join --base-url http://localhost:8080 --address game.example.com:26900
+```

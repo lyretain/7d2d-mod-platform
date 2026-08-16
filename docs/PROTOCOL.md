@@ -14,7 +14,20 @@ Artifacts are immutable and addressed by lowercase SHA-256. A client must verify
 4. The updater verifies the signature, downloads missing artifacts and installs declared top-level roots.
 5. DLL-containing releases set `requiresRestart`; the game must start after installation.
 
-The current MVP uses launcher preflight because it is reliable before 7DTD loads client DLLs. The game-specific network adapter should later send the same `packId`, `packVersion`, `gameVersion` and `keyId` during the connection handshake. It must not send arbitrary artifact URLs.
+Launcher preflight remains the supported way to install files before the game loads client DLLs. After that, the in-game handshake (protocol version 1) is required to enter a world.
+
+## Handshake v1
+
+The client plugin sends `NetPackageModPlatformHello` (`AllowedBeforeAuth = true`) with:
+
+- `protocolVersion` (must be `1`)
+- `pluginVersion`, `gameVersion`, `steamBuildId`
+- `packId`, `packVersion`, `keyId`
+- `artifactFingerprint`: sorted lowercase SHA-256 list from `.modplatform/state.json`
+
+The server plugin compares that payload to the assignment `handshake` policy. Missing plugin, timeout, paused distribution, revoked release, game-version mismatch, or hash mismatch all disconnect the player with a reason code and launcher URL.
+
+A custom plugin can still claim matching hashes; the gate exists to stop ordinary unsynced clients, not a dedicated spoofed DLL. The server never accepts arbitrary artifact URLs from the client.
 
 ## Server assignment
 

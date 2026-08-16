@@ -1,3 +1,4 @@
+import { open } from 'node:fs/promises';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { inflateRawSync } from 'node:zlib';
@@ -99,6 +100,100 @@ export async function extractZip(buffer, destination, options = {}) {
     if (content.length !== entry.size || crc32(content) !== entry.expectedCrc) throw new Error(`ZIP integrity check failed: ${entry.name}`);
     await mkdir(path.dirname(target), { recursive: true });
     await writeFile(target, content, { flag: 'wx' });
+  }
+  return entries;
+}
+
+function parseCentral(buffer, count, { maxEntries = 10_000, maxEntryBytes = 1024 ** 3, maxTotalBytes = 8 * 1024 ** 3 } = {}) {
+  if (count > maxEntries) throw new Error('ZIP central directory exceeds configured limits');
+  const entries = [];
+  const seen = new Set();
+  let total = 0;
+  let offset = 0;
+  for (let index = 0; index < count; index += 1) {
+    if (buffer.readUInt32LE(offset) !== CENTRAL) throw new Error('Invalid ZIP central directory');
+    const flags = buffer.readUInt16LE(offset + 8);
+    const method = buffer.readUInt16LE(offset + 10);
+    const expectedCrc = buffer.readUInt32LE(offset + 16);
+    const compressedSize = buffer.readUInt32LE(offset + 20);
+    const size = buffer.readUInt32LE(offset + 24);
+    const nameLength = buffer.readUInt16LE(offset + 28);
+    const extraLength = buffer.readUInt16LE(offset + 30);
+    const commentLength = buffer.readUInt16LE(offset + 32);
+    const externalAttributes = buffer.readUInt32LE(offset + 38);
+    const localOffset = buffer.readUInt32LE(offset + 42);
+    const name = safeEntryName(buffer.subarray(offset + 46, offset + 46 + nameLength).toString('utf8'));
+    const key = name.toLocaleLowerCase('en-US');
+    if (seen.has(key)) throw new Error(`Duplicate ZIP path: ${name}`);
+    seen.add(key);
+    if (flags & 1) throw new Error(`Encrypted ZIP entry is not allowed: ${name}`);
+    if (![0, 8].includes(method)) throw new Error(`Unsupported ZIP compression method ${method}: ${name}`);
+    const unixType = (externalAttributes >>> 16) & 0xf000;
+    if (unixType === 0xa000) throw new Error(`Symbolic links are not allowed: ${name}`);
+    if (size > maxEntryBytes) throw new Error(`ZIP entry is too large: ${name}`);
+    total += size;
+    if (total > maxTotalBytes) throw new Error('Uncompressed ZIP size exceeds configured limit');
+    entries.push({ name, flags, method, expectedCrc, compressedSize, size, localOffset, directory: name.endsWith('/') });
+    offset += 46 + nameLength + extraLength + commentLength;
+  }
+  return entries;
+}
+
+export async function listZipFile(filePath, options = {}) {
+  const handle = await open(filePath, 'r');
+  try {
+    const { size } = await handle.stat();
+    const tailSize = Math.min(size, 65_557);
+    const tail = Buffer.alloc(tailSize);
+    await handle.read(tail, 0, tailSize, size - tailSize);
+    let eocd = -1;
+    for (let offset = tail.length - 22; offset >= 0; offset -= 1) {
+      if (tail.readUInt32LE(offset) === EOCD) { eocd = offset; break; }
+    }
+    if (eocd < 0) throw new Error('ZIP end-of-central-directory was not found');
+    const disk = tail.readUInt16LE(eocd + 4);
+    const centralDisk = tail.readUInt16LE(eocd + 6);
+    const count = tail.readUInt16LE(eocd + 10);
+    const centralSize = tail.readUInt32LE(eocd + 12);
+    const centralOffset = tail.readUInt32LE(eocd + 16);
+    if (disk || centralDisk || count === 0xffff || centralSize === 0xffffffff || centralOffset === 0xffffffff) throw new Error('Multi-disk and ZIP64 archives are not supported');
+    if (centralOffset + centralSize > size) throw new Error('ZIP central directory exceeds configured limits');
+    const central = Buffer.alloc(centralSize);
+    if (centralSize) await handle.read(central, 0, centralSize, centralOffset);
+    return parseCentral(central, count, options);
+  } finally {
+    await handle.close();
+  }
+}
+
+export async function extractZipFile(filePath, destination, options = {}) {
+  const entries = await listZipFile(filePath, options);
+  const handle = await open(filePath, 'r');
+  const base = path.resolve(destination);
+  await mkdir(base, { recursive: true });
+  try {
+    for (const entry of entries) {
+      const target = path.resolve(base, ...entry.name.split('/').filter(Boolean));
+      if (target !== base && !target.startsWith(`${base}${path.sep}`)) throw new Error(`ZIP entry escaped destination: ${entry.name}`);
+      if (entry.directory) {
+        await mkdir(target, { recursive: true });
+        continue;
+      }
+      const header = Buffer.alloc(30);
+      await handle.read(header, 0, 30, entry.localOffset);
+      if (header.readUInt32LE(0) !== LOCAL) throw new Error(`Invalid local ZIP header: ${entry.name}`);
+      const nameLength = header.readUInt16LE(26);
+      const extraLength = header.readUInt16LE(28);
+      const start = entry.localOffset + 30 + nameLength + extraLength;
+      const compressed = Buffer.alloc(entry.compressedSize);
+      if (entry.compressedSize) await handle.read(compressed, 0, entry.compressedSize, start);
+      const content = entry.method === 0 ? compressed : inflateRawSync(compressed, { maxOutputLength: entry.size });
+      if (content.length !== entry.size || crc32(content) !== entry.expectedCrc) throw new Error(`ZIP integrity check failed: ${entry.name}`);
+      await mkdir(path.dirname(target), { recursive: true });
+      await writeFile(target, content, { flag: 'wx' });
+    }
+  } finally {
+    await handle.close();
   }
   return entries;
 }

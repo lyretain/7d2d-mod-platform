@@ -11,11 +11,44 @@ Authorization: Bearer <ADMIN_TOKEN>
 | 方法 | 地址 | 权限 | 用途 |
 |---|---|---|---|
 | GET | `/health` | 公开 | 健康检查 |
-| GET | `/api/v1/public-key` | 公开 | 获取 Ed25519 公钥 |
+| GET | `/health/live` | 公开 | 存活检查 |
+| GET | `/health/ready` | 公开 | 就绪检查（数据库、对象存储、签名） |
+| GET | `/status` | 公开 | 维护公告与停发状态 |
+| GET | `/metrics` | 登录用户 | 请求量、延迟、登录失败、崩溃率 |
+| GET | `/api/v1/public-key` | 公开 | 获取 Ed25519 公钥和钥匙环 |
 | POST | `/api/v1/auth/register` | 邀请码 | 注册账户 |
-| POST | `/api/v1/auth/login` | 公开 | 登录并获得会话令牌 |
+| POST | `/api/v1/auth/login` | 公开 | 登录；启用 2FA 时返回 `requiresTotp` |
+| POST | `/api/v1/auth/login/totp` | 公开 | 用 TOTP 或恢复码完成登录 |
 | POST | `/api/v1/auth/logout` | 登录用户 | 注销当前会话 |
 | GET | `/api/v1/auth/me` | 登录用户 | 获取当前账户 |
+| GET | `/api/v1/users` | 管理员 | 用户列表 |
+| PATCH | `/api/v1/users/{id}` | 管理员 | 禁用/启用或改角色 |
+| POST | `/api/v1/users/{id}/reset` | 管理员 | 签发密码重置令牌 |
+| POST | `/api/v1/auth/password` | 登录用户 | 修改自己的密码 |
+| POST | `/api/v1/auth/password/reset` | 公开 | 使用重置令牌设新密码 |
+| GET | `/api/v1/sessions` | 登录用户 | 查看会话 |
+| DELETE | `/api/v1/sessions/{hash}` | 登录用户 | 撤销会话 |
+| DELETE | `/api/v1/users/{id}/sessions` | 管理员 | 撤销某用户全部会话 |
+| POST | `/api/v1/auth/totp/setup` | 登录用户 | 开始绑定 2FA |
+| POST | `/api/v1/auth/totp/confirm` | 登录用户 | 确认 2FA |
+| GET | `/api/v1/reviews` | 登录用户 | 上传审核列表 |
+| POST | `/api/v1/reviews/{sha256}` | 管理员 | 审核、确认许可证 |
+| POST | `/api/v1/bans` | 管理员 | 封禁文件哈希 |
+| GET | `/api/v1/diagnostics/matrix` | 登录用户 | 兼容性矩阵与崩溃率熔断 |
+| POST | `/api/v1/diagnostics/fingerprints/{id}/dismiss` | 管理员 | 解除误报 |
+| DELETE | `/api/v1/diagnostics` | 登录用户 | 删除诊断数据 |
+| POST | `/api/v1/admin/gc` | 管理员 | 清理无引用对象和过期诊断 |
+| POST | `/api/v1/admin/maintenance` | 管理员 | 维护公告 |
+| POST | `/api/v1/admin/webhooks` | 管理员 | 登记告警 Webhook |
+| POST | `/api/v1/admin/signing/rotate` | 管理员 | 轮换本地签名密钥 |
+| GET | `/api/v1/mods` | 登录用户 | Mod 列表，支持 `?q=` |
+| GET | `/api/v1/mods/{id}` | 登录用户 | Mod 详情和版本历史 |
+| GET | `/api/v1/packs` | 登录用户 | ModPack 列表 |
+| GET | `/api/v1/packs/{id}` | 登录用户 | 草稿与当前 Release 差异预览 |
+| GET | `/api/v1/servers` | 登录用户 | 服务器在线状态和同步 |
+| GET | `/api/v1/admin/stats` | 登录用户 | 下载次数、字节、游戏版本分布 |
+| POST | `/api/v1/admin/confirm` | 管理员 | 签发危险操作确认令牌 |
+| POST | `/api/v1/admin/cdn/purge` | 管理员 | 刷新 Cloudflare 缓存 |
 | POST | `/api/v1/invites` | 管理员 | 创建邀请码 |
 | GET | `/api/v1/invites` | 管理员 | 查看邀请码状态 |
 | DELETE | `/api/v1/invites/{id}` | 管理员 | 吊销邀请码 |
@@ -25,7 +58,14 @@ Authorization: Bearer <ADMIN_TOKEN>
 | POST | `/api/v1/packs/{id}/releases` | 管理员 | 发布签名版本 |
 | POST | `/api/v1/servers` | 管理员 | 注册游戏服务器 |
 | GET | `/api/v1/admin/state` | 管理员 | 查看平台状态 |
-| GET | `/api/v1/diagnostics/summary` | 管理员 | 查看故障聚合结果 |
+| GET | `/api/v1/packs/{id}/releases` | 登录用户 | 列出 Release，并提示回滚可能影响存档 |
+| POST | `/api/v1/packs/{id}/releases/{releaseId}/revoke` | 管理员 | 吊销 Release |
+| POST | `/api/v1/packs/{id}/rollback` | 管理员 | 将 latest 指针回滚到指定 Release |
+| PATCH | `/api/v1/servers/{id}` | 管理员 | 修改服务器 Pack 绑定或地址 |
+| POST | `/api/v1/admin/distribution` | 管理员 | 紧急停止或恢复分发 |
+| GET | `/api/v1/admin/audit` | 登录用户 | 查看发布审计 |
+| POST | `/api/v1/servers/{id}/sync-status` | 服务端令牌 | 上报同步状态 |
+| GET | `/api/v1/diagnostics/summary` | 登录用户 | 查看故障聚合结果 |
 | GET | `/api/v1/public/packs/{id}/latest` | 公开 | 获取最新签名 manifest |
 | GET | `/api/v1/public/artifacts/{sha256}` | 公开 | 下载不可变 Mod 文件 |
 | GET | `/api/v1/public/servers/resolve?address=host:port` | 公开 | 根据服务器地址解析 ModPack |
@@ -67,7 +107,9 @@ Authorization: Bearer <ADMIN_TOKEN>
 }
 ```
 
-成功后返回 Bearer 会话令牌和过期时间。数据库只保存会话令牌的 SHA-256。默认会话有效期为 7 天，退出登录后立即删除。
+成功后返回 Bearer 会话令牌和过期时间。若账户已启用 TOTP，响应为 `{ "requiresTotp": true, "ticket": "..." }`，再调用 `/api/v1/auth/login/totp`。数据库只保存会话令牌的 SHA-256。默认会话有效期为 7 天，退出登录后立即删除。
+
+生产环境 `REQUIRE_REVIEW=true`（或 `NODE_ENV=production`）时，上传 ZIP 会自动分析并进入审核。含 DLL 或高风险规则的文件默认为 `pending`；发布前必须 `licenseConfirmed=true`。
 
 ## 上传 Mod 文件
 

@@ -42,6 +42,17 @@ namespace ModPlatform.Shared
                 response.EnsureSuccessStatusCode();
         }
 
+        public async Task SendSyncStatusAsync(string serverId, string token, ServerSyncStatus status, CancellationToken cancellationToken)
+        {
+            using (var request = new HttpRequestMessage(HttpMethod.Post, baseUrl + "/api/v1/servers/" + Uri.EscapeDataString(serverId) + "/sync-status"))
+            {
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                request.Content = new StringContent(Serialize(status), Encoding.UTF8, "application/json");
+                using (var response = await http.SendAsync(request, cancellationToken).ConfigureAwait(false))
+                    response.EnsureSuccessStatusCode();
+            }
+        }
+
         public static string Serialize<T>(T value)
         {
             var serializer = new DataContractJsonSerializer(typeof(T));

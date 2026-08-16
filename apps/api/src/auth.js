@@ -1,6 +1,9 @@
 import { createHash, randomBytes, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 import { bearer, id, now } from './util.js';
+import { consumeRateLimit } from './security.js';
+import { generateRecoveryCodes, generateTotpSecret, verifyTotp } from './totp.js';
+import { recordAudit } from './protocol.js';
 
 const scrypt = promisify(scryptCallback);
 const USERNAME = /^[a-zA-Z0-9][a-zA-Z0-9_.-]{2,31}$/;
@@ -40,14 +43,12 @@ export async function verifyPassword(password, encoded) {
   }
 }
 
-export function createAuthService({ store, bootstrapToken, allowBootstrapAfterSetup = false, sessionHours = 168 }) {
-  const attempts = new Map();
-
+export function createAuthService({ store, bootstrapToken, allowBootstrapAfterSetup = false, bootstrapDisabled = false, sessionHours = 168 }) {
   function principal(req) {
     const token = bearer(req);
     if (!token) return null;
     const snapshot = store.snapshot();
-    if (bootstrapToken && token === bootstrapToken && (allowBootstrapAfterSetup || Object.keys(snapshot.users).length === 0)) return { id: 'bootstrap', username: 'bootstrap', role: 'admin', bootstrap: true };
+    if (!bootstrapDisabled && bootstrapToken && token === bootstrapToken && (allowBootstrapAfterSetup || Object.keys(snapshot.users).length === 0)) return { id: 'bootstrap', username: 'bootstrap', role: 'admin', bootstrap: true };
     const session = snapshot.sessions[tokenHash(token)];
     if (!session || Date.parse(session.expiresAt) <= Date.now()) return null;
     const user = snapshot.users[session.userId];
@@ -55,21 +56,9 @@ export function createAuthService({ store, bootstrapToken, allowBootstrapAfterSe
     return { id: user.id, username: user.username, role: user.role, bootstrap: false, sessionHash: tokenHash(token) };
   }
 
-  function allowLogin(req, username) {
+  async function allowLogin(req, username) {
     const address = String(req.socket?.remoteAddress || 'unknown');
-    const key = `${address}|${normalizedUsername(username)}`;
-    const current = attempts.get(key);
-    const windowMs = 15 * 60 * 1000;
-    if (!current || Date.now() - current.startedAt > windowMs) {
-      attempts.set(key, { count: 1, startedAt: Date.now() });
-      return true;
-    }
-    current.count += 1;
-    return current.count <= 8;
-  }
-
-  function clearAttempts(req, username) {
-    attempts.delete(`${String(req.socket?.remoteAddress || 'unknown')}|${normalizedUsername(username)}`);
+    return consumeRateLimit(store, { key: `login:${address}|${normalizedUsername(username)}`, limit: 8, windowMs: 15 * 60 * 1000 });
   }
 
   async function createInvite({ createdBy, role = 'admin', maxUses = 1, expiresInHours = 168, code }) {
@@ -106,7 +95,7 @@ export function createAuthService({ store, bootstrapToken, allowBootstrapAfterSe
   }
 
   async function login(req, { username, password }) {
-    if (!allowLogin(req, username)) throw Object.assign(new Error('Too many login attempts; try again later'), { code: 'RATE_LIMITED' });
+    if (!await allowLogin(req, username)) throw Object.assign(new Error('Too many login attempts; try again later'), { code: 'RATE_LIMITED' });
     const snapshot = store.snapshot();
     const normalized = normalizedUsername(username);
     const user = Object.values(snapshot.users).find((item) => item.normalizedUsername === normalized);
@@ -114,7 +103,17 @@ export function createAuthService({ store, bootstrapToken, allowBootstrapAfterSe
     if (user && !user.disabledAt) valid = await verifyPassword(String(password || ''), user.passwordHash);
     else await scrypt(String(password || ''), Buffer.alloc(16), 64);
     if (!valid) throw Object.assign(new Error('Invalid username or password'), { code: 'INVALID_CREDENTIALS' });
-    clearAttempts(req, username);
+    if (user.totpEnabled) {
+      const ticket = randomBytes(24).toString('base64url');
+      await store.mutate((draft) => {
+        draft.passwordResets[`totp_${tokenHash(ticket)}`] = { userId: user.id, expiresAt: new Date(Date.now() + 5 * 60_000).toISOString(), kind: 'totp' };
+      });
+      return { requiresTotp: true, ticket, expiresAt: new Date(Date.now() + 5 * 60_000).toISOString() };
+    }
+    return issueSession(user);
+  }
+
+  async function issueSession(user) {
     const token = randomBytes(32).toString('base64url');
     const session = { userId: user.id, createdAt: now(), expiresAt: new Date(Date.now() + sessionHours * 3600_000).toISOString() };
     await store.mutate((draft) => {
@@ -143,5 +142,124 @@ export function createAuthService({ store, bootstrapToken, allowBootstrapAfterSe
     return Object.values(store.snapshot().invites).map(({ codeHash, ...invite }) => invite).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
-  return { principal, createInvite, register, login, logout, revokeInvite, listInvites };
+  async function completeTotp(ticket, code) {
+    const snapshot = store.snapshot();
+    const pending = snapshot.passwordResets[`totp_${tokenHash(ticket)}`];
+    if (!pending || pending.kind !== 'totp' || Date.parse(pending.expiresAt) <= Date.now()) throw Object.assign(new Error('TOTP ticket is invalid'), { code: 'INVALID_CREDENTIALS' });
+    const user = snapshot.users[pending.userId];
+    const recovery = (user.recoveryHashes || []).find((item) => item === tokenHash(String(code || '').toLowerCase()));
+    if (!verifyTotp(user.totpSecret, code) && !recovery) throw Object.assign(new Error('Invalid TOTP code'), { code: 'INVALID_CREDENTIALS' });
+    await store.mutate((draft) => {
+      delete draft.passwordResets[`totp_${tokenHash(ticket)}`];
+      if (recovery) draft.users[user.id].recoveryHashes = (draft.users[user.id].recoveryHashes || []).filter((item) => item !== recovery);
+    });
+    return issueSession(user);
+  }
+
+  function publicUser(user) {
+    return { id: user.id, username: user.username, role: user.role, createdAt: user.createdAt, disabledAt: user.disabledAt || null, totpEnabled: Boolean(user.totpEnabled) };
+  }
+
+  async function listUsers() {
+    return Object.values(store.snapshot().users).map(publicUser);
+  }
+
+  async function setUserDisabled(userId, disabled, actor) {
+    return store.mutate((draft) => {
+      const user = draft.users[userId];
+      if (!user) return null;
+      user.disabledAt = disabled ? now() : null;
+      if (disabled) for (const [key, session] of Object.entries(draft.sessions)) if (session.userId === userId) delete draft.sessions[key];
+      recordAudit(draft, { actor, action: disabled ? 'user.disable' : 'user.enable', target: userId });
+      return publicUser(user);
+    });
+  }
+
+  async function setUserRole(userId, role, actor) {
+    if (!['admin', 'viewer'].includes(role)) throw Object.assign(new Error('Invalid role'), { code: 'VALIDATION' });
+    return store.mutate((draft) => {
+      const user = draft.users[userId];
+      if (!user) return null;
+      user.role = role;
+      recordAudit(draft, { actor, action: 'user.role', target: userId, details: { role } });
+      return publicUser(user);
+    });
+  }
+
+  async function changePassword(userId, currentPassword, nextPassword) {
+    const user = store.snapshot().users[userId];
+    if (!user || !await verifyPassword(currentPassword, user.passwordHash)) throw Object.assign(new Error('Current password is incorrect'), { code: 'INVALID_CREDENTIALS' });
+    const passwordHash = await hashPassword(nextPassword);
+    await store.mutate((draft) => { draft.users[userId].passwordHash = passwordHash; });
+    return { changed: true };
+  }
+
+  async function createPasswordReset(userId, actor) {
+    const token = randomBytes(24).toString('base64url');
+    await store.mutate((draft) => {
+      if (!draft.users[userId]) return;
+      draft.passwordResets[tokenHash(token)] = { userId, expiresAt: new Date(Date.now() + 60 * 60_000).toISOString(), kind: 'reset' };
+      recordAudit(draft, { actor, action: 'user.reset', target: userId });
+    });
+    return { token, expiresInMinutes: 60 };
+  }
+
+  async function consumePasswordReset(token, password) {
+    const passwordHash = await hashPassword(password);
+    return store.mutate((draft) => {
+      const reset = draft.passwordResets[tokenHash(token)];
+      if (!reset || reset.kind !== 'reset' || Date.parse(reset.expiresAt) <= Date.now()) throw Object.assign(new Error('Reset token is invalid'), { code: 'INVALID_INVITE' });
+      draft.users[reset.userId].passwordHash = passwordHash;
+      delete draft.passwordResets[tokenHash(token)];
+      for (const [key, session] of Object.entries(draft.sessions)) if (session.userId === reset.userId) delete draft.sessions[key];
+      return { reset: true };
+    });
+  }
+
+  function listSessions(userId) {
+    return Object.entries(store.snapshot().sessions).filter(([, session]) => !userId || session.userId === userId).map(([hash, session]) => ({ hash, ...session }));
+  }
+
+  async function revokeSession(hash, actor) {
+    return store.mutate((draft) => {
+      if (!draft.sessions[hash]) return false;
+      delete draft.sessions[hash];
+      recordAudit(draft, { actor, action: 'session.revoke', target: hash });
+      return true;
+    });
+  }
+
+  async function revokeUserSessions(userId, actor) {
+    return store.mutate((draft) => {
+      let count = 0;
+      for (const [key, session] of Object.entries(draft.sessions)) if (session.userId === userId) { delete draft.sessions[key]; count += 1; }
+      recordAudit(draft, { actor, action: 'session.revoke_all', target: userId, details: { count } });
+      return { revoked: count };
+    });
+  }
+
+  async function enableTotp(userId) {
+    const secret = generateTotpSecret();
+    const codes = generateRecoveryCodes();
+    await store.mutate((draft) => {
+      draft.users[userId].totpSecret = secret;
+      draft.users[userId].totpEnabled = false;
+      draft.users[userId].recoveryHashes = codes.map((code) => tokenHash(code));
+    });
+    return { secret, otpauth: `otpauth://totp/7DTD:${userId}?secret=${secret}&issuer=7DTD`, recoveryCodes: codes };
+  }
+
+  async function confirmTotp(userId, code) {
+    const user = store.snapshot().users[userId];
+    if (!user?.totpSecret || !verifyTotp(user.totpSecret, code)) throw Object.assign(new Error('Invalid TOTP code'), { code: 'INVALID_CREDENTIALS' });
+    await store.mutate((draft) => { draft.users[userId].totpEnabled = true; });
+    return { enabled: true };
+  }
+
+  return {
+    principal, createInvite, register, login, logout, revokeInvite, listInvites,
+    completeTotp, listUsers, setUserDisabled, setUserRole, changePassword,
+    createPasswordReset, consumePasswordReset, listSessions, revokeSession, revokeUserSessions,
+    enableTotp, confirmTotp
+  };
 }

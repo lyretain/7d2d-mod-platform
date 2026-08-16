@@ -19,6 +19,13 @@ All administrator routes require `Authorization: Bearer <ADMIN_TOKEN>`.
 | POST | `/api/v1/packs/{id}/releases` | Publish an immutable signed release |
 | POST | `/api/v1/servers` | Register a game server and return its token once |
 | GET | `/api/v1/admin/state` | Inspect state; server token hashes are removed |
+| GET | `/api/v1/packs/{id}/releases` | List releases; response flags that rollback may affect saves |
+| POST | `/api/v1/packs/{id}/releases/{releaseId}/revoke` | Revoke a release |
+| POST | `/api/v1/packs/{id}/rollback` | Point the pack back at a previous release |
+| PATCH | `/api/v1/servers/{id}` | Change the bound pack or public address |
+| POST | `/api/v1/admin/distribution` | Emergency pause or resume distribution |
+| GET | `/api/v1/admin/audit` | Publication audit log |
+| POST | `/api/v1/servers/{id}/sync-status` | Dedicated-server sync heartbeat |
 | GET | `/api/v1/diagnostics/summary` | Aggregated fingerprints |
 | GET | `/api/v1/public/packs/{id}/latest` | Retrieve signed manifest |
 | GET | `/api/v1/public/artifacts/{sha256}` | Retrieve immutable artifact |

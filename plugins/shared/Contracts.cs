@@ -10,6 +10,8 @@ namespace ModPlatform.Shared
         [DataMember(Name = "serverId")] public string ServerId { get; set; }
         [DataMember(Name = "packId")] public string PackId { get; set; }
         [DataMember(Name = "manifest")] public PackManifest Manifest { get; set; }
+        [DataMember(Name = "handshake")] public HandshakePolicy Handshake { get; set; }
+        [DataMember(Name = "acceptingPlayers")] public bool AcceptingPlayers { get; set; }
     }
 
     [DataContract]

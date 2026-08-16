@@ -32,7 +32,7 @@ test('downloads, verifies and installs a signed pack', async (t) => {
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   t.after(() => new Promise((resolve) => server.close(resolve)));
   const baseUrl = `http://127.0.0.1:${server.address().port}`;
-  manifest = signing.signObject({ schemaVersion: 1, packId: 'test-pack', packVersion: 1, gameVersion: '2.6', issuedAt: new Date().toISOString(), mods: [{ id: 'example', version: '1.0.0', installRoots: ['ExampleMod'], requiresRestart: false, size: archive.length, sha256: artifactSha, url: `${baseUrl}/api/v1/public/artifacts/${artifactSha}` }] });
+  manifest = await signing.signObject({ schemaVersion: 1, packId: 'test-pack', packVersion: 1, gameVersion: '2.6', issuedAt: new Date().toISOString(), mods: [{ id: 'example', version: '1.0.0', installRoots: ['ExampleMod'], requiresRestart: false, size: archive.length, sha256: artifactSha, url: `${baseUrl}/api/v1/public/artifacts/${artifactSha}` }] });
 
   const result = await syncPack({ baseUrl, packId: 'test-pack', modsDir, explicitPublicKey: signing.publicJwk().publicKey });
   assert.equal(result.state.packVersion, 1);

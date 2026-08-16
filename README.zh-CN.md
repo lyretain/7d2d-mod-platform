@@ -4,7 +4,7 @@
 
 这是一个可部署的单节点 MVP，用于管理、签名、分发七日杀 ModPack，并收集客户端和服务端故障信息。
 
-当前插件已针对七日杀 `V 3.0.1 (b4)`、Steam Build `24117861` 编译验证。
+当前插件已针对七日杀 `V 3.10.14`、Steam Build `24436778` 重新编译。真实进服验证仍需在本机启动一次客户端和专用服务器。
 
 ## 已实现功能
 
@@ -88,6 +88,18 @@ node apps/updater/src/cli.js `
   --mods-dir "$env:APPDATA\7DaysToDie\Mods"
 ```
 
+玩家启动器（发现游戏目录、展示差异、同步、启动并重连）：
+
+```powershell
+npm run launcher -- join --base-url https://mods.example.com --address game.example.com:26900
+```
+
+便携包（目录内自带 node.exe，玩家不必先装 Node）：
+
+```powershell
+.\deploy\build-launcher.ps1
+```
+
 第一次连接时，更新器会保存平台公钥。以后如果公钥发生变化，更新器会停止安装并要求管理员确认。生产环境建议使用 `--public-key` 显式指定可信公钥。
 
 ## 插件包
@@ -133,12 +145,13 @@ npm.cmd test
 - ZIP 路径穿越防护
 - Windows 大小写重复路径防护
 - 故障日志脱敏与聚合
+- Release 吊销、回滚、紧急停发和握手策略
 
 ## 当前边界
 
 - 当前是单节点 MVP，不是多租户公共 Mod 市场。
 - 可靠流程是启动器在进入游戏前完成同步。
-- 游戏内原生连接拦截仍需针对具体游戏版本继续集成和运行测试。
+- 游戏内握手已按 Build `24436778` 编译，仍需真实进服确认踢人和重连。
 - 带 DLL/Harmony 的 Mod 通常需要关闭 EAC，并在安装后重启游戏。
 - Docker CLI 已安装，但部署前需要确保 Docker Desktop 后台正在运行。
 - 对外开放前必须配置 HTTPS、限流、恶意文件扫描和正式密钥管理。

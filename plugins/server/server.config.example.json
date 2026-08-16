@@ -1,1 +1,1 @@
-{"BaseUrl":"https://mods.example.com","ServerId":"srv_replace","ServerToken":"replace","GameVersion":"3.0.1-b4","RefreshSeconds":60}
+{"BaseUrl":"https://mods.example.com","ServerId":"srv_replace","ServerToken":"replace","GameVersion":"3.10.14","RefreshSeconds":60,"HandshakeTimeoutSeconds":15}
