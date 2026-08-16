@@ -1,0 +1,11 @@
+{
+  "baseUrl": "https://mods.example.com",
+  "side": "server",
+  "gameVersion": "3.0.1-b4",
+  "packId": "production-pack",
+  "command": "C:\\7DTD\\startdedicated.bat",
+  "args": [],
+  "cwd": "C:\\7DTD",
+  "logFile": "C:\\7DTD\\logs\\latest.log",
+  "environment": {}
+}

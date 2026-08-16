@@ -1,0 +1,25 @@
+services:
+  mod-platform:
+    build: .
+    restart: unless-stopped
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8080
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8080}
+      ADMIN_TOKEN: ${ADMIN_TOKEN:?Set ADMIN_TOKEN in .env}
+      ALLOW_BOOTSTRAP_ADMIN: ${ALLOW_BOOTSTRAP_ADMIN:-false}
+      SIGNING_PRIVATE_KEY: ${SIGNING_PRIVATE_KEY:-}
+      MAX_ARTIFACT_BYTES: ${MAX_ARTIFACT_BYTES:-2147483648}
+      MAX_DIAGNOSTIC_BYTES: ${MAX_DIAGNOSTIC_BYTES:-262144}
+    ports:
+      - "${PORT:-8080}:8080"
+    volumes:
+      - mod-platform-data:/app/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/health').then(r=>{if(!r.ok)process.exit(1)})"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  mod-platform-data:

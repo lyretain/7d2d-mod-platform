@@ -1,0 +1,12 @@
+data/state/*
+data/objects/*
+!data/state/.gitkeep
+!data/objects/.gitkeep
+*.log
+.env
+node_modules/
+coverage/
+dist/
+artifacts/
+*.tmp
+*.bak

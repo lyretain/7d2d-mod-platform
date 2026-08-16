@@ -1,0 +1,16 @@
+{
+  "name": "7dtd-mod-platform",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node apps/api/src/server.js",
+    "dev": "node --watch apps/api/src/server.js",
+    "test": "node --test apps/api/test/*.test.js apps/updater/test/*.test.js",
+    "updater": "node apps/updater/src/cli.js",
+    "agent": "node apps/agent/src/guardian.js"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
