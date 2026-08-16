@@ -2,10 +2,9 @@
 import AppHeader from '../components/AppHeader.vue';
 import AppSidebar from '../components/AppSidebar.vue';
 import Backdrop from '../components/Backdrop.vue';
-import { useSidebar, useSidebarProvider } from '../composables/useSidebar';
+import { useSidebarProvider } from '../composables/useSidebar';
 
-useSidebarProvider();
-const { isExpanded, isHovered } = useSidebar();
+const { isExpanded, isHovered } = useSidebarProvider();
 </script>
 
 <template>
