@@ -81,6 +81,7 @@ Important environment variables:
 | `ALLOW_BOOTSTRAP_ADMIN` | Whether `ADMIN_TOKEN` still logs in after the first user; default `false` |
 | `DATA_DIR` | Data, Mod files, runtime logs, and the development signing key |
 | `LOG_RETENTION_DAYS` | Runtime log retention, one file per day; default and maximum 30 |
+| `AUDIT_RETENTION_DAYS` | Audit log retention in days; `0` (default) keeps every mutating operation forever |
 | `SIGNING_PRIVATE_KEY` | Base64 PKCS#8 Ed25519 private key; required in production unless you use `SIGNING_SERVICE_URL` |
 | `SIGNING_SERVICE_URL` | External signing service. The app process then does not hold the private key |
 | `DATABASE_URL` | PostgreSQL URL; empty keeps JSON |

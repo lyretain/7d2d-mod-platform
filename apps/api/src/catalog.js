@@ -119,7 +119,7 @@ export function listModContents(snapshot, modId, { slotId = '', includePending =
     .map((item) => {
       const row = { ...item, r18: Boolean(item.r18), approved: contentApproved(snapshot, item, requireReview) };
       const reveal = Boolean(adultVerified) || (viewerId && item.uploadedBy === viewerId);
-      if (row.r18 && !reveal) return { ...row, name: null, description: null, fileName: null, redacted: true };
+      if (row.r18 && !reveal) return { ...row, name: null, description: null, fileName: null, previewPath: null, readmePath: null, redacted: true };
       return row;
     });
 }
@@ -357,15 +357,18 @@ export function listServers(snapshot) {
   });
 }
 
-export function filterAudit(snapshot, { action, actor, from, to, limit = 200 } = {}) {
-  return (snapshot.audit || []).filter((item) => {
+export function filterAudit(snapshot, { action, actor, from, to, limit } = {}) {
+  const rows = (snapshot.audit || []).filter((item) => {
     if (action && item.action !== action) return false;
     if (actor && !String(item.actor || '').includes(actor)) return false;
     const at = Date.parse(item.at || 0);
     if (from && at < Date.parse(from)) return false;
     if (to && at > Date.parse(to)) return false;
     return true;
-  }).slice(-(Number(limit) || 200)).reverse();
+  }).reverse();
+  const cap = Number(limit);
+  if (Number.isFinite(cap) && cap > 0) return rows.slice(0, cap);
+  return rows;
 }
 
 export function platformStats(snapshot) {

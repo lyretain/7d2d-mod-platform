@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { api, hashAndUploadZip, type UploadProgress } from '../api/client';
+import { api } from '../api/client';
+import { uploadContentZips, zipFilesFrom } from '../lib/content-upload';
+import type { UploadProgress } from '../api/client';
 import UiCard from '../components/UiCard.vue';
 import UiProgress from '../components/UiProgress.vue';
+import ContentFileList from '../components/ContentFileList.vue';
 import { i18n, t } from '../i18n';
 import { fail, ok } from '../lib/feedback';
 import { prettyBytes } from '../lib/format';
-import { can } from '../stores/session';
 import type { ContentItem, ModRow } from '../stores/catalog';
-import R18Badge from '../components/R18Badge.vue';
 
 type Slot = { id: string; path: string; label?: string };
 
@@ -79,52 +80,45 @@ async function removeSlot(slotId: string) {
   }
 }
 
-async function removeContent(contentId: string) {
-  try {
-    const result = await api(`/api/v1/contents/${encodeURIComponent(contentId)}`, { method: 'DELETE' });
-    ok(result, t('content.deleted'));
-    await load();
-  } catch (error) {
-    fail(error);
-  }
+function trackBatch(state: { index: number; total: number; file: File; event: UploadProgress }) {
+  const percent = state.event.total ? Math.round((state.event.loaded / state.event.total) * 100) : 0;
+  const prefix = t('content.batchItem', { current: state.index + 1, total: state.total, name: state.file.name });
+  let phase = t('mod.analyzing');
+  if (state.event.phase === 'hash') phase = t('mod.hashing', { percent });
+  else if (state.event.phase === 'upload') phase = t('mod.uploadProgress', { percent, loaded: prettyBytes(state.event.loaded), total: prettyBytes(state.event.total) });
+  progress.value = { active: true, percent, label: `${prefix} · ${phase}` };
 }
 
-function trackProgress(event: UploadProgress) {
-  const percent = event.total ? Math.round((event.loaded / event.total) * 100) : 0;
-  if (event.phase === 'hash') progress.value = { active: true, percent, label: t('mod.hashing', { percent }) };
-  else if (event.phase === 'upload') progress.value = { active: true, percent, label: t('mod.uploadProgress', { percent, loaded: prettyBytes(event.loaded), total: prettyBytes(event.total) }) };
-  else progress.value = { active: true, percent: 100, label: t('mod.analyzing') };
-}
-
-async function submitContent(file: File | null) {
+async function submitContents(list: FileList | null, input?: HTMLInputElement) {
   try {
     if (!license.value) throw new Error(t('mod.needLicense'));
-    if (!file) throw new Error(t('mod.needZip'));
+    const files = zipFilesFrom(list);
+    if (!files.length) throw new Error(t('mod.needZip'));
     const slotId = upload.slotId || slots.value[0]?.id;
     if (!slotId) throw new Error(t('mod.slotsEmpty'));
-    const name = upload.name.trim() || file.name.replace(/\.zip$/i, '');
-    if (!name) throw new Error(t('content.needName'));
     busy.value = slotId;
-    trackProgress({ phase: 'hash', loaded: 0, total: file.size || 1 });
-    const uploaded = await hashAndUploadZip(file, trackProgress);
-    if (can('review.approve')) {
-      await api(`/api/v1/reviews/${uploaded.hash}`, { method: 'POST', body: JSON.stringify({ status: 'approved', licenseConfirmed: true }) });
-    }
-    const created = await api(`/api/v1/mods/${encodeURIComponent(String(route.params.id))}/slots/${encodeURIComponent(slotId)}/contents`, {
-      method: 'POST',
-      body: JSON.stringify({ artifactSha: uploaded.hash, name, description: upload.description.trim(), r18: upload.r18 })
+    const result = await uploadContentZips({
+      files,
+      modId: String(route.params.id),
+      slotId,
+      name: upload.name,
+      description: upload.description,
+      r18: upload.r18,
+      onProgress: trackBatch
     });
     upload.name = '';
     upload.description = '';
     upload.r18 = false;
     progress.value = { active: false, percent: 100, label: '' };
-    ok(created, t('content.uploaded'));
+    if (!result.created.length) throw new Error(result.errors.map((item) => t('content.batchFail', { name: item.name, error: item.message })).join('\n') || t('mod.needZip'));
+    ok(result.created, result.errors.length ? t('content.batchPartial', { ok: result.created.length, fail: result.errors.length }) : t('content.uploadedN', { n: result.created.length }));
     await load();
   } catch (error) {
     progress.value.active = false;
     fail(error);
   } finally {
     busy.value = '';
+    if (input) input.value = '';
   }
 }
 
@@ -149,17 +143,7 @@ onMounted(load);
     </UiCard>
     <p v-if="!slots.length" class="text-sm text-gray-500">{{ t('mod.slotsEmpty') }}</p>
     <UiCard v-for="slot in slots" :key="slot.id" :title="slot.label || slot.path" :desc="slot.path">
-      <p v-if="!itemsFor(slot.id).length" class="mb-3 text-sm text-gray-500">{{ t('content.empty') }}</p>
-      <div v-for="item in itemsFor(slot.id)" :key="item.id" class="mb-2 flex items-start justify-between gap-3 rounded-lg border border-gray-200 p-3 dark:border-gray-800">
-        <div class="min-w-0">
-          <strong class="block text-sm text-gray-800 dark:text-white/90">
-            {{ item.name || item.id }}
-            <R18Badge v-if="item.r18" class="ml-1 align-middle" />
-          </strong>
-          <p class="text-theme-xs text-gray-500">{{ item.description || prettyBytes(item.size || 0) }}{{ item.approved === false ? ` · ${t('content.pending')}` : '' }}</p>
-        </div>
-        <button type="button" class="btn-secondary shrink-0" @click="removeContent(item.id)">{{ t('content.delete') }}</button>
-      </div>
+      <ContentFileList :items="itemsFor(slot.id)" editable @changed="load" />
       <button type="button" class="btn-secondary mt-2" @click="removeSlot(slot.id)">{{ t('mod.slotDelete') }}</button>
     </UiCard>
     <UiCard v-if="slots.length" :title="t('ws.uploadModel')" :desc="t('ws.uniqueHint')">
@@ -179,8 +163,9 @@ onMounted(load);
       <textarea v-model="upload.description" class="input min-h-20" :placeholder="t('ws.phModelDesc')"></textarea>
       <label class="mb-3 mt-3 flex items-center gap-2 text-sm text-gray-500"><input v-model="upload.r18" type="checkbox"><span>{{ t('r18.declare') }}</span></label>
       <label class="mb-3 flex items-center gap-2 text-sm text-gray-500"><input v-model="license" type="checkbox"><span>{{ t('mod.license') }}</span></label>
+      <p class="mb-3 text-theme-xs text-gray-500">{{ t('content.batchHint') }}</p>
       <label class="drop-zone mb-3">
-        <input type="file" accept=".zip" :disabled="Boolean(busy)" @change="submitContent(($event.target as HTMLInputElement).files?.[0] || null)">
+        <input type="file" accept=".zip" multiple :disabled="Boolean(busy)" @change="submitContents(($event.target as HTMLInputElement).files, $event.target as HTMLInputElement)">
         <span>{{ t('mod.slotUpload') }}{{ busy ? ' …' : '' }}</span>
       </label>
       <UiProgress :active="progress.active" :value="progress.percent" :label="progress.label" />

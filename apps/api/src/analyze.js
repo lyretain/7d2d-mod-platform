@@ -34,6 +34,42 @@ function assemblyName(fileName, bytes) {
   return match ? match[1] : fileName.replace(/\.dll$/i, '');
 }
 
+const IMAGE_NAME = /\.(png|jpe?g|webp|gif)$/i;
+const README_NAME = /(?:^|\/)readme(?:\.(md|txt|html))?$/i;
+const PREVIEW_STEM = /^(preview|cover|thumb|thumbnail|icon|poster|screenshot)s?$/i;
+const PREVIEW_DIR = /^(preview|previews|images|screenshots|thumbs)$/i;
+
+function zipPath(file) {
+  return String(typeof file === 'string' ? file : file?.name || '').replaceAll('\\', '/');
+}
+
+function scorePreview(filePath) {
+  const parts = filePath.split('/').filter(Boolean);
+  const base = (parts[parts.length - 1] || '').toLocaleLowerCase('en-US');
+  const stem = base.replace(/\.[^.]+$/, '');
+  let score = 0;
+  if (PREVIEW_STEM.test(stem)) score += 20;
+  if (/(preview|cover|thumb|thumbnail|icon|poster|screenshot)/i.test(stem)) score += 10;
+  if (parts.some((part) => PREVIEW_DIR.test(part))) score += 5;
+  if (base.endsWith('.png')) score += 2;
+  else if (/\.(webp|jpe?g)$/i.test(base)) score += 1;
+  return score - parts.length;
+}
+
+export function pickZipAssets(files = []) {
+  const names = files.map(zipPath).filter(Boolean);
+  const images = names.filter((name) => IMAGE_NAME.test(name));
+  const ranked = images.map((filePath) => ({ path: filePath, score: scorePreview(filePath) })).sort((a, b) => b.score - a.score);
+  const previewPath = ranked[0] && (ranked[0].score >= 10 || images.length === 1) ? ranked[0].path : null;
+  const readmes = names.filter((name) => README_NAME.test(name)).sort((a, b) => {
+    const depth = a.split('/').length - b.split('/').length;
+    if (depth) return depth;
+    const rank = (name) => (/\.md$/i.test(name) ? 0 : /\.txt$/i.test(name) ? 1 : 2);
+    return rank(a) - rank(b);
+  });
+  return { previewPath, readmePath: readmes[0] || null };
+}
+
 function inflateEntryPrefix(compressed, uncompressedSize, max) {
   const known = Number(uncompressedSize) > 0 ? uncompressedSize : 0;
   const limit = Math.min(known > 0 ? known : INFLATE_HARD_CAP, INFLATE_HARD_CAP);
@@ -86,6 +122,7 @@ export function analyzeZipBuffer(buffer, fileName = 'upload.zip') {
   const assemblyNames = assemblies.map((item) => item.name.toLocaleLowerCase('en-US'));
   const duplicates = assemblyNames.filter((name, index) => assemblyNames.indexOf(name) !== index);
   if (duplicates.length) findings.push({ rule: 'duplicate-assembly', severity: 'high', file: duplicates.join(',') });
+  const assets = pickZipAssets(files);
   return {
     fileName,
     roots,
@@ -98,6 +135,8 @@ export function analyzeZipBuffer(buffer, fileName = 'upload.zip') {
     assemblies,
     modInfo,
     findings,
+    previewPath: assets.previewPath,
+    readmePath: assets.readmePath,
     suggestedSlots: suggestContentSlots({
       files,
       roots,

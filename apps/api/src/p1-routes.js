@@ -163,7 +163,11 @@ export async function handleP1(req, res, ctx) {
         removed.push(sha);
       }
     }
-    const pruned = await store.mutate((draft) => pruneDiagnostics(draft, { diagnosticDays: config.diagnosticRetentionDays, auditDays: config.auditRetentionDays }));
+    const pruned = await store.mutate((draft) => {
+      const value = pruneDiagnostics(draft, { diagnosticDays: config.diagnosticRetentionDays, auditDays: config.auditRetentionDays });
+      recordAudit(draft, { actor: principal().username, action: 'admin.gc', details: { removedCount: removed.length, diagnostics: value.diagnostics, audit: value.audit } });
+      return value;
+    });
     if (removed.length) await purgeCloudflare(config, removed.map((sha) => artifactPublicUrl(sha, config, config.cdnBaseUrl || config.publicBaseUrl)));
     return json(res, 200, { removed, ...pruned, consistent: removed.length === 0 }), true;
   }
@@ -179,6 +183,7 @@ export async function handleP1(req, res, ctx) {
       if (!item) return null;
       item.dismissed = true;
       item.conclusion = 'unknown';
+      recordAudit(draft, { actor: principal().username, action: 'diagnostic.dismiss', target: item.id || dismiss[1] });
       return item;
     });
     if (!result) return problem(res, 404, 'NOT_FOUND', 'Fingerprint was not found'), true;
@@ -190,6 +195,7 @@ export async function handleP1(req, res, ctx) {
     const body = await readJson(req, 32 * 1024);
     await store.mutate((draft) => {
       draft.diagnostics = (draft.diagnostics || []).filter((item) => body.sessionId ? item.sessionId !== body.sessionId : item.id !== body.eventId);
+      recordAudit(draft, { actor: user.username, action: 'diagnostic.delete', details: { sessionId: body.sessionId || null, eventId: body.eventId || null } });
     });
     return json(res, 200, { deleted: true }), true;
   }
@@ -200,6 +206,7 @@ export async function handleP1(req, res, ctx) {
     const hook = await store.mutate((draft) => {
       const value = { id: `hook_${Date.now()}`, url: body.url, createdAt: now() };
       draft.webhooks.push(value);
+      recordAudit(draft, { actor: principal().username, action: 'webhook.create', target: value.id });
       return value;
     });
     return json(res, 201, hook), true;
@@ -216,10 +223,17 @@ export async function handleP1(req, res, ctx) {
   }
   if (req.method === 'POST' && pathname === '/api/v1/admin/signing/rotate') {
     if (!requireAdmin()) return true;
-    return json(res, 200, await signing.rotateLocal()), true;
+    const rotated = await signing.rotateLocal();
+    await store.mutate((draft) => {
+      recordAudit(draft, { actor: principal().username, action: 'signing.rotate', target: rotated.keyId || 'local' });
+    });
+    return json(res, 200, rotated), true;
   }
   if (req.method === 'POST' && pathname === '/api/v1/admin/alerts/test') {
     if (!requireAdmin()) return true;
+    await store.mutate((draft) => {
+      recordAudit(draft, { actor: principal().username, action: 'admin.alert_test', target: 'platform' });
+    });
     return json(res, 200, await notify(config.webhookUrl, { type: 'test', message: 'Alert channel is reachable' })), true;
   }
   if (req.method === 'GET' && pathname === '/api/v1/mods') {
@@ -277,13 +291,21 @@ export async function handleP1(req, res, ctx) {
       ? 'distribution.pause'
       : 'platform.manage';
     if (!requirePerm(confirmPerm)) return true;
-    const issued = await store.mutate((draft) => issueConfirm(draft, { action: body.action, actor: principal().username }));
+    const issued = await store.mutate((draft) => {
+      const value = issueConfirm(draft, { action: body.action, actor: principal().username });
+      recordAudit(draft, { actor: principal().username, action: 'admin.confirm', details: { action: body.action } });
+      return value;
+    });
     return json(res, 201, issued), true;
   }
   if (req.method === 'POST' && pathname === '/api/v1/admin/cdn/purge') {
     if (!requireAdmin()) return true;
     const body = await readJson(req, 32 * 1024);
-    return json(res, 200, await purgeCloudflare(config, body.urls || [])), true;
+    const result = await purgeCloudflare(config, body.urls || []);
+    await store.mutate((draft) => {
+      recordAudit(draft, { actor: principal().username, action: 'cdn.purge', details: { urlCount: (body.urls || []).length } });
+    });
+    return json(res, 200, result), true;
   }
   if (req.method === 'POST' && pathname === '/api/v1/artifacts/analyze') {
     if (!requireAdmin()) return true;

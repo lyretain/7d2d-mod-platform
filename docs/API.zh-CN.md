@@ -81,7 +81,7 @@ Authorization: Bearer <ADMIN_TOKEN>
 | PATCH | `/api/v1/servers/{id}` | 登录用户 | 修改自己的服务器；社区管理员可改全部 |
 | DELETE | `/api/v1/servers/{id}` | 登录用户 | 删除自己的服务器；社区管理员可删全部 |
 | POST | `/api/v1/admin/distribution` | 超级管理员 / 社区管理员 | 紧急停止或恢复全平台分发 |
-| GET | `/api/v1/admin/audit` | 登录用户 | 查看发布审计 |
+| GET | `/api/v1/admin/audit` | 登录用户 | 所有写操作审计；可用 `?action=` `?actor=` `?from=` `?to=` `?limit=` 过滤 |
 | POST | `/api/v1/servers/{id}/sync-status` | 服务端令牌 | 上报同步状态 |
 | GET | `/api/v1/diagnostics/summary` | 登录用户 | 查看故障聚合结果 |
 | GET | `/api/v1/public/packs/{id}/latest` | 公开 | 获取最新签名 manifest |
@@ -147,7 +147,9 @@ Authorization: Bearer <ADMIN_TOKEN>
 
 成功后返回 Bearer 会话令牌和过期时间。若账户已启用 TOTP，响应为 `{ "requiresTotp": true, "ticket": "..." }`，再调用 `/api/v1/auth/login/totp`。数据库只保存会话令牌的 SHA-256。默认会话有效期为 7 天，退出登录后立即删除。
 
-Mod 与内容条目可设 `r18: true`。工坊列表带 `r18`、`r18ContentCount` 和 `redacted`。登录用户需先 `POST /api/v1/auth/adult-confirm`（出生年份满 18 且 `confirmed: true`），否则 R18 的名称和简介会被省略。未满 18 岁返回 `403 UNDERAGE`。引导令牌和已认证账户可直接查看。`GET /api/v1/admin/state` 会去掉 `adultBirthYear`。
+Mod 与内容条目可设 `r18: true`。工坊列表带 `r18`、`r18ContentCount` 和 `redacted`。登录用户需先 `POST /api/v1/auth/adult-confirm`（出生年份满 18 且 `confirmed: true`），否则 R18 的名称和简介会被省略。未满 18 岁返回 `403 UNDERAGE`。引导令牌和已认证账户可直接查看。`GET /api/v1/admin/state` 会去掉 `adultBirthYear`。年龄认证会写入审计，但**不记录出生年份**。
+
+会改状态的接口（注册、登录、目录变更、Pack 发布、审核等）都会追加审计，没有条数上限。读取、ZIP 切片上传和服务器心跳不记。`AUDIT_RETENTION_DAYS=0`（默认）永久保留；只有设成正天数时，`POST /api/v1/admin/gc` 才会按天清理。
 
 生产环境 `REQUIRE_REVIEW=true`（或 `NODE_ENV=production`）时，上传 ZIP 会自动分析并进入审核。含 DLL 或高风险规则的文件默认为 `pending`；发布前必须 `licenseConfirmed=true`。
 
@@ -210,7 +212,7 @@ PATCH /api/v1/contents/{id}
 DELETE /api/v1/contents/{id}
 ```
 
-`PUT` 替换槽位定义。`POST .../contents` 新增一条命名模型（`name`、可选 `description`、`artifactSha`、可选 `r18`）。拥有 `content.submit` 的登录角色均可提交；生产环境仍需审核和再分发许可。`GET /mods/{id}` 带 `contentSlots`、已通过审核的 `contents`（管理端/作者可见 pending）、`contentCounts`、`r18` 和 `r18ContentCount`。未完成年龄认证的浏览者会得到 `redacted: true`，名称和简介被去掉。
+`PUT` 替换槽位定义。`POST .../contents` 新增一条命名模型（`name`、可选 `description`、`artifactSha`、可选 `r18`）。网页与管理后台可一次选择多个 ZIP，仍按此接口逐个提交。分析 ZIP 时若发现预览图（`preview`/`cover`/`thumb` 等）或 `README`，会记下 `previewPath` 和 `readmePath`，供后续读取显示；目前不返回文件内容。`PATCH /contents/{id}` 可改 `name`、`description` 和 `r18`。拥有 `content.submit` 的登录角色均可提交；生产环境仍需审核和再分发许可。`GET /mods/{id}` 带 `contentSlots`、已通过审核的 `contents`（管理端/作者可见 pending）、`contentCounts`、`r18` 和 `r18ContentCount`。未完成年龄认证的浏览者会得到 `redacted: true`，名称、简介和资源路径被去掉。
 
 Pack 的 `entries[]` 可带 `contents: { [slotId]: contentId[] }`。未勾选的槽只装框架。发布时每个勾选项写成 manifest overlay：`id` 为内容 id，`path` 为槽位目录。同一 `path` 可有多条 overlay；更新器对该子目录只清空一次，再合并解压（后解压覆盖同名文件）。模型 ZIP 内请使用唯一文件名或子文件夹。旧的 `slotContents` 会迁成无名称内容，**不会**自动勾进已有 Pack 草稿。
 

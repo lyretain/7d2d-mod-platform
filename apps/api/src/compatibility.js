@@ -84,10 +84,12 @@ export function shouldBlockInstalls(snapshot, { threshold = 0.35, minSamples = 8
   return { blocked: samples >= minSamples && rate >= threshold, samples, rate };
 }
 
-export function pruneDiagnostics(draft, { diagnosticDays = 30, auditDays = 365 } = {}) {
+export function pruneDiagnostics(draft, { diagnosticDays = 30, auditDays = 0 } = {}) {
   const diagnosticCutoff = Date.now() - diagnosticDays * 86400_000;
-  const auditCutoff = Date.now() - auditDays * 86400_000;
   draft.diagnostics = (draft.diagnostics || []).filter((item) => Date.parse(item.receivedAt || item.occurredAt || 0) >= diagnosticCutoff);
-  draft.audit = (draft.audit || []).filter((item) => Date.parse(item.at || 0) >= auditCutoff);
-  return { diagnostics: draft.diagnostics.length, audit: draft.audit.length };
+  if (Number(auditDays) > 0) {
+    const auditCutoff = Date.now() - auditDays * 86400_000;
+    draft.audit = (draft.audit || []).filter((item) => Date.parse(item.at || 0) >= auditCutoff);
+  }
+  return { diagnostics: draft.diagnostics.length, audit: (draft.audit || []).length };
 }

@@ -87,6 +87,12 @@
     .check input { width: auto; margin: 0; }
     .depends-box { max-height: 160px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin: 0 0 12px; }
     .depends-box .check { margin: 6px 0; }
+    .content-box { border: 1px solid var(--line); border-radius: 8px; padding: 10px; margin: 0 0 12px; }
+    .content-row { display: flex; gap: 10px; align-items: flex-start; margin: 8px 0; padding: 8px; border: 1px solid var(--line); border-radius: 8px; }
+    .content-thumb { width: 56px; height: 56px; flex: 0 0 56px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: #14171d; color: var(--muted); font-size: 11px; text-align: center; line-height: 1.2; }
+    .content-row .grow { min-width: 0; flex: 1; }
+    .pager { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 8px 0 0; color: var(--muted); font-size: 12px; }
+    .pager button { width: auto; min-width: 0; margin: 0; flex: 0; }
     input[readonly] { color: var(--muted); cursor: default; }
     .picker { position: relative; margin: 0 0 8px; }
     .picker-btn { width: 100%; margin: 0; text-align: left; background: #14171d; color: var(--text); border: 1px solid #3a404c; font-weight: 500; }
@@ -997,6 +1003,10 @@ function selectedDependsOn() {
 
 let suggestedSlots = [];
 let contentMod = null;
+const CONTENT_PAGE_SIZE = 20;
+let contentView = { mod: null, slots: [], panel: null, items: [] };
+let contentPages = {};
+let contentEditing = null;
 
 function selectedContentSlots() {
   return [...document.querySelectorAll('#contentSlotList input[type=checkbox]:checked')].map((box) => ({ path: box.value, label: box.dataset.label || box.value }));
@@ -1050,43 +1060,150 @@ async function loadModContents(mod, slots, panel) {
     items = [];
   }
   if (contentMod !== mod) return;
-  panel.innerHTML = slots.map((slot) => {
-    const rows = items.filter((item) => item.slotId === slot.id);
-    const list = rows.length
-      ? rows.map((item) => '<p class="hint">' + esc(item.redacted ? t('r18.hiddenName') : (item.name || item.id)) + (item.r18 ? ' · ' + esc(t('r18.badge')) : '') + ' · ' + esc(item.redacted ? t('r18.hidden') : prettyBytes(item.size || 0)) + ' <button type="button" class="secondary" onclick=\'deleteModContent(' + JSON.stringify(item.id) + ')\'>' + esc(t('content.delete')) + '</button></p>').join('')
-      : '<p class="hint">' + esc(t('content.empty')) + '</p>';
-    return '<div class="depends-box"><strong>' + esc(slot.label || slot.path) + '</strong> <span class="hint">' + esc(slot.path) + '</span>'
-      + list
-      + '<input type="text" id="contentName-' + esc(slot.id) + '" placeholder="' + esc(t('ws.phModelName')) + '">'
-      + '<label class="check"><input type="checkbox" id="contentR18-' + esc(slot.id) + '"> <span>' + esc(t('r18.declare')) + '</span></label>'
-      + '<input type="file" accept=".zip" onchange=\'uploadSlotContent(' + JSON.stringify(mod.id) + ',' + JSON.stringify(slot.id) + ', this.files && this.files[0])\'>'
-      + '<div class="progress" id="slotProgress-' + esc(slot.id) + '"><div class="progress-label"><span></span><span>0%</span></div><div class="progress-track"><div class="progress-bar"></div></div></div>'
-      + '<div class="actions"><button type="button" class="secondary" onclick=\'deleteContentSlot(' + JSON.stringify(mod.id) + ',' + JSON.stringify(slot.id) + ')\'>' + esc(t('mod.slotDelete')) + '</button></div></div>';
-  }).join('');
+  contentView = { mod, slots, panel, items };
+  paintModContents();
 }
 
-async function uploadSlotContent(modId, slotId, file) {
-  const progressRoot = document.getElementById('slotProgress-' + slotId);
+function contentPageState(slotId, total) {
+  const pages = Math.max(1, Math.ceil(total / CONTENT_PAGE_SIZE) || 1);
+  let page = Number(contentPages[slotId] || 1);
+  if (page > pages) page = pages;
+  if (page < 1) page = 1;
+  contentPages[slotId] = page;
+  return { page, pages, start: (page - 1) * CONTENT_PAGE_SIZE };
+}
+
+function setContentPage(slotId, page) {
+  contentPages[slotId] = page;
+  paintModContents();
+}
+
+function startContentEdit(id) {
+  contentEditing = id;
+  paintModContents();
+}
+
+function cancelContentEdit() {
+  contentEditing = null;
+  paintModContents();
+}
+
+async function saveContentEdit(id) {
   try {
-    if (!file) throw new Error(t('mod.needZip'));
+    const name = String((document.getElementById('editContentName-' + id) || {}).value || '').trim();
+    if (!name) throw new Error(t('content.needName'));
+    const description = String((document.getElementById('editContentDesc-' + id) || {}).value || '').trim();
+    const r18 = Boolean((document.getElementById('editContentR18-' + id) || {}).checked);
+    show(await request('/api/v1/contents/' + encodeURIComponent(id), {
+      method: 'PATCH',
+      headers: headers(),
+      body: JSON.stringify({ name, description, r18 })
+    }), { message: t('content.edited') });
+    contentEditing = null;
+    await loadMods({ silent: true });
+  } catch (e) { show(e.message); }
+}
+
+function paintModContents() {
+  const { mod, slots, panel, items } = contentView;
+  if (!panel || !mod) return;
+  panel.innerHTML = '<p class="hint">' + esc(t('ws.uniqueHint')) + '</p><p class="hint">' + esc(t('content.batchHint')) + '</p>'
+    + slots.map((slot) => {
+      const rows = items.filter((item) => item.slotId === slot.id);
+      const state = contentPageState(slot.id, rows.length);
+      const visible = rows.slice(state.start, state.start + CONTENT_PAGE_SIZE);
+      const from = rows.length ? state.start + 1 : 0;
+      const to = Math.min(state.start + CONTENT_PAGE_SIZE, rows.length);
+      const list = rows.length
+        ? visible.map((item) => {
+          const title = item.redacted ? t('r18.hiddenName') : (item.name || item.id);
+          const meta = item.redacted ? t('r18.hidden') : ((item.description ? item.description + ' · ' : '') + prettyBytes(item.size || 0) + (item.approved === false ? ' · ' + t('content.pending') : ''));
+          const thumb = '<div class="content-thumb" title="' + esc(item.previewPath ? t('content.previewPath', { path: item.previewPath }) : t('content.previewLater')) + '">' + esc(item.previewPath ? t('content.hasPreview') : t('content.noPreview')) + '</div>';
+          if (contentEditing === item.id) {
+            return '<div class="content-row">' + thumb + '<div class="grow">'
+              + '<input id="editContentName-' + esc(item.id) + '" value="' + esc(item.name || '') + '" placeholder="' + esc(t('ws.phModelName')) + '">'
+              + '<textarea id="editContentDesc-' + esc(item.id) + '" placeholder="' + esc(t('ws.phModelDesc')) + '">' + esc(item.description || '') + '</textarea>'
+              + '<label class="check"><input type="checkbox" id="editContentR18-' + esc(item.id) + '"' + (item.r18 ? ' checked' : '') + '> <span>' + esc(t('r18.declare')) + '</span></label>'
+              + '<p class="hint">' + esc(item.previewPath ? t('content.previewPath', { path: item.previewPath }) + ' · ' + t('content.previewLater') : t('content.previewLater')) + '</p>'
+              + '<p class="hint">' + esc(item.readmePath ? t('content.readmePath', { path: item.readmePath }) + ' · ' + t('content.readmeLater') : t('content.readmeLater')) + '</p>'
+              + '<div class="actions"><button type="button" class="ok" onclick=\'saveContentEdit(' + JSON.stringify(item.id) + ')\'>' + esc(t('content.save')) + '</button>'
+              + '<button type="button" class="secondary" onclick="cancelContentEdit()">' + esc(t('cancel')) + '</button></div></div></div>';
+          }
+          return '<div class="content-row">' + thumb + '<div class="grow"><strong>' + esc(title) + (item.r18 ? ' · ' + esc(t('r18.badge')) : '') + '</strong>'
+            + '<p class="hint">' + esc(meta) + '</p>'
+            + (item.readmePath && !item.redacted ? '<p class="hint">' + esc(t('content.hasReadme')) + ' · ' + esc(String(item.readmePath).split('/').pop()) + '</p>' : '')
+            + '<div class="actions"><button type="button" class="secondary" onclick=\'startContentEdit(' + JSON.stringify(item.id) + ')\'>' + esc(t('content.edit')) + '</button>'
+            + '<button type="button" class="secondary" onclick=\'deleteModContent(' + JSON.stringify(item.id) + ')\'>' + esc(t('content.delete')) + '</button></div></div></div>';
+        }).join('')
+        : '<p class="hint">' + esc(t('content.empty')) + '</p>';
+      const pager = rows.length
+        ? '<div class="pager"><span>' + esc(t('content.pageRange', { from, to, total: rows.length })) + '</span>'
+          + (state.pages > 1
+            ? '<button type="button" class="secondary"' + (state.page <= 1 ? ' disabled' : '') + ' onclick=\'setContentPage(' + JSON.stringify(slot.id) + ',' + (state.page - 1) + ')\'>' + esc(t('content.prev')) + '</button>'
+              + '<span>' + state.page + ' / ' + state.pages + '</span>'
+              + '<button type="button" class="secondary"' + (state.page >= state.pages ? ' disabled' : '') + ' onclick=\'setContentPage(' + JSON.stringify(slot.id) + ',' + (state.page + 1) + ')\'>' + esc(t('content.next')) + '</button>'
+            : '')
+          + '</div>'
+        : '';
+      return '<div class="content-box"><strong>' + esc(slot.label || slot.path) + '</strong> <span class="hint">' + esc(slot.path) + '</span>'
+        + list
+        + pager
+        + '<input type="text" id="contentName-' + esc(slot.id) + '" placeholder="' + esc(t('ws.phModelName')) + '">'
+        + '<label class="check"><input type="checkbox" id="contentR18-' + esc(slot.id) + '"> <span>' + esc(t('r18.declare')) + '</span></label>'
+        + '<input type="file" accept=".zip" multiple onchange=\'uploadSlotContent(' + JSON.stringify(mod.id) + ',' + JSON.stringify(slot.id) + ', this)\'>'
+        + '<div class="progress" id="slotProgress-' + esc(slot.id) + '"><div class="progress-label"><span></span><span>0%</span></div><div class="progress-track"><div class="progress-bar"></div></div></div>'
+        + '<div class="actions"><button type="button" class="secondary" onclick=\'deleteContentSlot(' + JSON.stringify(mod.id) + ',' + JSON.stringify(slot.id) + ')\'>' + esc(t('mod.slotDelete')) + '</button></div></div>';
+    }).join('');
+}
+
+async function uploadSlotContent(modId, slotId, input) {
+  const progressRoot = document.getElementById('slotProgress-' + slotId);
+  const files = [...((input && input.files) || [])].filter((file) => /\.zip$/i.test(file.name));
+  try {
+    if (!files.length) throw new Error(t('mod.needZip'));
     if (!licenseConfirm.checked) throw new Error(t('mod.needLicense'));
-    const uploaded = await hashAndPutArtifact(file, progressRoot);
-    const perms = new Set((window.__me && window.__me.permissions) || []);
-    if (perms.has('review.approve')) {
-      await request('/api/v1/reviews/' + uploaded.hash, { method: 'POST', headers: headers(), body: JSON.stringify({ status: 'approved', licenseConfirmed: true }) });
-    }
+    const nameField = document.getElementById('contentName-' + slotId);
     const r18Box = document.getElementById('contentR18-' + slotId);
-    show(await request('/api/v1/mods/' + encodeURIComponent(modId) + '/slots/' + encodeURIComponent(slotId) + '/contents', { method: 'POST', headers: headers(), body: JSON.stringify({ artifactSha: uploaded.hash, name: ((document.getElementById('contentName-' + slotId) || {}).value || file.name.replace(/\.zip$/i, '')).trim(), r18: Boolean(r18Box && r18Box.checked) }) }), { message: t('content.uploaded') });
+    const sharedName = files.length === 1 ? String((nameField && nameField.value) || '').trim() : '';
+    const r18 = Boolean(r18Box && r18Box.checked);
+    const perms = new Set((window.__me && window.__me.permissions) || []);
+    const created = [];
+    const errors = [];
+    for (let index = 0; index < files.length; index += 1) {
+      const file = files[index];
+      try {
+        const prefix = t('content.batchItem', { current: index + 1, total: files.length, name: file.name });
+        const uploaded = await hashAndPutArtifact(file, progressRoot, prefix);
+        if (perms.has('review.approve')) {
+          await request('/api/v1/reviews/' + uploaded.hash, { method: 'POST', headers: headers(), body: JSON.stringify({ status: 'approved', licenseConfirmed: true }) });
+        }
+        const name = (sharedName || file.name.replace(/\.zip$/i, '')).trim();
+        created.push(await request('/api/v1/mods/' + encodeURIComponent(modId) + '/slots/' + encodeURIComponent(slotId) + '/contents', {
+          method: 'POST',
+          headers: headers(),
+          body: JSON.stringify({ artifactSha: uploaded.hash, name, r18 })
+        }));
+      } catch (error) {
+        errors.push({ name: file.name, message: (error && error.message) || String(error) });
+      }
+    }
+    if (nameField) nameField.value = '';
+    if (r18Box) r18Box.checked = false;
     setUploadProgress(progressRoot);
+    if (!created.length) throw new Error(errors.map((item) => t('content.batchFail', { name: item.name, error: item.message })).join('\n') || t('mod.needZip'));
+    show(created[created.length - 1], { message: errors.length ? t('content.batchPartial', { ok: created.length, fail: errors.length }) : t('content.uploadedN', { n: created.length }) });
     await loadMods({ silent: true });
   } catch (e) {
     setUploadProgress(progressRoot);
     show(e.message);
+  } finally {
+    if (input) input.value = '';
   }
 }
 
 async function deleteModContent(contentId) {
   try {
+    if (!window.confirm(t('content.deleteConfirm'))) return;
     show(await request('/api/v1/contents/' + encodeURIComponent(contentId), { method: 'DELETE', headers: headers() }), { message: t('content.deleted') });
     await loadMods({ silent: true });
   } catch (e) { show(e.message); }
@@ -1454,7 +1571,7 @@ async function loadState() {
   } catch (e) { show(e.message); }
 }
 
-function setUploadProgress(root, event) {
+function setUploadProgress(root, event, prefix) {
   const box = typeof root === 'string' ? document.getElementById(root) : root;
   if (!box) return;
   const label = box.querySelector('.progress-label span') || document.getElementById('uploadProgressLabel');
@@ -1468,20 +1585,24 @@ function setUploadProgress(root, event) {
   let text = t('mod.analyzing');
   if (event.phase === 'hash') text = t('mod.hashing', { percent });
   else if (event.phase === 'upload') text = t('mod.uploadProgress', { percent, loaded: prettyBytes(event.loaded), total: prettyBytes(event.total) });
+  if (prefix) text = prefix + ' · ' + text;
   box.classList.add('on');
   if (label) label.textContent = text;
   if (percentEl) percentEl.textContent = percent + '%';
   if (bar) bar.style.width = Math.min(100, Math.max(0, percent)) + '%';
 }
 
-async function hashAndPutArtifact(file, progressRoot) {
-  setUploadProgress(progressRoot, { phase: 'hash', loaded: 0, total: file.size || 1 });
+async function hashAndPutArtifact(file, progressRoot, prefix) {
+  function mark(event) {
+    setUploadProgress(progressRoot, event, prefix);
+  }
+  mark({ phase: 'hash', loaded: 0, total: file.size || 1 });
   const bytes = await file.arrayBuffer();
-  setUploadProgress(progressRoot, { phase: 'hash', loaded: file.size, total: file.size || 1 });
+  mark({ phase: 'hash', loaded: file.size, total: file.size || 1 });
   const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map((x) => x.toString(16).padStart(2, '0')).join('');
   const chunkSize = 8 * 1024 * 1024;
   const storageKey = 'hordepin.artifactUpload.' + hash + '.' + file.size + '.' + chunkSize;
-  setUploadProgress(progressRoot, { phase: 'upload', loaded: 0, total: file.size });
+  mark({ phase: 'upload', loaded: 0, total: file.size });
   let result;
   if (file.size > chunkSize) {
     let session;
@@ -1513,7 +1634,7 @@ async function hashAndPutArtifact(file, progressRoot) {
       ? session.missing.slice()
       : Array.from({ length: session.totalChunks }, function (_, index) { return index; }).filter(function (index) { return !done.has(index); });
     const report = function () {
-      setUploadProgress(progressRoot, { phase: 'upload', loaded: received.reduce(function (sum, value) { return sum + value; }, 0), total: file.size });
+      mark({ phase: 'upload', loaded: received.reduce(function (sum, value) { return sum + value; }, 0), total: file.size });
     };
     report();
     let next = 0;
@@ -1574,7 +1695,7 @@ async function hashAndPutArtifact(file, progressRoot) {
       xhr.setRequestHeader('content-type', 'application/zip');
       xhr.setRequestHeader('x-file-name', encodeURIComponent(file.name));
       xhr.upload.onprogress = (event) => {
-        setUploadProgress(progressRoot, { phase: 'upload', loaded: event.loaded, total: event.lengthComputable ? event.total : file.size });
+        mark({ phase: 'upload', loaded: event.loaded, total: event.lengthComputable ? event.total : file.size });
       };
       xhr.onload = () => {
         let body = {};
@@ -1586,7 +1707,7 @@ async function hashAndPutArtifact(file, progressRoot) {
       xhr.send(file);
     });
   }
-  setUploadProgress(progressRoot, { phase: 'analyze', loaded: 1, total: 1 });
+  mark({ phase: 'analyze', loaded: 1, total: 1 });
   return { hash, ...result };
 }
 

@@ -52,6 +52,9 @@ test('lists mods, packs, servers, stats and filtered audit', async (t) => {
   const stats = await jsonRequest(`${base}/api/v1/admin/stats`, { headers: { authorization: admin.authorization } });
   assert.equal(stats.mods, 1);
   const audit = await jsonRequest(`${base}/api/v1/admin/audit`, { headers: { authorization: admin.authorization } });
+  assert.ok(audit.audit.some((item) => item.action === 'artifact.upload'));
+  assert.ok(audit.audit.some((item) => item.action === 'mod.register'));
+  assert.ok(audit.audit.some((item) => item.action === 'pack.create'));
   assert.ok(audit.audit.some((item) => item.action === 'release.publish'));
 });
 

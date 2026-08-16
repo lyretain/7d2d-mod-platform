@@ -72,7 +72,6 @@ export function recordAudit(draft, { actor, action, target, reason, details }) {
     reason: reason || null,
     details: details || null
   });
-  if (draft.audit.length > 5_000) draft.audit.splice(0, draft.audit.length - 5_000);
 }
 
 export function releaseDiff(previousManifest, nextManifest) {

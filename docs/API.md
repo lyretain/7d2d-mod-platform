@@ -83,7 +83,7 @@ Session routes use the login Bearer token instead. Server-token routes use the o
 | PATCH | `/api/v1/servers/{id}` | Signed-in | Edit your server; community admins can edit any |
 | DELETE | `/api/v1/servers/{id}` | Signed-in | Delete your server; community admins can delete any |
 | POST | `/api/v1/admin/distribution` | Superadmin / community | Emergency pause or resume (platform-wide) |
-| GET | `/api/v1/admin/audit` | Signed-in | Publication audit log |
+| GET | `/api/v1/admin/audit` | Signed-in | Audit log of mutating operations; optional `?action=` `?actor=` `?from=` `?to=` `?limit=` |
 | POST | `/api/v1/servers/{id}/sync-status` | Server token | Dedicated-server sync heartbeat |
 | GET | `/api/v1/diagnostics/summary` | Signed-in | Aggregated fingerprints |
 | GET | `/api/v1/public/packs/{id}/latest` | Public | Latest signed manifest |
@@ -149,7 +149,9 @@ Sign in:
 
 Success returns a Bearer session token and expiry. If TOTP is on, the response is `{ "requiresTotp": true, "ticket": "..." }`; then call `/api/v1/auth/login/totp`. Only the SHA-256 of the session token is stored. Sessions last 7 days by default and are deleted on logout.
 
-Mods and content entries may set `r18: true`. Workshop lists include `r18`, `r18ContentCount`, and `redacted`. Until the signed-in user posts `/api/v1/auth/adult-confirm` with a birth year that is 18+ and `confirmed: true`, R18 names and descriptions are omitted. A birth year under 18 returns `403 UNDERAGE`. Bootstrap tokens and already-verified accounts skip the gate. `GET /api/v1/admin/state` strips `adultBirthYear`.
+Mods and content entries may set `r18: true`. Workshop lists include `r18`, `r18ContentCount`, and `redacted`. Until the signed-in user posts `/api/v1/auth/adult-confirm` with a birth year that is 18+ and `confirmed: true`, R18 names and descriptions are omitted. A birth year under 18 returns `403 UNDERAGE`. Bootstrap tokens and already-verified accounts skip the gate. `GET /api/v1/admin/state` strips `adultBirthYear`. Age confirmation is written to the audit log without the birth year.
+
+Mutating API calls (register, login, catalog edits, pack publish, reviews, and similar) append to an unbounded audit log. Reads, ZIP chunk uploads, and server heartbeats are not logged. `AUDIT_RETENTION_DAYS=0` (the default) keeps entries forever; a positive day count prunes only during `POST /api/v1/admin/gc`.
 
 With `REQUIRE_REVIEW=true` (or `NODE_ENV=production`), uploaded ZIPs are analyzed and enter review. DLL or high-risk files start as `pending`. Publish requires `licenseConfirmed=true`.
 
@@ -212,7 +214,7 @@ PATCH /api/v1/contents/{id}
 DELETE /api/v1/contents/{id}
 ```
 
-`PUT` replaces slot definitions. `POST .../contents` adds one named model (`name`, optional `description`, `artifactSha`, optional `r18`). Any signed-in role with `content.submit` may submit; production still requires review and a redistribution license. `GET /mods/{id}` includes `contentSlots`, approved `contents` (pending visible to staff/authors), `contentCounts`, `r18`, and `r18ContentCount`. Unverified viewers receive `redacted: true` with names and descriptions removed.
+`PUT` replaces slot definitions. `POST .../contents` adds one named model (`name`, optional `description`, `artifactSha`, optional `r18`). The web and admin UIs can send several ZIPs in one picker; each file is submitted sequentially through this endpoint. Upload analysis records `previewPath` and `readmePath` when the ZIP contains a named preview image (`preview`/`cover`/`thumb`/…) or a `README`. Those paths are stored for a later preview/readme reader; bytes are not served yet. `PATCH /contents/{id}` updates `name`, `description`, and `r18`. Any signed-in role with `content.submit` may submit; production still requires review and a redistribution license. `GET /mods/{id}` includes `contentSlots`, approved `contents` (pending visible to staff/authors), `contentCounts`, `r18`, and `r18ContentCount`. Unverified viewers receive `redacted: true` with names, descriptions, and asset paths removed.
 
 Pack `entries[]` may include `contents: { [slotId]: contentId[] }`. Unchecked slots install the framework only. Publishing writes each checked item as a manifest overlay: `id` is the content id, `path` is the slot directory. Several overlays may share the same `path`; the updater clears that subdirectory once, then merge-extracts each ZIP (later files overwrite). Use unique file names or subfolders inside each model ZIP. Legacy `slotContents` migrates to unnamed content entries and is not auto-selected into existing pack drafts.
 

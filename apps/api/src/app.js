@@ -138,6 +138,11 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
     return null;
   }
 
+  function auditActor(req) {
+    const user = auth.principal(req);
+    return user?.username || user?.id || 'unknown';
+  }
+
   async function handler(req, res) {
     const url = new URL(req.url, publicBaseUrl);
     const pathname = decodeURIComponent(url.pathname);
@@ -280,7 +285,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
       const revokeInviteMatch = pathname.match(/^\/api\/v1\/invites\/([^/]+)$/);
       if (req.method === 'DELETE' && revokeInviteMatch) {
         if (!requirePerm(req, res, 'invite.developer')) return;
-        if (!await auth.revokeInvite(revokeInviteMatch[1])) return problem(res, 404, 'INVITE_NOT_FOUND', 'Invitation was not found');
+        if (!await auth.revokeInvite(revokeInviteMatch[1], auth.principal(req))) return problem(res, 404, 'INVITE_NOT_FOUND', 'Invitation was not found');
         return json(res, 200, { revoked: true });
       }
 
@@ -318,6 +323,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
             createdAt: now()
           };
           draft.reviews[expected] = value;
+          recordAudit(draft, { actor: auditActor(req), action: 'artifact.upload', target: expected, details: { fileName, size, status: value.status } });
           return value;
         });
         return { sha256: expected, size, fileName, review };
@@ -451,6 +457,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
           if (body.r18 !== undefined) mod.r18 = Boolean(body.r18);
           else if (mod.r18 == null) mod.r18 = false;
           draft.mods[body.id] = mod;
+          recordAudit(draft, { actor: auditActor(req), action: 'mod.register', target: body.id, details: { version: body.version, r18: Boolean(mod.r18), artifactSha: body.artifactSha } });
           return mod;
         });
         return json(res, 201, result);
@@ -464,6 +471,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
           const mod = draft.mods[modPatchMatch[1]];
           if (!mod) throw Object.assign(new Error('Mod was not found'), { code: 'NOT_FOUND' });
           if (body.r18 !== undefined) mod.r18 = Boolean(body.r18);
+          recordAudit(draft, { actor: auditActor(req), action: 'mod.update', target: mod.id, details: { r18: Boolean(mod.r18) } });
           return { id: mod.id, name: mod.name, r18: Boolean(mod.r18), contentSlots: mod.contentSlots || [] };
         });
         return json(res, 200, result);
@@ -484,6 +492,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
             if (item.modId === mod.id && !keep.has(item.slotId)) delete draft.contents[contentId];
           }
           purgeContentRefs(draft, (item) => item.modId === mod.id && !keep.has(item.slotId));
+          recordAudit(draft, { actor: auditActor(req), action: 'mod.slots', target: mod.id, details: { slots: slots.map((item) => item.id) } });
           return { id: mod.id, contentSlots: mod.contentSlots };
         });
         return json(res, 200, result);
@@ -526,10 +535,13 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
             fileName: review?.fileName || null,
             uploadedBy: user?.id || null,
             createdAt: now(),
-            r18: Boolean(body.r18)
+            r18: Boolean(body.r18),
+            previewPath: review?.analysis?.previewPath || null,
+            readmePath: review?.analysis?.readmePath || null
           };
           draft.contents = draft.contents || {};
           draft.contents[contentId] = value;
+          recordAudit(draft, { actor: auditActor(req), action: 'content.submit', target: contentId, details: { modId, slotId, name, r18: Boolean(value.r18), artifactSha: body.artifactSha } });
           return value;
         });
         return json(res, 201, result);
@@ -549,6 +561,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
             if (item.modId === modId && item.slotId === slotId) delete draft.contents[contentId];
           }
           purgeContentRefs(draft, (item) => item.modId === modId && item.slotId === slotId);
+          recordAudit(draft, { actor: auditActor(req), action: 'mod.slot.delete', target: mod.id, details: { slotId } });
           return { id: mod.id, contentSlots: mod.contentSlots };
         });
         return json(res, 200, result);
@@ -591,6 +604,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
             }
             delete draft.contents[contentId];
             purgeContentRefs(draft, (_item, id) => id === contentId);
+            recordAudit(draft, { actor: auditActor(req), action: 'content.delete', target: contentId, details: { modId: item.modId, slotId: item.slotId } });
             return { deleted: true, id: contentId };
           });
           return json(res, 200, result);
@@ -610,6 +624,8 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
           }
           if (body.description !== undefined) item.description = String(body.description || '').trim().slice(0, 500);
           if (body.r18 !== undefined) item.r18 = Boolean(body.r18);
+          item.updatedAt = now();
+          recordAudit(draft, { actor: auditActor(req), action: 'content.update', target: contentId, details: { name: item.name, r18: Boolean(item.r18) } });
           return item;
         });
         return json(res, 200, result);
@@ -639,6 +655,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
           const existing = draft.packs[packId];
           const value = { id: packId, name: body.name, gameVersion: body.gameVersion, entries, createdAt: existing?.createdAt || now(), updatedAt: now(), latestReleaseId: existing?.latestReleaseId || null };
           draft.packs[packId] = value;
+          recordAudit(draft, { actor: auditActor(req), action: existing ? 'pack.update' : 'pack.create', target: packId, details: { name: body.name, gameVersion: body.gameVersion, entryCount: entries.length } });
           return value;
         });
         return json(res, 201, pack);

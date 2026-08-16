@@ -81,6 +81,7 @@ npm run dev:web
 | `ALLOW_BOOTSTRAP_ADMIN` | 首个用户注册后是否继续允许 `ADMIN_TOKEN` 登录，默认 `false` |
 | `DATA_DIR` | 数据、Mod 文件、运行日志和开发签名密钥目录 |
 | `LOG_RETENTION_DAYS` | 运行日志保留天数，一天一个文件，默认且最多 30 天 |
+| `AUDIT_RETENTION_DAYS` | 审计保留天数；`0`（默认）永久保留所有写操作 |
 | `SIGNING_PRIVATE_KEY` | Base64 PKCS#8 Ed25519 私钥；生产环境必须提供，或改用 `SIGNING_SERVICE_URL` |
 | `SIGNING_SERVICE_URL` | 独立签名服务。设置后应用进程不持有私钥 |
 | `DATABASE_URL` | PostgreSQL 连接串；为空则继续使用 JSON |

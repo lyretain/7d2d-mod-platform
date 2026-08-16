@@ -76,7 +76,10 @@ export function createAuthService({ store, bootstrapToken, allowBootstrapAfterSe
       id: id('invite'), codeHash: tokenHash(rawCode), role: normalized, maxUses: uses, usedCount: 0,
       createdBy, createdAt: now(), expiresAt: new Date(Date.now() + hours * 3600_000).toISOString(), revokedAt: null
     };
-    await store.mutate((draft) => { draft.invites[invite.id] = invite; });
+    await store.mutate((draft) => {
+      draft.invites[invite.id] = invite;
+      recordAudit(draft, { actor: actor?.username || actor?.id || createdBy, action: 'invite.create', target: invite.id, details: { role: normalized, maxUses: uses } });
+    });
     return { invite, code: rawCode };
   }
 
@@ -98,6 +101,7 @@ export function createAuthService({ store, bootstrapToken, allowBootstrapAfterSe
       }
       const user = { id: id('usr'), username: String(username).trim(), normalizedUsername: normalized, passwordHash, role, createdAt: now(), invitedBy, disabledAt: null, githubId: null, githubLogin: null };
       draft.users[user.id] = user;
+      recordAudit(draft, { actor: user.username, action: 'user.register', target: user.id, details: { role, invitedBy } });
       return { id: user.id, username: user.username, role: user.role, createdAt: user.createdAt, githubBound: false };
     });
   }
@@ -150,6 +154,7 @@ export function createAuthService({ store, bootstrapToken, allowBootstrapAfterSe
     await store.mutate((draft) => {
       for (const [key, value] of Object.entries(draft.sessions)) if (Date.parse(value.expiresAt) <= Date.now()) delete draft.sessions[key];
       draft.sessions[tokenHash(token)] = session;
+      recordAudit(draft, { actor: user.username, action: 'auth.login', target: user.id });
     });
     return { token, expiresAt: session.expiresAt, user: describePrincipal({ ...user, role: normalizeRole(user.role) }) };
   }
@@ -157,14 +162,19 @@ export function createAuthService({ store, bootstrapToken, allowBootstrapAfterSe
   async function logout(req) {
     const token = bearer(req);
     if (!token || (bootstrapToken && token === bootstrapToken)) return;
-    await store.mutate((draft) => { delete draft.sessions[tokenHash(token)]; });
+    const user = principal(req);
+    await store.mutate((draft) => {
+      delete draft.sessions[tokenHash(token)];
+      if (user) recordAudit(draft, { actor: user.username, action: 'auth.logout', target: user.id });
+    });
   }
 
-  async function revokeInvite(inviteId) {
+  async function revokeInvite(inviteId, actor) {
     return store.mutate((draft) => {
       const invite = draft.invites[inviteId];
       if (!invite) return false;
       invite.revokedAt = now();
+      recordAudit(draft, { actor: actor?.username || actor || 'unknown', action: 'invite.revoke', target: inviteId });
       return true;
     });
   }
@@ -283,7 +293,10 @@ export function createAuthService({ store, bootstrapToken, allowBootstrapAfterSe
     const user = store.snapshot().users[userId];
     if (!user || !await verifyPassword(currentPassword, user.passwordHash)) throw Object.assign(new Error('Current password is incorrect'), { code: 'INVALID_CREDENTIALS' });
     const passwordHash = await hashPassword(nextPassword);
-    await store.mutate((draft) => { draft.users[userId].passwordHash = passwordHash; });
+    await store.mutate((draft) => {
+      draft.users[userId].passwordHash = passwordHash;
+      recordAudit(draft, { actor: user.username, action: 'auth.password', target: userId });
+    });
     return { changed: true };
   }
 
@@ -305,6 +318,7 @@ export function createAuthService({ store, bootstrapToken, allowBootstrapAfterSe
       draft.users[reset.userId].passwordHash = passwordHash;
       delete draft.passwordResets[tokenHash(token)];
       for (const [key, session] of Object.entries(draft.sessions)) if (session.userId === reset.userId) delete draft.sessions[key];
+      recordAudit(draft, { actor: draft.users[reset.userId]?.username || reset.userId, action: 'auth.password_reset', target: reset.userId });
       return { reset: true };
     });
   }
@@ -338,6 +352,7 @@ export function createAuthService({ store, bootstrapToken, allowBootstrapAfterSe
       draft.users[userId].totpSecret = secret;
       draft.users[userId].totpEnabled = false;
       draft.users[userId].recoveryHashes = codes.map((code) => tokenHash(code));
+      recordAudit(draft, { actor: draft.users[userId].username, action: 'auth.totp.setup', target: userId });
     });
     return { secret, otpauth: `otpauth://totp/7DTD:${userId}?secret=${secret}&issuer=7DTD`, recoveryCodes: codes };
   }
@@ -353,6 +368,7 @@ export function createAuthService({ store, bootstrapToken, allowBootstrapAfterSe
       if (!item) throw Object.assign(new Error('User was not found'), { code: 'NOT_FOUND' });
       item.adultVerifiedAt = now();
       item.adultBirthYear = year;
+      recordAudit(draft, { actor: item.username, action: 'auth.adult_confirm', target: item.id });
       return item;
     });
     return describePrincipal({ ...user, role: normalizeRole(user.role) });
@@ -361,7 +377,10 @@ export function createAuthService({ store, bootstrapToken, allowBootstrapAfterSe
   async function confirmTotp(userId, code) {
     const user = store.snapshot().users[userId];
     if (!user?.totpSecret || !verifyTotp(user.totpSecret, code)) throw Object.assign(new Error('Invalid TOTP code'), { code: 'INVALID_CREDENTIALS' });
-    await store.mutate((draft) => { draft.users[userId].totpEnabled = true; });
+    await store.mutate((draft) => {
+      draft.users[userId].totpEnabled = true;
+      recordAudit(draft, { actor: draft.users[userId].username, action: 'auth.totp.confirm', target: userId });
+    });
     return { enabled: true };
   }
 

@@ -17,6 +17,9 @@ export type ContentItem = {
   approved?: boolean;
   r18?: boolean;
   redacted?: boolean;
+  previewPath?: string | null;
+  readmePath?: string | null;
+  updatedAt?: string;
 };
 
 export type ModRow = {

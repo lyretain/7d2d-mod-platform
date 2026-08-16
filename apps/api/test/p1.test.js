@@ -4,7 +4,7 @@ import { mkdtemp } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { analyzeZipBuffer } from '../src/analyze.js';
+import { analyzeZipBuffer, pickZipAssets } from '../src/analyze.js';
 import { createApp } from '../src/app.js';
 import { compatibilityMatrix, ingestDiagnostic, shouldBlockInstalls } from '../src/compatibility.js';
 import { s3Sign } from '../src/objects.js';
@@ -60,6 +60,21 @@ test('suggests content slots from ZIP folders and description', () => {
   });
   const analysis = analyzeZipBuffer(archive, 'Z_CustomAvatars.zip');
   assert.deepEqual(analysis.suggestedSlots.map((item) => item.path).sort(), ['Avatars', 'Dances']);
+});
+
+test('picks preview images and README paths from ZIP names', () => {
+  const named = pickZipAssets(['Avatars/hero.avatar3d', 'Avatars/Preview.png', 'Avatars/README.md']);
+  assert.equal(named.previewPath, 'Avatars/Preview.png');
+  assert.equal(named.readmePath, 'Avatars/README.md');
+  assert.equal(pickZipAssets(['Avatars/a.png', 'Avatars/b.jpg']).previewPath, null);
+  assert.equal(pickZipAssets(['cover.jpg']).previewPath, 'cover.jpg');
+  const analysis = analyzeZipBuffer(createStoredZip({
+    'Avatars/hero.avatar3d': 'hero',
+    'Avatars/Preview.png': 'img',
+    'Avatars/README.md': '# hero'
+  }), 'hero.zip');
+  assert.equal(analysis.previewPath, 'Avatars/Preview.png');
+  assert.equal(analysis.readmePath, 'Avatars/README.md');
 });
 
 test('analyzes deflated DLLs larger than 64 KiB without throwing', () => {
