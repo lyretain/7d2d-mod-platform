@@ -56,8 +56,9 @@ class PgConnection {
       ? tls.connect({ host: this.options.host, port: this.options.port, servername: this.options.host })
       : net.connect({ host: this.options.host, port: this.options.port });
     await new Promise((resolve, reject) => {
-      this.socket.once('connect', resolve);
-      this.socket.once('error', reject);
+      const timer = setTimeout(() => reject(new Error('PostgreSQL connection timed out')), 10_000);
+      this.socket.once('connect', () => { clearTimeout(timer); resolve(); });
+      this.socket.once('error', (error) => { clearTimeout(timer); reject(error); });
     });
     this.socket.on('data', (chunk) => this.onData(chunk));
     this.socket.on('error', (error) => this.fail(error));
@@ -96,7 +97,11 @@ class PgConnection {
 
   dispatch(code, payload) {
     if (this.authHandler && (code === 'R' || code === 'E')) return this.authHandler({ code, payload });
-    if (!this.queue[0]) return;
+    if (code === 'Z') this.ready = true;
+    if (!this.queue[0]) {
+      if (code === 'E' && this.authReject) this.authReject(pgError(payload));
+      return;
+    }
     this.queue[0].messages.push({ code, payload });
     if (code === 'Z' || code === 'E') {
       const job = this.queue.shift();
@@ -106,6 +111,7 @@ class PgConnection {
   }
 
   fail(error) {
+    if (this.authReject) this.authReject(error);
     for (const job of this.queue) job.reject(error);
     this.queue = [];
   }
@@ -115,8 +121,13 @@ class PgConnection {
   }
 
   async startup() {
-    const nonce = randomBytes(18).toString('base64');
+    const nonce = randomBytes(18).toString('base64url');
     const clientFirstBare = `n=,r=${nonce}`;
+    const finishAuth = () => {
+      if (!this.authHandler) return;
+      this.authHandler = null;
+      this.authResolve();
+    };
     this.authHandler = ({ code, payload }) => {
       if (code === 'E') {
         this.authHandler = null;
@@ -125,8 +136,7 @@ class PgConnection {
       }
       const type = payload.readInt32BE(0);
       if (type === 0) {
-        this.authHandler = null;
-        this.authResolve();
+        finishAuth();
       } else if (type === 3) {
         this.send('p', Buffer.from(`${this.options.password}\0`));
       } else if (type === 5) {
@@ -148,15 +158,21 @@ class PgConnection {
         this.send('p', Buffer.from(`${clientFinalBare},p=${proof.proof}`));
       } else if (type === 12) {
         const verifier = payload.subarray(4).toString('utf8');
-        if (!verifier.includes(this.scram.expected)) this.authReject(new Error('SCRAM server signature mismatch'));
+        if (!verifier.includes(this.scram.expected)) {
+          this.authHandler = null;
+          this.authReject(new Error('SCRAM server signature mismatch'));
+          return;
+        }
+        finishAuth();
       }
     };
     await new Promise((resolve, reject) => {
-      this.authResolve = resolve;
-      this.authReject = reject;
+      const timer = setTimeout(() => reject(new Error('PostgreSQL authentication timed out')), 10_000);
+      this.authResolve = () => { clearTimeout(timer); resolve(); };
+      this.authReject = (error) => { clearTimeout(timer); reject(error); };
       this.sendStartup();
     });
-    await this.waitReady();
+    if (!this.ready) await this.waitReady();
   }
 
   async query(sql, params = []) {
