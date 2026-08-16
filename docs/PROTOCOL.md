@@ -14,7 +14,7 @@ Artifacts are immutable and addressed by lowercase SHA-256. A client must verify
 4. The updater verifies the signature, downloads missing artifacts and installs declared top-level roots.
 5. DLL-containing releases set `requiresRestart`; the game must start after installation.
 
-Launcher preflight remains the supported way to install files before the game loads client DLLs. After that, the in-game handshake (protocol version 1) is required to enter a world.
+The client plugin also resolves the same address, downloads the signed latest pack into the user Mods directory, then sends the handshake. DLL-containing packs require a game restart; the plugin writes a reconnect hint and can quit so the next launch loads the new assemblies. Launcher preflight is still optional for installing files before the first game start.
 
 ## Handshake v1
 

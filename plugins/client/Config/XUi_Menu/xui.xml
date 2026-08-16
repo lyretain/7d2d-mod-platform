@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configs>
+	<append xpath="/xui">
+		<window_group name="optionsModPlatform" defaultselected="content">
+			<window name="optionsModPlatform" />
+		</window_group>
+	</append>
+</configs>

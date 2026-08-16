@@ -4,7 +4,7 @@
 	<DisplayName value="Mod Platform Server" />
 	<Description value="Cloud ModPack assignment, handshake and diagnostics bootstrap." />
 	<Author value="ModPlatform" />
-	<Version value="0.2.1.0" />
+	<Version value="0.2.3.0" />
 	<Website value="https://mods.aic.la" />
 	<SkipWithAntiCheat value="true" />
 </xml>

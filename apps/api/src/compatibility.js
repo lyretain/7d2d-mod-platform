@@ -8,6 +8,17 @@ export function classifyFingerprint(item) {
   return 'unknown';
 }
 
+const crashStages = new Set(['unhandled_exception', 'unobserved_task', 'crash']);
+const successStages = new Set(['successful_session', 'plugin_initialized', 'pack_sync_ok', 'pack_sync_current']);
+
+function isSuccessEvent(event) {
+  return event?.exceptionType === 'Success' || successStages.has(event?.stage);
+}
+
+function isCrashEvent(event) {
+  return crashStages.has(event?.stage);
+}
+
 export function ingestDiagnostic(draft, event) {
   draft.diagnostics.push(event);
   if (draft.diagnostics.length > 10_000) draft.diagnostics.splice(0, draft.diagnostics.length - 10_000);
@@ -25,10 +36,10 @@ export function ingestDiagnostic(draft, event) {
     conclusion: 'unknown',
     dismissed: false
   };
-  const success = event.exceptionType === 'Success' || event.stage === 'successful_session' || event.stage === 'plugin_initialized';
+  const success = isSuccessEvent(event);
   fingerprint.count += 1;
   if (success) fingerprint.successCount += 1;
-  else fingerprint.failCount += 1;
+  else if (isCrashEvent(event)) fingerprint.failCount += 1;
   fingerprint.lastSeenAt = event.receivedAt;
   fingerprint.gameVersions[event.gameVersion] = (fingerprint.gameVersions[event.gameVersion] || 0) + 1;
   if (event.packId) fingerprint.packs[event.packId] = (fingerprint.packs[event.packId] || 0) + 1;
@@ -62,9 +73,10 @@ export function compatibilityMatrix(snapshot) {
 }
 
 export function shouldBlockInstalls(snapshot, { threshold = 0.35, minSamples = 8 } = {}) {
-  const totals = Object.values(snapshot.fingerprints || {}).reduce((acc, item) => {
-    acc.fail += item.failCount || 0;
-    acc.ok += item.successCount || 0;
+  const events = snapshot.diagnostics || [];
+  const totals = events.reduce((acc, event) => {
+    if (isSuccessEvent(event)) acc.ok += 1;
+    else if (isCrashEvent(event)) acc.fail += 1;
     return acc;
   }, { fail: 0, ok: 0 });
   const samples = totals.fail + totals.ok;

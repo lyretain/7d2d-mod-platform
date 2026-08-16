@@ -1,0 +1,11 @@
+Key,File,Type,UsedInMainMenu,NoTranslate,KeepLoaded,english,Context / Alternate Text,german,spanish,french,italian,japanese,koreana,polish,brazilian,russian,turkish,schinese,tchinese
+xuiBtnOptionsModPlatform,UI,XUi OptionsMenu,x,,,Mod Platform,,,,,,,,,,,模组平台,模組平台
+xuiModPlatformBaseUrl,UI,XUi OptionsMenu,x,,,Platform URL,,,,,,,,,,,平台地址,平台位址
+xuiModPlatformBaseUrlTooltip,UI,XUi OptionsMenu,x,,,HTTPS address of the Mod Platform used to resolve and download packs.,,,,,,,,,,,用于解析并下载 Pack 的平台 HTTPS 地址。,用於解析並下載 Pack 的平台 HTTPS 位址。
+xuiModPlatformAutoSync,UI,XUi OptionsMenu,x,,,Auto download pack,,,,,,,,,,,自动下载 Pack,自動下載 Pack
+xuiModPlatformAutoSyncTooltip,UI,XUi OptionsMenu,x,,,When joining a registered server, download and install its current ModPack before handshake.,,,,,,,,,,,连上已登记服务器时，先下载并安装当前 Pack 再握手。,連上已登記伺服器時，先下載並安裝目前 Pack 再握手。
+xuiModPlatformAutoRestart,UI,XUi OptionsMenu,x,,,Restart after DLL pack,,,,,,,,,,,装完 DLL 后重启,裝完 DLL 後重啟
+xuiModPlatformAutoRestartTooltip,UI,XUi OptionsMenu,x,,,Quit and reconnect after a pack that contains DLL files is installed.,,,,,,,,,,,Pack 含 DLL 时装完后退出并自动重连。,Pack 含 DLL 時裝完後退出並自動重連。
+xuiModPlatformDiagnostics,UI,XUi OptionsMenu,x,,,Send diagnostics,,,,,,,,,,,发送诊断,傳送診斷
+xuiModPlatformDiagnosticsTooltip,UI,XUi OptionsMenu,x,,,Send plugin crash and sync events to the platform.,,,,,,,,,,,向平台发送插件崩溃和同步事件。,向平台傳送插件當機與同步事件。
+xuiModPlatformHelp,UI,XUi OptionsMenu,x,,,Change how the client plugin talks to the Mod Platform. Apply writes client.config.json and takes effect immediately.,,,,,,,,,,,在此修改客户端插件如何连接模组平台。点应用后写入 client.config.json，立即生效。,在此修改用戶端外掛如何連接模組平台。按套用後寫入 client.config.json，立即生效。

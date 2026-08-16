@@ -35,6 +35,28 @@ namespace ModPlatform.Shared
             }
         }
 
+        public async Task<ServerResolve> ResolveServerAsync(string address, CancellationToken cancellationToken)
+        {
+            using (var response = await http.GetAsync(baseUrl + "/api/v1/public/servers/resolve?address=" + Uri.EscapeDataString(address), cancellationToken).ConfigureAwait(false))
+            {
+                if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                    throw new InvalidOperationException("No registered server uses " + address);
+                await EnsureOk(response).ConfigureAwait(false);
+                using (var stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
+                    return Deserialize<ServerResolve>(stream);
+            }
+        }
+
+        public async Task<PackManifest> GetLatestPackAsync(string packId, CancellationToken cancellationToken)
+        {
+            using (var response = await http.GetAsync(baseUrl + "/api/v1/public/packs/" + Uri.EscapeDataString(packId) + "/latest", cancellationToken).ConfigureAwait(false))
+            {
+                await EnsureOk(response).ConfigureAwait(false);
+                using (var stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
+                    return Deserialize<PackManifest>(stream);
+            }
+        }
+
         public async Task SubmitHandshakeAsync(string address, IList<string> playerIds, HandshakeHello hello, CancellationToken cancellationToken)
         {
             var body = new HandshakeSubmit
@@ -87,6 +109,31 @@ namespace ModPlatform.Shared
                 using (var response = await http.SendAsync(request, cancellationToken).ConfigureAwait(false))
                     response.EnsureSuccessStatusCode();
             }
+        }
+
+        static async Task EnsureOk(HttpResponseMessage response)
+        {
+            if (response.IsSuccessStatusCode) return;
+            var body = "";
+            try { body = await response.Content.ReadAsStringAsync().ConfigureAwait(false); } catch { }
+            var detail = body;
+            var codeAt = body.IndexOf("\"code\":\"", StringComparison.Ordinal);
+            if (codeAt >= 0)
+            {
+                var start = codeAt + 8;
+                var end = body.IndexOf('"', start);
+                var messageAt = body.IndexOf("\"message\":\"", StringComparison.Ordinal);
+                var code = end > start ? body.Substring(start, end - start) : "";
+                var message = "";
+                if (messageAt >= 0)
+                {
+                    var mStart = messageAt + 11;
+                    var mEnd = body.IndexOf('"', mStart);
+                    if (mEnd > mStart) message = body.Substring(mStart, mEnd - mStart);
+                }
+                detail = string.IsNullOrEmpty(message) ? code : code + ": " + message;
+            }
+            throw new InvalidOperationException(((int)response.StatusCode) + " " + detail);
         }
 
         public static string Serialize<T>(T value)

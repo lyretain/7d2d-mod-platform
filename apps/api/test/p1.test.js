@@ -72,6 +72,14 @@ test('builds a compatibility matrix and crash-rate gate', () => {
   assert.equal(shouldBlockInstalls(draft, { threshold: 0.35, minSamples: 8 }).blocked, true);
 });
 
+test('pack sync HTTP failures do not trip the crash-rate gate', () => {
+  const draft = { diagnostics: [], fingerprints: {} };
+  for (let index = 0; index < 10; index += 1) {
+    ingestDiagnostic(draft, { id: `e${index}`, fingerprint: 'fp', receivedAt: new Date().toISOString(), gameVersion: '3.10.14', packId: 'pack', stage: 'pack_sync_failed', exceptionType: 'HttpRequestException' });
+  }
+  assert.equal(shouldBlockInstalls(draft, { threshold: 0.35, minSamples: 8 }).blocked, false);
+});
+
 test('account lifecycle, 2FA and health endpoints', async (t) => {
   const { base } = await fixture(t);
   const live = await jsonRequest(`${base}/health/live`);

@@ -104,19 +104,35 @@ node apps/updater/src/cli.js --base-url https://mods.aic.la --server-address "pl
 %APPDATA%\7DaysToDie\Mods\ModPlatformClient\
 ```
 
-编辑 `client.config.json`：
+也可以进游戏后打开 **选项 → 模组平台**，改平台地址、自动下载、装完 DLL 后重启、诊断上报，点「应用」即可，不必手改 JSON。
+
+默认 `client.config.json`：
 
 ```json
 {
   "BaseUrl": "https://mods.aic.la",
   "GameVersion": "3.10.14",
-  "DiagnosticsEnabled": true
+  "DiagnosticsEnabled": true,
+  "AutoSync": true,
+  "AutoRestart": true
 }
 ```
 
 插件包可向服主或社区管理员索取，仓库里的现成目录是 `artifacts/plugins/ModPlatformClient`。
 
-### 2. 用启动器一键同步（推荐）
+### 2. 进服时自动同步
+
+装好客户端插件后，连服主登记的同一地址即可。插件会解析 Pack、下载到 `%APPDATA%\7DaysToDie\Mods`，再握手进服。含 DLL 的 Pack 会先退出再自动重连。日志里应有：
+
+```text
+[ModPlatform] Resolving pack for 192.168.3.42:26900
+[ModPlatform] Client pack sync ... installed=
+[ModPlatform] Handshake sent address=192.168.3.42:26900 pack=... v...
+```
+
+第一次下载较慢时，可能先被超时踢一次，下完会自动重连。
+
+### 3. 用启动器一键同步（可选）
 
 已有便携启动器时：
 
@@ -134,7 +150,7 @@ npm run launcher -- join --base-url https://mods.aic.la --address play.example.c
 
 第一次同步会钉住平台公钥。以后公钥变了会拒绝安装，这是正常保护。
 
-### 3. 只用更新器、自己开游戏
+### 4. 只用更新器、自己开游戏
 
 ```powershell
 node apps/updater/src/cli.js --base-url https://mods.aic.la --server-address play.example.com:26900 --mods-dir "$env:APPDATA\7DaysToDie\Mods"
@@ -142,21 +158,14 @@ node apps/updater/src/cli.js --base-url https://mods.aic.la --server-address pla
 
 同步完成后再启动七日杀，连同一地址。若 Pack 含 DLL，必须先关游戏再同步，装完再开。
 
-### 4. 进服时可能看到的提示
+### 5. 进服时可能看到的提示
 
-- 未装客户端插件：按踢出说明安装插件和启动器。
-- ModPack 不一致：先跑启动器同步，再进。
-- 游戏版本不符：需要 `3.10.14`。
+- 未装客户端插件：按踢出说明安装插件。
+- ModPack 不一致：看客户端是否出现 `Client pack sync`；地址必须和服主登记的一致。
+- 游戏版本不符：需要与 Pack 要求的版本兼容。
 - 服务器还在同步 / 分发暂停：等服主处理后再进。
 
-游戏日志里应有：
-
-```text
-[ModPlatform] Client bootstrap initialized
-[ModPlatform] Handshake sent address=192.168.3.42:26900
-```
-
-握手走平台 HTTP，不走游戏自定义数据包。玩家连的地址必须和服主登记的公开地址一致，否则服务端收不到握手。客户端和服务端插件都要换成 `0.2.1`。
+握手走平台 HTTP。玩家连的地址必须和服主登记的公开地址一致。客户端插件换成 `0.2.3`。
 
 ## 四、常见问题
 

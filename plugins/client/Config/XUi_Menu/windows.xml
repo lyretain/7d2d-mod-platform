@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configs>
+	<insertAfter xpath="//window[@name='optionsPaging']//pagingheader_button[@name='optionsController']">
+		<pagingheader_button name="optionsModPlatform" text_key="xuiBtnOptionsModPlatform" />
+	</insertAfter>
+
+	<append xpath="/windows">
+		<window name="optionsModPlatform" anchor="Top" pos="0,-88" width="1800" height="820" controller="XUiC_ModPlatformOptions, ModPlatform.Client" cursor_area="true" depth="10">
+			<rect name="content" pos="-900,-70" width="1800" height="750">
+				<grid pos="8,-20" cols="1" cell_width="1150" cell_height="50" repeat_content="false" arrangement="vertical">
+					<rect>
+						<label pos="10,-25" width="370" height="30" font_size="28" text_key="xuiModPlatformBaseUrl" pivot="left" tooltip_key="xuiModPlatformBaseUrlTooltip" />
+						<textfield name="txtBaseUrl" pos="400,-9" width="750" height="32" character_limit="200" bordercolor="64,64,64,255" tooltip_key="xuiModPlatformBaseUrlTooltip" />
+					</rect>
+					<rect>
+						<label pos="10,-25" width="370" height="30" font_size="28" text_key="xuiModPlatformAutoSync" pivot="left" tooltip_key="xuiModPlatformAutoSyncTooltip" />
+						<combobox name="cbxAutoSync" type="ComboBoxBool" localization_prefix="xuiComboOnOff" pos="400,-9" width="750" height="32" value_wrap="false" />
+					</rect>
+					<rect>
+						<label pos="10,-25" width="370" height="30" font_size="28" text_key="xuiModPlatformAutoRestart" pivot="left" tooltip_key="xuiModPlatformAutoRestartTooltip" />
+						<combobox name="cbxAutoRestart" type="ComboBoxBool" localization_prefix="xuiComboOnOff" pos="400,-9" width="750" height="32" value_wrap="false" />
+					</rect>
+					<rect>
+						<label pos="10,-25" width="370" height="30" font_size="28" text_key="xuiModPlatformDiagnostics" pivot="left" tooltip_key="xuiModPlatformDiagnosticsTooltip" />
+						<combobox name="cbxDiagnostics" type="ComboBoxBool" localization_prefix="xuiComboOnOff" pos="400,-9" width="750" height="32" value_wrap="false" />
+					</rect>
+				</grid>
+				<sprite name="separator" pos="1225,0" width="2" height="750" depth="0" sprite="menu_empty" type="sliced" color="[darkGrey]" fillcenter="false" />
+				<rect pos="1235,0" width="560" height="750">
+					<label pos="0,-20" height="40" font_size="30" color="228,18,21,255" text_key="xuiBtnOptionsModPlatform" />
+					<label pos="0,-70" height="280" font_size="26" text_key="xuiModPlatformHelp" overflow="resizeheight" />
+					<label pos="0,-380" height="40" font_size="26" text="{plugin_version}" />
+					<label pos="0,-420" height="80" font_size="24" text="{pack_status}" overflow="resizeheight" />
+				</rect>
+			</rect>
+			<options_buttons />
+		</window>
+	</append>
+</configs>

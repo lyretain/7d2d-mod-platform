@@ -390,8 +390,6 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
       if (req.method === 'GET' && manifestMatch) {
         const snapshot = store.snapshot();
         if (snapshot.settings?.distributionPaused) return problem(res, 503, 'DISTRIBUTION_PAUSED', 'Mod distribution is paused');
-        const crashGate = shouldBlockInstalls(snapshot, { threshold: config.crashRateBlockThreshold, minSamples: config.crashRateMinSamples });
-        if (crashGate.blocked) return problem(res, 503, 'CRASH_RATE_BLOCKED', 'New installs are paused because the crash rate exceeded the safety threshold');
         const pack = snapshot.packs[manifestMatch[1]];
         const release = pack && activeRelease(snapshot, pack);
         if (!release) return problem(res, 404, 'RELEASE_NOT_FOUND', 'No active release was found');

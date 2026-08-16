@@ -10,8 +10,8 @@ namespace ModPlatform.Shared
         public static LocalPackState ReadPackState(string modsDirectory)
         {
             if (string.IsNullOrEmpty(modsDirectory)) return null;
-            var file = Path.Combine(modsDirectory, ".modplatform", "state.json");
-            if (!File.Exists(file)) return null;
+            var file = StateFile(modsDirectory);
+            if (string.IsNullOrEmpty(file) || !File.Exists(file)) return null;
             try
             {
                 var text = File.ReadAllText(file);
@@ -48,16 +48,40 @@ namespace ModPlatform.Shared
 
         public static string ReadReconnectAddress(string modsDirectory)
         {
-            var file = Path.Combine(modsDirectory, ".modplatform", "reconnect.json");
-            if (!File.Exists(file)) return null;
+            var file = ReconnectFile(modsDirectory);
+            if (string.IsNullOrEmpty(file) || !File.Exists(file)) return null;
             try { return ReadJsonString(File.ReadAllText(file), "address"); }
             catch { return null; }
         }
 
+        public static void WriteReconnect(string modsDirectory, string address)
+        {
+            var file = ReconnectFile(modsDirectory);
+            if (string.IsNullOrEmpty(file) || string.IsNullOrEmpty(address)) return;
+            Directory.CreateDirectory(Path.GetDirectoryName(file));
+            File.WriteAllText(file, "{\"address\":\"" + address.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"}");
+        }
+
         public static void ClearReconnect(string modsDirectory)
         {
-            var file = Path.Combine(modsDirectory, ".modplatform", "reconnect.json");
-            try { if (File.Exists(file)) File.Delete(file); } catch { }
+            var file = ReconnectFile(modsDirectory);
+            try { if (!string.IsNullOrEmpty(file) && File.Exists(file)) File.Delete(file); } catch { }
+        }
+
+        static string StateFile(string modsDirectory)
+        {
+            var control = PackSync.ControlDirectory(modsDirectory);
+            var nested = string.IsNullOrEmpty(control) ? null : Path.Combine(control, "state.json");
+            if (!string.IsNullOrEmpty(nested) && File.Exists(nested)) return nested;
+            var legacy = Path.Combine(modsDirectory, ".modplatform", "state.json");
+            return File.Exists(legacy) ? legacy : nested;
+        }
+
+        static string ReconnectFile(string modsDirectory)
+        {
+            var control = PackSync.ControlDirectory(modsDirectory);
+            if (!string.IsNullOrEmpty(control)) return Path.Combine(control, "reconnect.json");
+            return Path.Combine(modsDirectory, ".modplatform", "reconnect.json");
         }
 
         static string ReadJsonString(string json, string key)

@@ -8,7 +8,7 @@
 - Unity：`2022.3.62f2`
 - 插件目标框架：`netstandard2.1`
 - 握手协议：`1`
-- 插件版本：`0.2.1`
+- 插件版本：`0.2.3`
 
 ## 二、使用现成插件包
 
@@ -106,11 +106,17 @@ E:\Project\artifacts\plugins
 {
   "BaseUrl": "https://mods.aic.la",
   "GameVersion": "3.0.1-b4",
-  "DiagnosticsEnabled": true
+  "DiagnosticsEnabled": true,
+  "AutoSync": true,
+  "AutoRestart": true
 }
 ```
 
 关闭 `DiagnosticsEnabled` 后，游戏内客户端插件不会主动发送故障事件。外部守护程序需要单独关闭。
+
+`AutoSync` 默认开启：客户端按即将连接的 `地址:端口` 解析 Pack，下载并安装到 `%APPDATA%\7DaysToDie\Mods`。握手会等同步完成后再发。含 DLL 的 Pack 装完后会退出游戏并自动重连（`AutoRestart`，默认开启）。
+
+这些项也可以在游戏里改：主菜单或 ESC → **选项** → **模组平台**。点「应用」后写入同一份 `client.config.json`，立即生效。
 
 ## 六、EAC 与重启
 
@@ -146,12 +152,11 @@ E:\Project\artifacts\plugins
 
 - 后台 assignment 轮询和诊断上报；
 - 握手协议 v1：客户端通过平台 HTTP 提交 Pack、版本、签名 Key 和已安装文件指纹，不再发送自定义 NetPackage（避免服务端多装了其它 Mod 后包 ID 错位）；
+- 客户端按服务器地址自动下载并安装当前 Pack，再发送握手；
 - 服务端按玩家 Steam/EOS/名称认领该握手，并在 `PlayerLogin` / `PlayerSpawning` 拒绝未同步、版本不符或超时的玩家，踢出原因包含启动器地址。
-- 同步时会认领 Pack 已声明且已存在的同名目录；缓存写在 `ModPlatformServer/.modplatform`，不再占用 `Mods/.modplatform`。
+- 同步时会认领 Pack 已声明且已存在的同名目录；服务端缓存写在 `ModPlatformServer/.modplatform`。
 
-客户端和服务端插件必须一起升级到 `0.2.1`。只更新一侧仍可能握手失败。
-
-进游戏前的文件安装仍由启动器完成。请用当前 Steam Build 的 `Assembly-CSharp.dll` 重新编译后再做一次真实进服验证。
+客户端和服务端插件建议一起升级到 `0.2.3`。
 
 ```powershell
 npm run launcher -- join --base-url http://localhost:8080 --address game.example.com:26900

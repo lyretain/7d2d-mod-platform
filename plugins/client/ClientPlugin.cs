@@ -14,52 +14,210 @@ public sealed class ModPlatformClientPlugin : IModApi
     static PlatformClient platform;
     static readonly string SessionId = Guid.NewGuid().ToString("N");
     static string modsDirectory;
+    static string configFile;
+    static bool diagnosticsHooked;
     static bool handshakeSent;
     static bool handshakeBusy;
     static string handshakeAddress;
     static DateTime nextHandshakeAttempt;
     static bool reconnectAttempted;
+    static bool wasClient;
+    static bool syncBusy;
+    static bool syncReady;
+    static string syncedAddress;
+    static DateTime nextSyncAttempt;
+
+    static ModPlatformClientPlugin()
+    {
+        try { PackSync.ApplyPending(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "7DaysToDie", "Mods")); } catch { }
+    }
 
     public void InitMod(Mod modInstance)
     {
         try { modsDirectory = Path.Combine(GameIO.GetUserGameDataDir(), "Mods"); }
         catch { modsDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "7DaysToDie", "Mods"); }
+        PackSync.ApplyPending(modsDirectory);
         var directory = PluginPaths.FindDirectory(
             "client.config.json",
             modInstance != null ? modInstance.Path : null,
             Path.Combine(modsDirectory, "ModPlatformClient"),
             Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Mods", "ModPlatformClient"));
-        var configFile = Path.Combine(directory ?? modsDirectory, "client.config.json");
-        if (!File.Exists(configFile)) { Log.Warning("[ModPlatform] Client config is missing"); return; }
-        using (var stream = File.OpenRead(configFile)) config = (ClientConfig)new DataContractJsonSerializer(typeof(ClientConfig)).ReadObject(stream);
-        platform = new PlatformClient(config.BaseUrl);
+        configFile = Path.Combine(directory ?? modsDirectory, "client.config.json");
+        config = LoadOrCreateConfig(configFile);
+        ApplyRuntime(false);
         ModEvents.GameStartDone.RegisterHandler(OnGameStartDone);
         ModEvents.GameUpdate.RegisterHandler(OnGameUpdate);
-        if (config.DiagnosticsEnabled)
+        if (config.DiagnosticsEnabled) Ignore(SendAsync("plugin_initialized", null));
+        Log.Out("[ModPlatform] Client bootstrap initialized v" + PluginIdentity.PluginVersion + " protocol " + PluginIdentity.ProtocolVersion + " target " + PluginIdentity.TargetGameVersion + " / " + PluginIdentity.TargetSteamBuild);
+    }
+
+    internal static ClientConfig CurrentConfig()
+    {
+        return config == null ? new ClientConfig() : config.Clone();
+    }
+
+    internal static string PackStatusText()
+    {
+        var state = LocalState.ReadPackState(modsDirectory);
+        if (state == null || string.IsNullOrEmpty(state.PackId)) return "Pack: (none)";
+        return "Pack: " + state.PackId + " v" + state.PackVersion;
+    }
+
+    internal static void ApplyFromUi(string baseUrl, bool autoSync, bool autoRestart, bool diagnostics)
+    {
+        if (config == null) config = new ClientConfig();
+        config.BaseUrl = string.IsNullOrWhiteSpace(baseUrl) ? "https://mods.aic.la" : baseUrl.Trim().TrimEnd('/');
+        config.AutoSync = autoSync;
+        config.AutoRestart = autoRestart;
+        config.DiagnosticsEnabled = diagnostics;
+        if (string.IsNullOrEmpty(config.GameVersion)) config.GameVersion = PluginIdentity.TargetGameVersion;
+        SaveConfig();
+        ApplyRuntime(true);
+        Log.Out("[ModPlatform] Client settings saved BaseUrl=" + config.BaseUrl + " AutoSync=" + config.ShouldSync + " AutoRestart=" + config.ShouldRestart + " Diagnostics=" + config.DiagnosticsEnabled);
+    }
+
+    static ClientConfig LoadOrCreateConfig(string file)
+    {
+        if (File.Exists(file))
+        {
+            using (var stream = File.OpenRead(file))
+                return (ClientConfig)new DataContractJsonSerializer(typeof(ClientConfig)).ReadObject(stream);
+        }
+        var created = new ClientConfig();
+        Log.Warning("[ModPlatform] Client config is missing; writing defaults to " + file);
+        try { SaveConfigTo(file, created); } catch (Exception error) { Log.Warning("[ModPlatform] Could not write default client config: " + error.Message); }
+        return created;
+    }
+
+    static void SaveConfig()
+    {
+        if (string.IsNullOrEmpty(configFile) || config == null) return;
+        SaveConfigTo(configFile, config);
+    }
+
+    static void SaveConfigTo(string file, ClientConfig value)
+    {
+        var directory = Path.GetDirectoryName(file);
+        if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
+        using (var stream = File.Create(file))
+            new DataContractJsonSerializer(typeof(ClientConfig)).WriteObject(stream, value);
+    }
+
+    static void ApplyRuntime(bool fromUi)
+    {
+        if (config == null) config = new ClientConfig();
+        if (string.IsNullOrEmpty(config.BaseUrl)) config.BaseUrl = "https://mods.aic.la";
+        if (platform == null || fromUi)
+        {
+            try { if (platform != null) platform.Dispose(); } catch { }
+            platform = new PlatformClient(config.BaseUrl);
+        }
+        SetDiagnosticsHooked(config.DiagnosticsEnabled);
+        if (fromUi)
+        {
+            syncReady = false;
+            syncedAddress = null;
+            handshakeSent = false;
+        }
+    }
+
+    static void SetDiagnosticsHooked(bool enabled)
+    {
+        if (enabled == diagnosticsHooked) return;
+        if (enabled)
         {
             AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
             TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
-            Ignore(SendAsync("plugin_initialized", null));
         }
-        Log.Out("[ModPlatform] Client bootstrap initialized v" + PluginIdentity.PluginVersion + " protocol " + PluginIdentity.ProtocolVersion + " target " + PluginIdentity.TargetGameVersion + " / " + PluginIdentity.TargetSteamBuild);
+        else
+        {
+            AppDomain.CurrentDomain.UnhandledException -= OnUnhandledException;
+            TaskScheduler.UnobservedTaskException -= OnUnobservedTaskException;
+        }
+        diagnosticsHooked = enabled;
     }
 
     static void OnGameStartDone(ref ModEvents.SGameStartDoneData data)
     {
+        TrySyncPack();
         TrySendHandshake();
     }
 
     static void OnGameUpdate(ref ModEvents.SGameUpdateData data)
     {
-        TrySendHandshake();
+        try { if (ConnectionManager.Instance != null && ConnectionManager.Instance.IsClient) wasClient = true; } catch { }
         TryAutoReconnect();
+        TrySyncPack();
+        TrySendHandshake();
+    }
+
+    static void TrySyncPack()
+    {
+        if (platform == null || config == null || !config.ShouldSync || syncBusy) return;
+        var address = CurrentServerAddress();
+        if (string.IsNullOrEmpty(address)) return;
+        if (syncReady && string.Equals(syncedAddress, address, StringComparison.OrdinalIgnoreCase)) return;
+        if (DateTime.UtcNow < nextSyncAttempt) return;
+        syncBusy = true;
+        nextSyncAttempt = DateTime.UtcNow.AddSeconds(8);
+        Ignore(SyncPackAsync(address));
+    }
+
+    static async Task SyncPackAsync(string address)
+    {
+        try
+        {
+            Log.Out("[ModPlatform] Resolving pack for " + address);
+            var resolved = await platform.ResolveServerAsync(address, CancellationToken.None).ConfigureAwait(false);
+            if (resolved == null || string.IsNullOrEmpty(resolved.PackId)) throw new InvalidOperationException("Resolve did not return a pack.");
+            if (resolved.Handshake != null && resolved.Handshake.DistributionPaused)
+                throw new InvalidOperationException("Mod distribution is paused.");
+            var manifest = await platform.GetLatestPackAsync(resolved.PackId, CancellationToken.None).ConfigureAwait(false);
+            var result = await PackSync.SyncAsync(modsDirectory, config.BaseUrl, manifest, CancellationToken.None).ConfigureAwait(false);
+            if (result.Changed) Log.Out("[ModPlatform] Client pack sync " + manifest.PackId + " v" + manifest.PackVersion + " installed=" + result.Installed + " updated=" + result.Updated + " unchanged=" + result.Unchanged);
+            else Log.Out("[ModPlatform] Client pack already current " + manifest.PackId + " v" + manifest.PackVersion);
+            syncedAddress = address;
+            syncReady = true;
+            handshakeSent = false;
+            if (result.RequiresRestart)
+            {
+                LocalState.WriteReconnect(modsDirectory, address);
+                Log.Warning("[ModPlatform] " + (result.Message ?? "Restart the game to load the new pack."));
+                if (config.ShouldRestart) RequestRestart();
+                else syncReady = false;
+            }
+            else if (wasClient) TryReconnectNow(address);
+            Ignore(SendAsync(result.Changed ? "pack_sync_ok" : "pack_sync_current", null));
+        }
+        catch (Exception error)
+        {
+            syncReady = false;
+            Log.Warning("[ModPlatform] Client pack sync failed: " + error.Message);
+            Ignore(SendAsync("pack_sync_failed", error));
+        }
+        finally
+        {
+            syncBusy = false;
+        }
+    }
+
+    static void RequestRestart()
+    {
+        Log.Warning("[ModPlatform] Pack contains files that need a restart; the game will exit and reconnect.");
+        try { UnityEngine.Application.Quit(); }
+        catch
+        {
+            try { Environment.Exit(0); } catch { }
+        }
     }
 
     static void TrySendHandshake()
     {
         if (platform == null || handshakeBusy || DateTime.UtcNow < nextHandshakeAttempt) return;
+        if (ConnectionManager.Instance == null || !ConnectionManager.Instance.IsClient) return;
         var address = CurrentServerAddress();
         if (string.IsNullOrEmpty(address)) return;
+        if (config != null && config.ShouldSync && !syncReady) return;
         if (handshakeSent && string.Equals(handshakeAddress, address, StringComparison.OrdinalIgnoreCase)) return;
         var playerIds = CollectLocalPlayerIds();
         if (playerIds.Count == 0) return;
@@ -159,6 +317,18 @@ public sealed class ModPlatformClientPlugin : IModApi
         catch { return config != null && !string.IsNullOrEmpty(config.GameVersion) ? config.GameVersion : PluginIdentity.TargetGameVersion; }
     }
 
+    static void TryReconnectNow(string address)
+    {
+        if (string.IsNullOrEmpty(address)) return;
+        try
+        {
+            if (ConnectionManager.Instance != null && ConnectionManager.Instance.IsClient) return;
+        }
+        catch { return; }
+        LocalState.WriteReconnect(modsDirectory, address);
+        reconnectAttempted = false;
+    }
+
     static void TryAutoReconnect()
     {
         if (reconnectAttempted || ConnectionManager.Instance == null || ConnectionManager.Instance.IsClient || ConnectionManager.Instance.IsServer) return;
@@ -217,6 +387,30 @@ public sealed class ClientConfig
     [DataMember] public string BaseUrl { get; set; }
     [DataMember] public string GameVersion { get; set; }
     [DataMember] public bool DiagnosticsEnabled { get; set; }
+    [DataMember] public bool? AutoSync { get; set; }
+    [DataMember] public bool? AutoRestart { get; set; }
 
-    public ClientConfig() { DiagnosticsEnabled = true; }
+    public bool ShouldSync { get { return AutoSync != false; } }
+    public bool ShouldRestart { get { return AutoRestart != false; } }
+
+    public ClientConfig()
+    {
+        BaseUrl = "https://mods.aic.la";
+        GameVersion = PluginIdentity.TargetGameVersion;
+        DiagnosticsEnabled = true;
+        AutoSync = true;
+        AutoRestart = true;
+    }
+
+    public ClientConfig Clone()
+    {
+        return new ClientConfig
+        {
+            BaseUrl = BaseUrl,
+            GameVersion = GameVersion,
+            DiagnosticsEnabled = DiagnosticsEnabled,
+            AutoSync = AutoSync,
+            AutoRestart = AutoRestart
+        };
+    }
 }

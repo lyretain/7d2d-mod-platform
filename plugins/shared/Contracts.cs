@@ -5,6 +5,16 @@ using System.Runtime.Serialization;
 namespace ModPlatform.Shared
 {
     [DataContract]
+    public sealed class ServerResolve
+    {
+        [DataMember(Name = "serverId")] public string ServerId { get; set; }
+        [DataMember(Name = "packId")] public string PackId { get; set; }
+        [DataMember(Name = "packVersion")] public int? PackVersion { get; set; }
+        [DataMember(Name = "gameVersion")] public string GameVersion { get; set; }
+        [DataMember(Name = "handshake")] public HandshakePolicy Handshake { get; set; }
+    }
+
+    [DataContract]
     public sealed class ServerAssignment
     {
         [DataMember(Name = "serverId")] public string ServerId { get; set; }

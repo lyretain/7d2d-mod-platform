@@ -176,7 +176,7 @@ namespace ModPlatform.Shared
             state.RequiresRestart = result.RequiresRestart || manifest.Mods.Any(item => item != null && item.RequiresRestart);
             state.UpdatedAt = DateTime.UtcNow.ToString("o");
             WriteState(stateFile, state);
-            if (result.RequiresRestart) result.Message = "Pack files updated; restart the dedicated server to load them.";
+            if (result.RequiresRestart) result.Message = "Pack files updated; restart to load them.";
             else if (result.Changed) result.Message = "Pack files updated.";
             else result.Message = "Pack already installed.";
             return result;

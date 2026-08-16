@@ -32,7 +32,7 @@ namespace ModPlatform.Shared
 {
     public static class PluginIdentity
     {
-        public const string PluginVersion = "0.2.1";
+        public const string PluginVersion = "0.2.3";
         public const int ProtocolVersion = 1;
         public const string TargetGameVersion = "$GameVersion";
         public const string TargetSteamBuild = "$SteamBuildId";
@@ -42,7 +42,7 @@ namespace ModPlatform.Shared
 Set-Content -LiteralPath (Join-Path $root "plugins\shared\PluginIdentity.cs") -Value $identity -Encoding UTF8
 
 $versionInfo = @{
-  pluginVersion = "0.2.1"
+  pluginVersion = "0.2.3"
   protocolVersion = 1
   targetGameVersion = $GameVersion
   targetSteamBuild = $SteamBuildId
@@ -86,7 +86,7 @@ if (Get-Command dotnet -ErrorAction SilentlyContinue) {
   $gameReferences = @("/reference:$GameManagedDir\Assembly-CSharp.dll","/reference:$GameManagedDir\LogLibrary.dll","/reference:$GameManagedDir\UnityEngine.CoreModule.dll","/reference:$build\ModPlatform.Shared.dll")
   & $csc @common @gameReferences "/out:$serverOutput\ModPlatform.Server.dll" "$root\plugins\server\ServerPlugin.cs"
   if ($LASTEXITCODE -ne 0) { throw "Server plugin compilation failed." }
-  & $csc @common @gameReferences "/out:$clientOutput\ModPlatform.Client.dll" "$root\plugins\client\ClientPlugin.cs"
+  & $csc @common @gameReferences "/out:$clientOutput\ModPlatform.Client.dll" "$root\plugins\client\ClientPlugin.cs" "$root\plugins\client\XUiC_ModPlatformOptions.cs"
   if ($LASTEXITCODE -ne 0) { throw "Client plugin compilation failed." }
   Copy-Item "$build\ModPlatform.Shared.dll" -Destination $serverOutput -Force
   Copy-Item "$build\ModPlatform.Shared.dll" -Destination $clientOutput -Force
@@ -96,6 +96,7 @@ Copy-Item "$root\plugins\server\ModInfo.xml" -Destination $serverOutput -Force
 Copy-Item "$root\plugins\server\server.config.example.json" -Destination "$serverOutput\server.config.json" -Force
 Copy-Item "$root\plugins\client\ModInfo.xml" -Destination $clientOutput -Force
 Copy-Item "$root\plugins\client\client.config.example.json" -Destination "$clientOutput\client.config.json" -Force
+Copy-Item "$root\plugins\client\Config" -Destination "$clientOutput\Config" -Recurse -Force
 Set-Content -LiteralPath (Join-Path $serverOutput "plugin-version.json") -Value $versionInfo -Encoding UTF8
 Set-Content -LiteralPath (Join-Path $clientOutput "plugin-version.json") -Value $versionInfo -Encoding UTF8
 Write-Host "Plugin packages built in $output for Steam Build $SteamBuildId / $GameVersion"
