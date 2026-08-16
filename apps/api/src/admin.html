@@ -246,6 +246,8 @@
         <label class="field">ZIP 顶层目录</label>
         <input id="installRoots" placeholder="逗号分隔，例如 ExampleVehicles">
         <label class="check"><input id="containsDll" type="checkbox"> 包含客户端 DLL / 需要重启</label>
+        <label class="check"><input id="licenseConfirm" type="checkbox"> 我确认拥有再分发许可，并已审核该 ZIP</label>
+        <p class="hint" id="reviewHint">生产环境必须先确认许可证。含 DLL 的文件默认待审核。</p>
         <div class="actions">
           <button onclick="registerMod()">登记版本</button>
           <button class="secondary" onclick="loadMods()">刷新列表</button>
@@ -578,11 +580,20 @@ function toast(text, kind) {
   if (text) toastTimer = setTimeout(() => { el.hidden = true; }, 5000);
 }
 
+function friendlyError(message) {
+  if (/Artifact must be reviewed and have a confirmed redistribution license/i.test(message)) {
+    return '该 ZIP 还没有完成审核或许可证确认。请勾选「我确认拥有再分发许可」后再登记；含 DLL 的文件需要社区管理员批准。';
+  }
+  if (/is not approved for redistribution/i.test(message)) return '该 Mod 尚未批准再分发，不能打进 Pack。';
+  return message;
+}
+
 function show(value, opts = {}) {
+  if (typeof value === 'string') value = friendlyError(value);
   out.textContent = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
   if (typeof value === 'string') {
     const cancelled = /已取消/.test(value);
-    const ok = /成功|已退出|已加载|已更新|已取消/.test(value);
+    const ok = /成功|已退出|已加载|已更新|已取消|已登记/.test(value);
     toast(value, cancelled ? 'warn' : (ok ? 'ok' : 'err'));
     return;
   }
@@ -754,8 +765,24 @@ async function upload() {
     const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map((x) => x.toString(16).padStart(2, '0')).join('');
     const r = await request('/api/v1/artifacts/' + hash, { method: 'PUT', headers: { authorization: headers().authorization, 'content-type': 'application/zip', 'x-file-name': encodeURIComponent(file.name) }, body: bytes });
     artifactSha.value = hash;
-    uploadResult.textContent = 'SHA-256：' + hash + '\n状态：' + (r.review && r.review.status || '已上传') + '\n大小：' + prettyBytes(r.size);
-    show(r, { message: '上传完成' });
+    if (document.getElementById('reviewSha')) reviewSha.value = hash;
+    const analysis = r.review && r.review.analysis;
+    if (analysis) {
+      if (analysis.roots && analysis.roots.length && !installRoots.value) installRoots.value = analysis.roots.join(',');
+      if (analysis.containsDll) containsDll.checked = true;
+      if (analysis.modInfo) {
+        if (!modId.value && analysis.modInfo.name) modId.value = String(analysis.modInfo.name).replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/^-|-$/g, '').slice(0, 64);
+        if (!modName.value && (analysis.modInfo.displayName || analysis.modInfo.name)) modName.value = analysis.modInfo.displayName || analysis.modInfo.name;
+        if (!modVersion.value && analysis.modInfo.version) modVersion.value = analysis.modInfo.version;
+      }
+    }
+    const status = r.review && r.review.status || '已上传';
+    const next = status === 'pending'
+      ? '含 DLL 或高风险规则，状态为待审核。勾选再分发许可后，有审核权的账号可直接登记。'
+      : '请勾选再分发许可，然后点「登记版本」。';
+    if (document.getElementById('reviewHint')) reviewHint.textContent = next;
+    uploadResult.textContent = 'SHA-256：' + hash + '\n审核：' + status + '\n大小：' + prettyBytes(r.size) + '\n' + next;
+    show(r, { message: '上传完成，请确认许可证后登记' });
   } catch (e) {
     uploadResult.textContent = e.message;
     show(e.message);
@@ -764,6 +791,11 @@ async function upload() {
 
 async function registerMod() {
   try {
+    if (!licenseConfirm.checked) throw new Error('请先勾选：我确认拥有再分发许可，并已审核该 ZIP');
+    const perms = new Set((window.__me && window.__me.permissions) || []);
+    if (perms.has('review.approve') && artifactSha.value) {
+      await request('/api/v1/reviews/' + artifactSha.value, { method: 'POST', headers: headers(), body: JSON.stringify({ status: 'approved', licenseConfirmed: true }) });
+    }
     const body = {
       id: modId.value,
       name: modName.value,
