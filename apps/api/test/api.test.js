@@ -205,6 +205,13 @@ test('regular users can register a game server and open the user guide', async (
   const created = await jsonRequest(`${base}/api/v1/servers`, { method: 'POST', headers: hostHeaders, body: JSON.stringify({ name: 'Weekend', packId: 'prod-pack', publicAddress: 'play.example.com:26900' }) });
   assert.match(created.serverId, /^srv_/);
   assert.ok(created.token);
+  assert.deepEqual(Object.keys(created.config), ['BaseUrl', 'ServerId', 'ServerToken', 'GameVersion', 'RefreshSeconds', 'HandshakeTimeoutSeconds']);
+  assert.equal(created.config.BaseUrl, base);
+  assert.equal(created.config.ServerId, created.serverId);
+  assert.equal(created.config.ServerToken, created.token);
+  assert.equal(created.config.GameVersion, '3.10.14');
+  assert.equal(created.config.RefreshSeconds, 60);
+  assert.equal(created.config.HandshakeTimeoutSeconds, 15);
   const resolved = await jsonRequest(`${base}/api/v1/public/servers/resolve?address=play.example.com:26900`);
   assert.equal(resolved.packId, 'prod-pack');
   assert.equal((await fetch(`${base}/api/v1/servers`, { method: 'POST', headers: hostHeaders, body: JSON.stringify({ name: 'NoAddr', packId: 'prod-pack' }) })).status, 422);

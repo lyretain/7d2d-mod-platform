@@ -323,7 +323,7 @@
     <div class="grid">
       <article class="card">
         <h2>登记服务器</h2>
-        <p class="hint">普通用户可登记自己的专用服。令牌只显示一次，请立刻保存到 server.config.json。</p>
+        <p class="hint">普通用户可登记自己的专用服。登记后会生成与插件相同的 server.config.json，令牌只显示一次。</p>
         <label class="field">名称</label>
         <input id="serverName" placeholder="周末 PVE">
         <div class="row">
@@ -337,7 +337,10 @@
           <button class="secondary" onclick="updateServer()">更新绑定</button>
           <button class="secondary" onclick="loadServers()">刷新状态</button>
         </div>
-        <pre id="serverTokenResult">登记成功后，令牌会显示在这里。</pre>
+        <div class="actions">
+          <button class="secondary" onclick="copyServerConfig()">复制 server.config.json</button>
+        </div>
+        <pre id="serverTokenResult">登记成功后，这里会给出可直接覆盖到插件目录的 server.config.json。</pre>
       </article>
       <article class="card danger" id="pauseCard">
         <h2>紧急停发</h2>
@@ -546,6 +549,7 @@ function packOptionLabel(pack) {
 
 function fillPackSelects(selected) {
   selected = selected || {};
+  if (!Array.isArray(catalogPacks)) catalogPacks = [];
   ['serverPackId', 'releasePackId'].forEach((id) => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -585,6 +589,7 @@ function setPackEntries(entries) {
 function fillPackEntryPicker() {
   const menu = document.getElementById('packEntryMenu');
   if (!menu) return;
+  if (!Array.isArray(catalogMods)) catalogMods = [];
   const prev = new Set(selectedPackEntries().map((entry) => entry.modId + '@' + entry.version));
   const options = [];
   catalogMods.forEach((mod) => {
@@ -625,7 +630,7 @@ function newPack() {
 
 function paint(data) {
   if (!data || typeof data !== 'object') return;
-  if (data.mods) {
+  if (Array.isArray(data.mods)) {
     catalogMods = data.mods;
     fillPackEntryPicker();
     table('list-mods', data.mods, ['id', 'name', 'latestVersion', 'versionCount', 'containsDll'], (r) => {
@@ -635,7 +640,7 @@ function paint(data) {
       if (r.versions && r.versions[0]) artifactSha.value = r.versions[0].artifactSha || '';
     });
   }
-  if (data.packs) {
+  if (Array.isArray(data.packs)) {
     catalogPacks = data.packs;
     fillPackSelects();
     table('list-packs', data.packs, ['id', 'name', 'gameVersion', 'entryCount', 'packVersion', 'latestReleaseId'], (r) => {
@@ -967,13 +972,48 @@ async function rollbackRelease() {
   } catch (e) { show(e.message); }
 }
 
+function pluginConfigFromCreate(created) {
+  if (created && created.config) return created.config;
+  const pack = catalogPacks.find((item) => item.id === (created && created.packId)) || {};
+  return {
+    BaseUrl: location.origin,
+    ServerId: created.serverId,
+    ServerToken: created.token,
+    GameVersion: pack.gameVersion || '3.10.14',
+    RefreshSeconds: 60,
+    HandshakeTimeoutSeconds: 15
+  };
+}
+
+function showServerPluginConfig(created) {
+  const box = document.getElementById('serverTokenResult');
+  if (!box) return;
+  const json = JSON.stringify(pluginConfigFromCreate(created), null, 2);
+  box.dataset.config = json;
+  box.textContent = '把下面整段覆盖到 Mods/ModPlatformServer/server.config.json，令牌只显示一次。\n\n' + json;
+}
+
+async function copyServerConfig() {
+  const box = document.getElementById('serverTokenResult');
+  const text = box && box.dataset.config;
+  if (!text) {
+    show('还没有可复制的配置，请先登记服务器');
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(text);
+    toast('已复制 server.config.json', 'ok');
+  } catch (e) {
+    show(e.message || '复制失败，请手动选中下方内容');
+  }
+}
+
 async function createServer() {
   try {
     const created = await request('/api/v1/servers', { method: 'POST', headers: headers(), body: JSON.stringify({ name: serverName.value, packId: serverPackId.value, publicAddress: serverAddress.value }) });
-    serverId.value = created.serverId || '';
-    const box = document.getElementById('serverTokenResult');
-    if (box) box.textContent = '请立即保存令牌，页面刷新后不会再显示。\n\n' + JSON.stringify(created, null, 2);
-    show(created, { message: '服务器已登记，请保存令牌' });
+    serverId.value = created.serverId || (created.config && created.config.ServerId) || '';
+    showServerPluginConfig(created);
+    show(created, { message: '服务器已登记，请保存 server.config.json' });
     await loadServers({ silent: true });
   } catch (e) { show(e.message); }
 }

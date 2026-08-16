@@ -49,6 +49,17 @@ export function packDetail(snapshot, packId) {
   };
 }
 
+export function pluginServerConfig({ baseUrl, serverId, token, gameVersion }) {
+  return {
+    BaseUrl: String(baseUrl || '').replace(/\/$/, ''),
+    ServerId: serverId,
+    ServerToken: token,
+    GameVersion: gameVersion || '3.10.14',
+    RefreshSeconds: 60,
+    HandshakeTimeoutSeconds: 15
+  };
+}
+
 export function listServers(snapshot) {
   const cutoff = Date.now() - 5 * 60_000;
   return Object.values(snapshot.servers || {}).map((server) => {

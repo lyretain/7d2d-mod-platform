@@ -200,7 +200,7 @@ Content-Type: application/json
 }
 ```
 
-响应中的服务器令牌只返回一次，应立即保存到服务端插件配置。
+响应中的 `config` 与插件 `server.config.json` 字段一致（`BaseUrl`、`ServerId`、`ServerToken`、`GameVersion`、`RefreshSeconds`、`HandshakeTimeoutSeconds`）。令牌只返回一次，应立即覆盖到插件目录。
 
 ## 上传诊断信息
 

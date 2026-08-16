@@ -13,7 +13,7 @@ import { ingestDiagnostic, shouldBlockInstalls } from './compatibility.js';
 import { handleP1 } from './p1-routes.js';
 import { consumeRateLimit, inspectRequest, routeLimit, securityHeaders } from './security.js';
 import { notify } from './alerts.js';
-import { recordDownload, requireConfirm } from './catalog.js';
+import { pluginServerConfig, recordDownload, requireConfirm } from './catalog.js';
 import { artifactPublicUrl, cloudflareCacheHeaders, manifestPublicUrl, purgeCloudflare } from './cloudflare.js';
 import { can, denyReason, describePrincipal } from './roles.js';
 import { exchangeGithubCode, githubAuthorizeUrl } from './github.js';
@@ -458,6 +458,13 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
         }
         const serverId = id('srv');
         const token = randomBytes(32).toString('base64url');
+        const pack = snapshot.packs[body.packId];
+        const pluginConfig = pluginServerConfig({
+          baseUrl: publicBaseUrl,
+          serverId,
+          token,
+          gameVersion: pack.gameVersion
+        });
         await store.mutate((draft) => {
           draft.servers[serverId] = {
             id: serverId,
@@ -471,7 +478,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
           };
           recordAudit(draft, { actor: owner.username || owner.id, action: 'server.create', target: serverId, details: { packId: body.packId, publicAddress: publicAddress || null } });
         });
-        return json(res, 201, { serverId, token, packId: body.packId, publicAddress: publicAddress || null });
+        return json(res, 201, { serverId, token, packId: body.packId, publicAddress: publicAddress || null, config: pluginConfig });
       }
 
       if (req.method === 'GET' && pathname === '/api/v1/public/servers/resolve') {

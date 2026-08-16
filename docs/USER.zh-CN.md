@@ -38,7 +38,7 @@
    - **Pack**：下拉选择已发布的 Pack。
    - **公开地址**：玩家进服时填写的地址，例如 `play.example.com:26900` 或 `1.2.3.4:26900`。必须和游戏里看到的一致，大小写不敏感。
 3. 点「登记服务器」。
-4. 页面会返回 `serverId` 和 **token**。令牌只显示这一次，立刻复制保存。丢了只能删掉重登，或请管理员协助。
+4. 页面会给出完整的 `server.config.json`，字段与插件一致：`BaseUrl`、`ServerId`、`ServerToken`、`GameVersion`、`RefreshSeconds`、`HandshakeTimeoutSeconds`。令牌只显示这一次，立刻复制覆盖到插件目录。丢了只能删掉重登，或请管理员协助。
 
 同一公开地址不能登记两次。以后要换 Pack 或改地址：点表格里的那一行，改完后点「更新绑定」。你只能改自己登记的服务器。
 
@@ -54,15 +54,16 @@
   server.config.json
 ```
 
-编辑 `server.config.json`：
+把后台生成的整段 JSON 覆盖到 `server.config.json`，不要改字段名大小写。内容应类似：
 
 ```json
 {
   "BaseUrl": "https://mods.aic.la",
-  "ServerId": "srv_刚才返回的ID",
-  "ServerToken": "刚才只显示一次的令牌",
+  "ServerId": "srv_...",
+  "ServerToken": "...",
   "GameVersion": "3.10.14",
-  "RefreshSeconds": 60
+  "RefreshSeconds": 60,
+  "HandshakeTimeoutSeconds": 15
 }
 ```
 
