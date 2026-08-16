@@ -2,6 +2,7 @@
 import { onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import ToastHost from './components/ToastHost.vue';
+import ConfirmHost from './components/ConfirmHost.vue';
 import { t } from './i18n';
 import { showToast } from './stores/toast';
 
@@ -20,5 +21,6 @@ onMounted(() => {
 
 <template>
   <router-view />
+  <ConfirmHost />
   <ToastHost />
 </template>

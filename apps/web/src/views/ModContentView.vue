@@ -10,6 +10,7 @@ import ContentFileList from '../components/ContentFileList.vue';
 import { i18n, t } from '../i18n';
 import { fail, ok } from '../lib/feedback';
 import { prettyBytes } from '../lib/format';
+import { askConfirm } from '../stores/confirm';
 import type { ContentItem, ModRow } from '../stores/catalog';
 
 type Slot = { id: string; path: string; label?: string };
@@ -70,6 +71,13 @@ async function addSlot() {
 }
 
 async function removeSlot(slotId: string) {
+  const slot = slots.value.find((item) => item.id === slotId);
+  const name = slot?.label || slot?.path || slotId;
+  if (!await askConfirm({
+    title: t('mod.slotDelete'),
+    hint: t('mod.slotDeleteConfirm', { name }),
+    confirmLabel: t('content.deleteAgain')
+  })) return;
   try {
     const result = await api(`/api/v1/mods/${encodeURIComponent(String(route.params.id))}/slots/${encodeURIComponent(slotId)}`, { method: 'DELETE' });
     if (mod.value) mod.value.contentSlots = result.contentSlots || [];

@@ -1203,7 +1203,9 @@ async function uploadSlotContent(modId, slotId, input) {
 
 async function deleteModContent(contentId) {
   try {
-    if (!window.confirm(t('content.deleteConfirm'))) return;
+    const item = (contentView.items || []).find((row) => row.id === contentId);
+    const name = item && item.redacted ? t('r18.hiddenName') : ((item && item.name) || contentId);
+    if (!window.confirm(t('content.deleteConfirmNamed', { name }))) return;
     show(await request('/api/v1/contents/' + encodeURIComponent(contentId), { method: 'DELETE', headers: headers() }), { message: t('content.deleted') });
     await loadMods({ silent: true });
   } catch (e) { show(e.message); }
@@ -1211,6 +1213,9 @@ async function deleteModContent(contentId) {
 
 async function deleteContentSlot(modId, slotId) {
   try {
+    const slot = (contentView.slots || []).find((row) => row.id === slotId);
+    const name = (slot && (slot.label || slot.path)) || slotId;
+    if (!window.confirm(t('mod.slotDeleteConfirm', { name }))) return;
     show(await request('/api/v1/mods/' + encodeURIComponent(modId) + '/slots/' + encodeURIComponent(slotId), { method: 'DELETE', headers: headers() }), { message: t('mod.slotRemoved') });
     await loadMods({ silent: true });
   } catch (e) { show(e.message); }

@@ -4,6 +4,7 @@ import { api } from '../api/client';
 import { i18n, t } from '../i18n';
 import { fail, ok } from '../lib/feedback';
 import { prettyBytes } from '../lib/format';
+import { askConfirm } from '../stores/confirm';
 import type { ContentItem } from '../stores/catalog';
 import R18Badge from './R18Badge.vue';
 import UiModal from './UiModal.vue';
@@ -74,7 +75,12 @@ async function saveEdit() {
 }
 
 async function removeItem(item: ContentItem) {
-  if (!window.confirm(t('content.deleteConfirm'))) return;
+  const okDelete = await askConfirm({
+    title: t('content.deleteTitle'),
+    hint: t('content.deleteConfirmNamed', { name: displayName(item) }),
+    confirmLabel: t('content.deleteAgain')
+  });
+  if (!okDelete) return;
   try {
     busy.value = item.id;
     await api(`/api/v1/contents/${encodeURIComponent(item.id)}`, { method: 'DELETE' });
