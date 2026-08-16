@@ -2,6 +2,47 @@ import { randomBytes } from 'node:crypto';
 import { activeRelease, releaseDiff } from './protocol.js';
 import { gameVersionMatches } from './game-version.js';
 import { serverAddresses } from './servers.js';
+import { isSafeId } from './util.js';
+
+export function normalizeDependsOn(value, selfId) {
+  const raw = Array.isArray(value) ? value : typeof value === 'string' ? value.split(/[\s,]+/) : [];
+  return [...new Set(raw.map((item) => String(item || '').trim()).filter((id) => isSafeId(id) && id !== selfId))];
+}
+
+export function pickCompatibleVersion(mod, gameVersion) {
+  const versions = Object.values(mod?.versions || {}).sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+  if (!versions.length) return null;
+  if (!gameVersion) return versions[0];
+  return versions.find((item) => !item.gameVersions?.length || gameVersionMatches(item.gameVersions, gameVersion, item.gameVersionRange)) || null;
+}
+
+export function expandPackEntries(snapshot, entries, gameVersion) {
+  const ordered = [];
+  const seen = new Set();
+  const visiting = new Set();
+
+  function ensure(modId, preferredVersion, required) {
+    if (seen.has(modId)) return;
+    if (visiting.has(modId)) throw Object.assign(new Error(`Circular prerequisite: ${modId}`), { code: 'VALIDATION' });
+    const mod = snapshot.mods?.[modId];
+    if (!mod) throw Object.assign(new Error(`Unknown prerequisite mod: ${modId}`), { code: 'VALIDATION' });
+    visiting.add(modId);
+    const version = preferredVersion && mod.versions?.[preferredVersion]
+      ? mod.versions[preferredVersion]
+      : pickCompatibleVersion(mod, gameVersion);
+    if (!version) throw Object.assign(new Error(`No compatible version of ${modId} for game ${gameVersion}`), { code: 'VALIDATION' });
+    for (const depId of version.dependsOn || []) ensure(depId, null, true);
+    visiting.delete(modId);
+    seen.add(modId);
+    ordered.push({ modId, version: version.version, required: required !== false });
+  }
+
+  for (const entry of entries || []) {
+    if (!entry?.modId) throw Object.assign(new Error('Invalid pack entry'), { code: 'VALIDATION' });
+    ensure(entry.modId, entry.version, entry.required);
+  }
+  return ordered;
+}
 
 function modInfoFrom(snapshot, version) {
   if (!version) return { author: null, description: null };
@@ -34,7 +75,8 @@ export function listMods(snapshot, query = '', options = {}) {
       artifactSize: latest?.artifactSize || 0,
       downloads,
       updatedAt: latest?.createdAt || null,
-      versions: versions.map((item) => ({ version: item.version, artifactSha: item.artifactSha, artifactSize: item.artifactSize, gameVersions: item.gameVersions, gameVersionRange: item.gameVersionRange || 'exact', containsDll: item.containsDll, createdAt: item.createdAt }))
+      dependsOn: latest?.dependsOn || [],
+      versions: versions.map((item) => ({ version: item.version, artifactSha: item.artifactSha, artifactSize: item.artifactSize, gameVersions: item.gameVersions, gameVersionRange: item.gameVersionRange || 'exact', containsDll: item.containsDll, dependsOn: item.dependsOn || [], createdAt: item.createdAt }))
     };
   }).filter((mod) => {
     if (wantedGame && !(mod.versions || []).some((item) => gameVersionMatches(item.gameVersions, wantedGame, item.gameVersionRange))) return false;

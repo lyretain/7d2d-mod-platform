@@ -36,6 +36,20 @@ function picked(id: string) {
   return cart.value.some((item) => item.modId === id);
 }
 
+function addToCart(modId: string) {
+  if (cart.value.some((item) => item.modId === modId)) return;
+  const mod = mods.value.concat(catalog.mods).find((item) => item.id === modId);
+  if (!mod || !mod.latestVersion) return;
+  for (const depId of mod.dependsOn || []) addToCart(depId);
+  if (cart.value.some((item) => item.modId === modId)) return;
+  cart.value.push({
+    modId: mod.id,
+    version: mod.latestVersion,
+    name: mod.name || mod.id,
+    gameVersions: mod.gameVersions || []
+  });
+}
+
 function toggle(modId: string) {
   const existing = cart.value.findIndex((item) => item.modId === modId);
   if (existing >= 0) {
@@ -44,12 +58,7 @@ function toggle(modId: string) {
   }
   const mod = mods.value.concat(catalog.mods).find((item) => item.id === modId);
   if (!mod || !mod.latestVersion) return showToast(t('ws.noVersion'), 'warn');
-  cart.value.push({
-    modId: mod.id,
-    version: mod.latestVersion,
-    name: mod.name || mod.id,
-    gameVersions: mod.gameVersions || []
-  });
+  addToCart(modId);
 }
 
 function clearCart() {
@@ -174,6 +183,7 @@ onMounted(async () => {
         <div class="mb-3 flex flex-wrap gap-1.5">
           <span class="rounded-full bg-gray-100 px-2 py-0.5 text-theme-xs text-gray-500 dark:bg-white/5">{{ (mod.gameVersions || []).join(' / ') || t('ws.noGame') }}</span>
           <span v-if="mod.containsDll" class="rounded-full bg-brand-500/15 px-2 py-0.5 text-theme-xs text-brand-500">{{ t('ws.hasDll') }}</span>
+          <span v-if="mod.dependsOn?.length" class="rounded-full bg-gray-100 px-2 py-0.5 text-theme-xs text-gray-500 dark:bg-white/5">{{ t('ws.needs', { mods: mod.dependsOn.join(', ') }) }}</span>
           <span v-if="mod.downloads" class="rounded-full bg-gray-100 px-2 py-0.5 text-theme-xs text-gray-500 dark:bg-white/5">{{ t('ws.downloads', { n: mod.downloads }) }}</span>
         </div>
         <button type="button" class="mt-auto" :class="picked(mod.id) ? 'btn-secondary' : 'btn-ok'" @click="toggle(mod.id)">

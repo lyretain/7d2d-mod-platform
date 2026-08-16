@@ -164,11 +164,14 @@ The API hashes while receiving. A URL hash that does not match the body never en
   "gameVersionRange": "major",
   "installRoots": ["ExampleVehicles"],
   "containsDll": true,
-  "requiresRestart": true
+  "requiresRestart": true,
+  "dependsOn": ["harmony"]
 }
 ```
 
 `installRoots` must match the ZIP top-level directories exactly. The updater refuses to overwrite a same-name folder the platform does not manage.
+
+`dependsOn` is a list of registered Mod IDs. Creating or publishing a Pack expands those prerequisites (including transitive ones) into `entries` so the updater downloads them automatically. Prerequisites are listed before the mods that need them.
 
 ## Create a ModPack
 

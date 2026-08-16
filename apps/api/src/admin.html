@@ -85,6 +85,8 @@
     .three { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
     .check { display: flex; align-items: center; gap: 8px; margin: 8px 0 12px; color: var(--muted); }
     .check input { width: auto; margin: 0; }
+    .depends-box { max-height: 160px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin: 0 0 12px; }
+    .depends-box .check { margin: 6px 0; }
     input[readonly] { color: var(--muted); cursor: default; }
     .picker { position: relative; margin: 0 0 8px; }
     .picker-btn { width: 100%; margin: 0; text-align: left; background: #14171d; color: var(--text); border: 1px solid #3a404c; font-weight: 500; }
@@ -358,6 +360,9 @@
         <label class="field" data-i18n="mod.roots">ZIP 顶层目录</label>
         <input id="installRoots" data-i18n-placeholder="mod.phRoots" placeholder="逗号分隔，例如 ExampleVehicles">
         <label class="check"><input id="containsDll" type="checkbox"> <span data-i18n="mod.containsDll">包含客户端 DLL / 需要重启</span></label>
+        <label class="field" data-i18n="mod.depends">前置 Mod</label>
+        <p class="hint" data-i18n="mod.dependsHint">勾选后，把本 Mod 加入 Pack 时会自动带上这些前置并一起下载。</p>
+        <div class="depends-box" id="dependsOnList"></div>
         <label class="check"><input id="licenseConfirm" type="checkbox"> <span data-i18n="mod.license">我确认拥有再分发许可，并已审核该 ZIP</span></label>
         <p class="hint" id="reviewHint" data-i18n="mod.reviewHint">生产环境必须先确认许可证。含 DLL 的文件默认待审核。</p>
         <div class="actions">
@@ -766,6 +771,7 @@ function renderWorkshop() {
       + '<p class="desc">' + esc(desc) + '</p>'
       + '<div class="tags"><span class="tag">' + esc(games) + '</span>'
       + (mod.containsDll ? '<span class="tag dll">' + esc(t('ws.hasDll')) + '</span>' : '')
+      + (mod.dependsOn && mod.dependsOn.length ? '<span class="tag">' + esc(t('ws.needs', { mods: mod.dependsOn.join(', ') })) + '</span>' : '')
       + (mod.downloads ? '<span class="tag">' + esc(t('ws.downloads', { n: mod.downloads })) + '</span>' : '')
       + '</div>'
       + '<div class="actions"><button class="' + (picked ? 'secondary' : 'ok') + '" onclick=\'toggleWorkshopMod(' + JSON.stringify(mod.id) + ')\'>' + (picked ? t('ws.remove') : t('ws.add')) + '</button></div>'
@@ -784,13 +790,22 @@ function renderWorkshopTray() {
   }
 }
 
+function addWorkshopMod(modId) {
+  if (workshopCart.some((item) => item.modId === modId)) return;
+  const mod = workshopMods.concat(catalogMods).find((item) => item.id === modId);
+  if (!mod || !mod.latestVersion) return;
+  (mod.dependsOn || []).forEach(addWorkshopMod);
+  if (workshopCart.some((item) => item.modId === modId)) return;
+  workshopCart.push({ modId: mod.id, version: mod.latestVersion, name: mod.name || mod.id, gameVersions: mod.gameVersions || [] });
+}
+
 function toggleWorkshopMod(modId) {
   const existing = workshopCart.findIndex((item) => item.modId === modId);
   if (existing >= 0) workshopCart.splice(existing, 1);
   else {
     const mod = workshopMods.concat(catalogMods).find((item) => item.id === modId);
     if (!mod || !mod.latestVersion) return toast(t('ws.noVersion'), 'warn');
-    workshopCart.push({ modId: mod.id, version: mod.latestVersion, name: mod.name || mod.id, gameVersions: mod.gameVersions || [] });
+    addWorkshopMod(modId);
   }
   renderWorkshop();
   renderWorkshopTray();
@@ -910,6 +925,22 @@ function fillPackSelects(selected) {
   });
 }
 
+function selectedDependsOn() {
+  return [...document.querySelectorAll('#dependsOnList input[type=checkbox]:checked')].map((box) => box.value);
+}
+
+function fillDependsOn(selected) {
+  const box = document.getElementById('dependsOnList');
+  if (!box) return;
+  const keep = new Set(selected || selectedDependsOn());
+  const mods = (catalogMods || []).filter((mod) => mod.id && mod.id !== (document.getElementById('modId') || {}).value);
+  if (!mods.length) {
+    box.innerHTML = '<p class="hint">' + esc(t('mod.dependsEmpty')) + '</p>';
+    return;
+  }
+  box.innerHTML = mods.map((mod) => '<label class="check"><input type="checkbox" value="' + esc(mod.id) + '"' + (keep.has(mod.id) ? ' checked' : '') + '> ' + esc(mod.name || mod.id) + ' <span class="hint">' + esc(mod.id) + '</span></label>').join('');
+}
+
 function selectedPackEntries() {
   return [...document.querySelectorAll('#packEntryMenu input[type=checkbox]:checked')].map((box) => {
     const at = box.value.lastIndexOf('@');
@@ -991,8 +1022,10 @@ function paint(data) {
         artifactSha.value = latest.artifactSha || '';
         gameVersions.value = (latest.gameVersions || []).join(',');
         genericGameVersion.checked = latest.gameVersionRange === 'major';
-      }
+        fillDependsOn(latest.dependsOn || r.dependsOn || []);
+      } else fillDependsOn([]);
     });
+    fillDependsOn(selectedDependsOn());
   }
   if (Array.isArray(data.packs)) {
     catalogPacks = data.packs;
@@ -1290,7 +1323,8 @@ async function registerMod() {
       gameVersionRange: genericGameVersion.checked ? 'major' : 'exact',
       installRoots: installRoots.value.split(',').map((x) => x.trim()).filter(Boolean),
       containsDll: containsDll.checked,
-      requiresRestart: containsDll.checked
+      requiresRestart: containsDll.checked,
+      dependsOn: selectedDependsOn()
     };
     show(await request('/api/v1/mods', { method: 'POST', headers: headers(), body: JSON.stringify(body) }), { message: t('mod.registered') });
     await loadMods({ silent: true });

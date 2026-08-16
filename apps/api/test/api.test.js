@@ -63,6 +63,26 @@ test('major-range mods can join later 3.x packs but not the next major', async (
   assert.equal((await fetch(`${base}/api/v1/packs`, { method: 'POST', headers: admin, body: JSON.stringify({ name: 'V2', gameVersion: '2.6', entries: [{ modId: 'generic', version: '1.0.0' }] }) })).status, 422);
 });
 
+test('pack create pulls prerequisite mods into the release', async (t) => {
+  const { base } = await fixture(t);
+  const admin = { authorization: 'Bearer test-admin-token-1234', 'content-type': 'application/json' };
+  const harmonyZip = createStoredZip({ 'Harmony/ModInfo.xml': '<xml />' });
+  const gunZip = createStoredZip({ 'GunMod/ModInfo.xml': '<xml />' });
+  const harmonySha = sha256(harmonyZip);
+  const gunSha = sha256(gunZip);
+  await jsonRequest(`${base}/api/v1/artifacts/${harmonySha}`, { method: 'PUT', headers: { ...admin, 'content-type': 'application/zip' }, body: harmonyZip });
+  await jsonRequest(`${base}/api/v1/artifacts/${gunSha}`, { method: 'PUT', headers: { ...admin, 'content-type': 'application/zip' }, body: gunZip });
+  await jsonRequest(`${base}/api/v1/mods`, { method: 'POST', headers: admin, body: JSON.stringify({ id: 'harmony', name: 'Harmony', version: '1.0.0', artifactSha: harmonySha, gameVersions: ['3.10.14'], installRoots: ['Harmony'] }) });
+  assert.equal((await fetch(`${base}/api/v1/mods`, { method: 'POST', headers: admin, body: JSON.stringify({ id: 'gunmod', name: 'GunMod', version: '1.0.0', artifactSha: gunSha, gameVersions: ['3.10.14'], installRoots: ['GunMod'], dependsOn: ['missing-lib'] }) })).status, 422);
+  const gun = await jsonRequest(`${base}/api/v1/mods`, { method: 'POST', headers: admin, body: JSON.stringify({ id: 'gunmod', name: 'GunMod', version: '1.0.0', artifactSha: gunSha, gameVersions: ['3.10.14'], installRoots: ['GunMod'], dependsOn: ['harmony'] }) });
+  assert.deepEqual(gun.versions['1.0.0'].dependsOn, ['harmony']);
+  const pack = await jsonRequest(`${base}/api/v1/packs`, { method: 'POST', headers: admin, body: JSON.stringify({ id: 'dep-pack', name: 'Deps', gameVersion: '3.10.14', entries: [{ modId: 'gunmod', version: '1.0.0' }] }) });
+  assert.deepEqual(pack.entries.map((entry) => entry.modId), ['harmony', 'gunmod']);
+  await jsonRequest(`${base}/api/v1/packs/dep-pack/releases`, { method: 'POST', headers: admin, body: '{}' });
+  const latest = await jsonRequest(`${base}/api/v1/public/packs/dep-pack/latest`);
+  assert.deepEqual(latest.mods.map((mod) => mod.id), ['harmony', 'gunmod']);
+});
+
 test('redacts and aggregates diagnostics', async (t) => {
   const { base } = await fixture(t);
   const event = { sessionId: 's1', side: 'client', gameVersion: '2.6', stage: 'startup', exceptionType: 'TypeLoadException', message: 'token=secret-value from 192.168.1.8', stackTrace: 'at Mod.Run() in C:\\Users\\Alice\\x.cs:42', logExcerpt: 'password=hunter2' };

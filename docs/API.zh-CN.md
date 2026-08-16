@@ -162,11 +162,14 @@ Authorization: Bearer <ADMIN_TOKEN>
   "gameVersionRange": "major",
   "installRoots": ["ExampleVehicles"],
   "containsDll": true,
-  "requiresRestart": true
+  "requiresRestart": true,
+  "dependsOn": ["harmony"]
 }
 ```
 
 `installRoots` 必须与 ZIP 中的顶层目录完全一致。更新器默认拒绝覆盖不属于平台管理的同名目录。
+
+`dependsOn` 是已登记的前置 Mod ID 列表。创建或发布 Pack 时会自动展开这些前置（含传递依赖）写入 `entries`，更新器会一起下载。前置排在依赖它们的 Mod 前面。
 
 ## 创建 ModPack
 

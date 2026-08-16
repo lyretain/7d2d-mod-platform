@@ -14,7 +14,7 @@ import { ingestDiagnostic, shouldBlockInstalls } from './compatibility.js';
 import { handleP1 } from './p1-routes.js';
 import { consumeRateLimit, inspectRequest, routeLimit, securityHeaders } from './security.js';
 import { notify } from './alerts.js';
-import { pluginServerConfig, recordDownload, requireConfirm } from './catalog.js';
+import { expandPackEntries, normalizeDependsOn, pluginServerConfig, recordDownload, requireConfirm } from './catalog.js';
 import { gameVersionMatches } from './game-version.js';
 import { artifactPublicUrl, cloudflareCacheHeaders, manifestPublicUrl, purgeCloudflare } from './cloudflare.js';
 import { can, denyReason, describePrincipal } from './roles.js';
@@ -353,6 +353,10 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
         if (store.snapshot().bannedHashes?.[body.artifactSha]) throw Object.assign(new Error('Artifact hash is banned'), { code: 'VALIDATION' });
         if (requireReview && (!review || review.status !== 'approved' || !review.licenseConfirmed)) throw Object.assign(new Error('Artifact must be reviewed and have a confirmed redistribution license'), { code: 'VALIDATION' });
         const analysis = review?.analysis;
+        const dependsOn = normalizeDependsOn(body.dependsOn, body.id);
+        for (const depId of dependsOn) {
+          if (!store.snapshot().mods[depId]) throw Object.assign(new Error(`Unknown prerequisite mod: ${depId}`), { code: 'VALIDATION' });
+        }
         const result = await store.mutate((draft) => {
           const mod = draft.mods[body.id] || { id: body.id, name: body.name, versions: {} };
           mod.name = body.name;
@@ -365,6 +369,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
             installRoots: Array.isArray(body.installRoots) && body.installRoots.length ? body.installRoots : (analysis?.roots || []),
             containsDll: Boolean(body.containsDll || analysis?.containsDll),
             requiresRestart: Boolean(body.requiresRestart || body.containsDll || analysis?.containsDll),
+            dependsOn,
             author: body.author || analysis?.modInfo?.author || null,
             description: body.description || analysis?.modInfo?.description || null,
             sbom: analysis?.sbom || null,
@@ -383,7 +388,8 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
         const packId = body.id || id('pack');
         if (!isSafeId(packId) || !Array.isArray(body.entries)) throw Object.assign(new Error('Invalid pack'), { code: 'VALIDATION' });
         const snapshot = store.snapshot();
-        for (const entry of body.entries) {
+        const entries = expandPackEntries(snapshot, body.entries, body.gameVersion);
+        for (const entry of entries) {
           const version = snapshot.mods[entry.modId]?.versions?.[entry.version];
           if (!version) throw Object.assign(new Error(`Unknown mod version: ${entry.modId}@${entry.version}`), { code: 'VALIDATION' });
           if (version.gameVersions.length && !gameVersionMatches(version.gameVersions, body.gameVersion, version.gameVersionRange)) throw Object.assign(new Error(`${entry.modId}@${entry.version} does not declare compatibility with game ${body.gameVersion}`), { code: 'VALIDATION' });
@@ -394,7 +400,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
         }
         const pack = await store.mutate((draft) => {
           const existing = draft.packs[packId];
-          const value = { id: packId, name: body.name, gameVersion: body.gameVersion, entries: body.entries, createdAt: existing?.createdAt || now(), updatedAt: now(), latestReleaseId: existing?.latestReleaseId || null };
+          const value = { id: packId, name: body.name, gameVersion: body.gameVersion, entries, createdAt: existing?.createdAt || now(), updatedAt: now(), latestReleaseId: existing?.latestReleaseId || null };
           draft.packs[packId] = value;
           return value;
         });
@@ -415,7 +421,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
           packVersion: releaseNumber,
           gameVersion: pack.gameVersion,
           issuedAt: now(),
-          mods: pack.entries.map((entry) => {
+          mods: expandPackEntries(snapshot, pack.entries, pack.gameVersion).map((entry) => {
             const version = snapshot.mods[entry.modId].versions[entry.version];
             return {
               id: entry.modId,

@@ -15,11 +15,13 @@ export type ModRow = {
   downloads?: number;
   updatedAt?: string;
   gameVersions?: string[];
+  dependsOn?: string[];
   versions?: Array<{
     version: string;
     artifactSha?: string;
     gameVersions?: string[];
     gameVersionRange?: string;
+    dependsOn?: string[];
   }>;
 };
 

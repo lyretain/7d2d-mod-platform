@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { api, uploadZip } from '../api/client';
 import UiCard from '../components/UiCard.vue';
 import UiTable from '../components/UiTable.vue';
@@ -23,7 +23,8 @@ const form = ref({
   generic: false,
   installRoots: '',
   containsDll: false,
-  license: false
+  license: false,
+  dependsOn: [] as string[]
 });
 const reviewHint = ref('');
 
@@ -85,7 +86,8 @@ async function registerMod() {
         gameVersionRange: form.value.generic ? 'major' : 'exact',
         installRoots: form.value.installRoots.split(',').map((item) => item.trim()).filter(Boolean),
         containsDll: form.value.containsDll,
-        requiresRestart: form.value.containsDll
+        requiresRestart: form.value.containsDll,
+        dependsOn: form.value.dependsOn
       })
     });
     ok(result, t('mod.registered'));
@@ -106,8 +108,13 @@ function pick(row: Record<string, unknown>, index: number) {
     form.value.artifactSha = latest.artifactSha || '';
     form.value.gameVersions = (latest.gameVersions || []).join(',');
     form.value.generic = latest.gameVersionRange === 'major';
+    form.value.dependsOn = latest.dependsOn || [];
+  } else {
+    form.value.dependsOn = [];
   }
 }
+
+const dependOptions = computed(() => catalog.mods.filter((mod) => mod.id && mod.id !== form.value.id));
 
 onMounted(() => {
   refreshHint();
@@ -141,6 +148,15 @@ onMounted(() => {
         <label class="field">{{ t('mod.roots') }}</label>
         <input v-model="form.installRoots" class="input" :placeholder="t('mod.phRoots')">
         <label class="flex items-center gap-2 text-sm text-gray-500"><input v-model="form.containsDll" type="checkbox"><span>{{ t('mod.containsDll') }}</span></label>
+        <label class="field">{{ t('mod.depends') }}</label>
+        <p class="text-theme-xs text-gray-500">{{ t('mod.dependsHint') }}</p>
+        <div class="max-h-40 space-y-2 overflow-auto rounded-lg border border-gray-200 p-3 dark:border-gray-800">
+          <p v-if="!dependOptions.length" class="text-theme-xs text-gray-500">{{ t('mod.dependsEmpty') }}</p>
+          <label v-for="mod in dependOptions" :key="mod.id" class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+            <input v-model="form.dependsOn" type="checkbox" :value="mod.id">
+            <span>{{ mod.name || mod.id }} <span class="text-theme-xs text-gray-500">{{ mod.id }}</span></span>
+          </label>
+        </div>
         <label class="flex items-center gap-2 text-sm text-gray-500"><input v-model="form.license" type="checkbox"><span>{{ t('mod.license') }}</span></label>
         <p class="text-theme-xs text-gray-500">{{ reviewHint }}</p>
         <div class="flex flex-wrap gap-2">
