@@ -18,9 +18,35 @@
       --warn: #8a6a1a;
     }
     * { box-sizing: border-box; }
-    html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, "Segoe UI", "Microsoft YaHei", sans-serif; }
-    body { display: grid; grid-template-columns: 232px 1fr; }
-    .sidebar { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; gap: 18px; padding: 20px 16px; background: var(--side); border-right: 1px solid var(--line); }
+    html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); font: 14px/1.5 system-ui, "Segoe UI", "Microsoft YaHei", sans-serif; }
+    body { display: block; }
+    body.authed { display: grid; grid-template-columns: 232px 1fr; min-height: 100vh; }
+    #setup, #gate { display: none; min-height: 100vh; padding: 24px; }
+    body.setup #setup, body.guest #gate { display: flex; }
+    .sidebar, .workspace { display: none; }
+    body.authed .sidebar { display: flex; }
+    body.authed .workspace { display: block; }
+    #setup { align-items: center; justify-content: center; background: radial-gradient(circle at top, #24180c 0%, var(--bg) 58%); }
+    #gate { align-items: stretch; justify-content: center; background: radial-gradient(circle at 20% 0%, #1d1810 0%, var(--bg) 46%); }
+    .community { width: min(1080px, 100%); margin: auto; display: grid; grid-template-columns: 1.1fr .9fr; gap: 36px; align-items: center; }
+    .hero h1 { margin: 0 0 10px; font-size: 36px; line-height: 1.2; color: var(--accent); }
+    .hero p { margin: 0 0 18px; color: var(--muted); font-size: 15px; }
+    .hero ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+    .hero li { padding: 12px 14px; background: #171a20; border: 1px solid var(--line); border-radius: 10px; }
+    .hero li strong { display: block; color: var(--text); }
+    .hero li span { color: var(--muted); font-size: 13px; }
+    .auth-card { width: min(420px, 100%); background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 28px 24px 22px; box-shadow: 0 18px 50px rgba(0, 0, 0, .35); }
+    .auth-card .brand { text-align: center; margin-bottom: 18px; }
+    .auth-card .brand strong { display: block; color: var(--accent); font-size: 22px; }
+    .auth-card .brand span { color: var(--muted); font-size: 13px; }
+    .steps { display: flex; gap: 8px; margin: 0 0 16px; color: var(--muted); font-size: 12px; }
+    .steps b { color: var(--accent); }
+    .auth-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 18px; padding: 4px; background: #14171d; border-radius: 10px; }
+    .auth-tabs button { margin: 0; background: transparent; color: var(--muted); }
+    .auth-tabs button.active { background: #2a2114; color: var(--accent); }
+    .auth-pane { display: none; }
+    .auth-pane.on { display: block; }
+    .sidebar { position: sticky; top: 0; height: 100vh; flex-direction: column; gap: 18px; padding: 20px 16px; background: var(--side); border-right: 1px solid var(--line); }
     .brand { padding: 4px 8px 8px; }
     .brand strong { display: block; color: var(--accent); font-size: 18px; letter-spacing: .02em; }
     .brand span { color: var(--muted); font-size: 12px; }
@@ -38,7 +64,6 @@
     .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px; }
     .card { grid-column: span 6; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px 16px 12px; }
     .card.stretch { grid-column: span 12; }
-    .card.third { grid-column: span 4; }
     .card.danger { border-color: #5a2a26; background: #211618; }
     .card-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
     h2 { margin: 0 0 8px; font-size: 15px; }
@@ -71,21 +96,23 @@
     tbody tr:hover { background: #222733; }
     tbody tr.sel { background: #2a2114; }
     .empty { margin: 0; padding: 18px; color: var(--muted); text-align: center; }
-    .toast { margin: 0 0 14px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); }
-    .toast.ok { background: #173022; border-color: #2f7a4f; }
-    .toast.err { background: #2a1716; border-color: #b33a2f; }
-    .toast.warn { background: #2a2314; border-color: #8a6a1a; }
+    #toast { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 20; min-width: 240px; max-width: min(560px, calc(100% - 32px)); margin: 0; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--line); }
+    #toast.ok { background: #173022; border-color: #2f7a4f; }
+    #toast.err { background: #2a1716; border-color: #b33a2f; }
+    #toast.warn { background: #2a2314; border-color: #8a6a1a; }
     pre { white-space: pre-wrap; background: #0c0e12; padding: 12px; max-height: 220px; overflow: auto; margin: 8px 0 0; border-radius: 8px; font-size: 12px; }
     .raw { margin-top: 16px; border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; background: var(--card); color: var(--muted); }
     .raw summary { cursor: pointer; font-weight: 600; }
     .raw pre { max-height: 360px; }
     @media (max-width: 1100px) {
-      .card, .card.third { grid-column: span 12; }
+      .card { grid-column: span 12; }
       .stats { grid-template-columns: repeat(3, 1fr); }
+      .community { grid-template-columns: 1fr; gap: 22px; }
+      .hero h1 { font-size: 28px; }
     }
     @media (max-width: 860px) {
-      body { grid-template-columns: 1fr; }
-      .sidebar { position: sticky; top: 0; z-index: 8; height: auto; flex-direction: row; flex-wrap: wrap; gap: 10px; padding: 12px; }
+      body.authed { grid-template-columns: 1fr; }
+      body.authed .sidebar { position: sticky; top: 0; z-index: 8; height: auto; flex-direction: row; flex-wrap: wrap; gap: 10px; padding: 12px; }
       .brand { flex: 1; }
       .who { margin: 0; min-width: 160px; }
       nav { flex-direction: row; width: 100%; overflow: auto; }
@@ -96,66 +123,99 @@
   </style>
 </head>
 <body>
+<div id="toast" class="toast" hidden></div>
+<section id="setup">
+  <div class="auth-card">
+    <div class="brand"><strong>初始化社区</strong><span>平台尚未创建首位管理员</span></div>
+    <p class="steps"><b>1</b> 验证部署令牌　<b>2</b> 创建管理员　<b>3</b> 进入运营后台</p>
+    <p class="hint">使用部署时写入的 ADMIN_TOKEN。完成后该令牌默认停用，日常请用账户登录。</p>
+    <label class="field">ADMIN_TOKEN</label>
+    <input id="setupToken" type="password" placeholder="至少 16 位的部署令牌">
+    <label class="field">首位管理员用户名</label>
+    <input id="setupUser" autocomplete="username" placeholder="3-32 位字母数字">
+    <label class="field">密码</label>
+    <input id="setupPassword" type="password" autocomplete="new-password" placeholder="至少 10 位">
+    <label class="field">确认密码</label>
+    <input id="setupPassword2" type="password" autocomplete="new-password" placeholder="再输入一次">
+    <div class="actions"><button onclick="setupPlatform()">完成初始化</button></div>
+  </div>
+</section>
+<section id="gate">
+  <div class="community">
+    <div class="hero">
+      <h1>七日杀 Mod 社区</h1>
+      <p>面向服主与玩家的验签分发平台。社区成员按邀请加入，更新器只安装已签名的 Pack。</p>
+      <ul>
+        <li><strong>验签分发</strong><span>Ed25519 签名的不可变 Release，防止被篡改的 ZIP 进服。</span></li>
+        <li><strong>服务器同步</strong><span>按公开地址解析当前 Pack，玩家与专用服保持同一版本。</span></li>
+        <li><strong>邀请制社区</strong><span>管理员邀请服主或只读成员，审核、停发和回滚都留审计。</span></li>
+      </ul>
+    </div>
+    <div class="auth-card">
+      <div class="brand"><strong>加入社区</strong><span>登录后管理 Pack，或使用邀请码注册</span></div>
+      <div class="auth-tabs">
+        <button class="active" data-auth="login" onclick="showAuth('login')">登录</button>
+        <button data-auth="register" onclick="showAuth('register')">注册</button>
+      </div>
+      <div class="auth-pane on" id="auth-login">
+        <p class="hint">服主与运营使用已有账户登录。</p>
+        <label class="field">用户名</label>
+        <input id="loginUser" autocomplete="username" placeholder="用户名">
+        <label class="field">密码</label>
+        <input id="loginPassword" type="password" autocomplete="current-password" placeholder="密码">
+        <div class="actions"><button onclick="login()">登录</button></div>
+      </div>
+      <div class="auth-pane" id="auth-register">
+        <h2>邀请码注册</h2>
+        <p class="hint">普通用户可直接注册。社区管理员需超级管理员邀请；开发者也可先注册再激活。</p>
+        <label class="field">用户名</label>
+        <input id="registerUser" autocomplete="username" placeholder="3-32位">
+        <label class="field">密码</label>
+        <input id="registerPassword" type="password" autocomplete="new-password" placeholder="至少10位">
+        <label class="field">邀请码（可选）</label>
+        <input id="registerInvite" placeholder="社区管理员邀请码，可留空">
+        <div class="actions"><button onclick="register()">加入社区</button></div>
+      </div>
+    </div>
+  </div>
+</section>
 <aside class="sidebar">
-  <div class="brand"><strong>七日杀 Mod 平台</strong><span>管理控制台</span></div>
+  <div class="brand"><strong>七日杀 Mod 社区</strong><span>运营后台</span></div>
   <nav>
-    <button class="active" data-tab="account" onclick="showTab('account')">账户</button>
-    <button data-tab="mods" onclick="showTab('mods')">Mod</button>
+    <button class="active" data-tab="mods" onclick="showTab('mods')">Mod</button>
     <button data-tab="packs" onclick="showTab('packs')">Pack</button>
     <button data-tab="servers" onclick="showTab('servers')">服务器</button>
     <button data-tab="ops" onclick="showTab('ops')">运维</button>
+    <button data-tab="account" onclick="showTab('account')">账户</button>
   </nav>
   <div class="who" id="authStatus">尚未登录</div>
 </aside>
 <main class="workspace">
   <div class="top">
     <div>
-      <h1 id="pageTitle">账户</h1>
-      <p id="pageHint">登录、邀请码注册与首次部署邀请</p>
+      <h1 id="pageTitle">Mod</h1>
+      <p id="pageHint">上传 ZIP、登记版本；点击表格行可回填表单</p>
     </div>
     <button class="ghost" onclick="logout()">退出登录</button>
   </div>
-  <div id="toast" class="toast" hidden></div>
 
-  <div class="page on" id="tab-account">
+  <div class="page" id="tab-account">
     <div class="grid">
-      <article class="card third">
-        <h2>登录</h2>
-        <p class="hint">日常管理请用账户登录，不要把 ADMIN_TOKEN 写进浏览器。</p>
-        <label class="field">用户名</label>
-        <input id="loginUser" autocomplete="username" placeholder="用户名">
-        <label class="field">密码</label>
-        <input id="loginPassword" type="password" autocomplete="current-password" placeholder="密码">
-        <div class="actions"><button onclick="login()">登录</button></div>
-      </article>
-      <article class="card third">
-        <h2>邀请码注册</h2>
-        <p class="hint">新管理员或只读用户用邀请码开户。</p>
-        <label class="field">用户名</label>
-        <input id="registerUser" autocomplete="username" placeholder="3-32位">
-        <label class="field">密码</label>
-        <input id="registerPassword" type="password" autocomplete="new-password" placeholder="至少10位">
-        <label class="field">邀请码</label>
-        <input id="registerInvite" placeholder="inv_...">
-        <div class="actions"><button class="secondary" onclick="register()">注册</button></div>
-      </article>
-      <article class="card third">
-        <h2>邀请管理</h2>
-        <p class="hint">还没有管理员时，填写 ADMIN_TOKEN 创建第一张邀请码。已经注册过管理员后，必须先登录，ADMIN_TOKEN 会失效。</p>
-        <label class="field">ADMIN_TOKEN（仅首次部署）</label>
-        <input id="bootstrapToken" type="password" placeholder="仅在还没有管理员账户时使用">
-        <div class="three">
-          <div><label class="field">角色</label><select id="inviteRole"><option value="admin">管理员</option><option value="viewer">只读用户</option></select></div>
-          <div><label class="field">可用次数</label><input id="inviteUses" type="number" min="1" max="100" value="1"></div>
-          <div><label class="field">有效小时</label><input id="inviteHours" type="number" min="1" max="8760" value="168"></div>
+      <article class="card stretch">
+        <h2>邀请与身份</h2>
+        <p class="hint">超级管理员邀请社区管理员；社区管理员绑定 GitHub 后可邀请开发者。普通用户开放注册，开发者用邀请码激活。</p>
+        <div class="actions" style="margin-bottom:12px">
+          <button class="secondary" onclick="bindGithub()">绑定 GitHub</button>
         </div>
-        <div class="actions"><button onclick="createInvite()">创建邀请码</button></div>
-        <pre id="inviteResult">邀请码只显示一次，请安全发送给受邀用户。</pre>
+        <label class="field">开发者邀请码</label>
+        <input id="activateCode" placeholder="已注册普通用户可在此激活为开发者">
+        <div class="actions"><button class="secondary" onclick="activateDeveloper()">激活开发者</button></div>
+        <div id="inviteHostApp"></div>
       </article>
     </div>
   </div>
 
-  <div class="page" id="tab-mods">
+  <div class="page on" id="tab-mods">
     <div class="grid">
       <article class="card">
         <h2>上传 Mod ZIP</h2>
@@ -315,9 +375,22 @@
     <pre id="out">尚未读取</pre>
   </details>
 </main>
+
+<div id="inviteBox" hidden>
+  <p class="hint">还没有管理员时，填写 ADMIN_TOKEN 创建第一张邀请码。已经注册过管理员后，必须先登录，ADMIN_TOKEN 会失效。</p>
+  <label class="field">ADMIN_TOKEN（仅首次部署）</label>
+  <input id="bootstrapToken" type="password" placeholder="仅在还没有管理员账户时使用">
+  <div class="three">
+    <div><label class="field">角色</label><select id="inviteRole"><option value="community">社区管理员</option><option value="developer">开发者</option></select></div>
+    <div><label class="field">可用次数</label><input id="inviteUses" type="number" min="1" max="100" value="1"></div>
+    <div><label class="field">有效小时</label><input id="inviteHours" type="number" min="1" max="8760" value="168"></div>
+  </div>
+  <div class="actions"><button onclick="createInvite()">创建邀请码</button></div>
+  <pre id="inviteResult">邀请码只显示一次，请安全发送给受邀用户。</pre>
+</div>
 <script>
 const PAGES = {
-  account: { title: '账户', hint: '登录、邀请码注册与首次部署邀请' },
+  account: { title: '账户', hint: '邀请新管理员或只读用户' },
   mods: { title: 'Mod', hint: '上传 ZIP、登记版本；点击表格行可回填表单' },
   packs: { title: 'Pack', hint: '组装发布包。吊销与回滚会影响玩家下载' },
   servers: { title: '服务器', hint: '绑定当前 Pack，必要时紧急停发' },
@@ -334,7 +407,24 @@ const LABELS = {
   hash: '会话', count: '次数'
 };
 
+function showAuth(name) {
+  document.querySelectorAll('.auth-pane').forEach((el) => el.classList.toggle('on', el.id === 'auth-' + name));
+  document.querySelectorAll('.auth-tabs button').forEach((el) => el.classList.toggle('active', el.getAttribute('data-auth') === name));
+}
+
+function setMode(mode) {
+  document.body.classList.remove('setup', 'guest', 'authed');
+  document.body.classList.add(mode);
+  const box = document.getElementById('inviteBox');
+  const host = document.getElementById('inviteHostApp');
+  if (box && host && mode === 'authed') {
+    box.hidden = false;
+    host.appendChild(box);
+  }
+}
+
 function showTab(name) {
+  if (!document.body.classList.contains('authed')) return;
   document.querySelectorAll('.page').forEach((el) => el.classList.toggle('on', el.id === 'tab-' + name));
   document.querySelectorAll('nav button').forEach((el) => el.classList.toggle('active', el.getAttribute('data-tab') === name));
   pageTitle.textContent = PAGES[name].title;
@@ -492,14 +582,45 @@ function show(value, opts = {}) {
 }
 
 async function refreshMe() {
-  const token = savedToken();
-  if (!token) { authStatus.textContent = '尚未登录'; return; }
+  const token = localStorage.getItem('modPlatformToken');
+  if (!token) {
+    authStatus.textContent = '尚未登录';
+    return false;
+  }
   try {
     const me = await request('/api/v1/auth/me', { headers: headers() });
-    authStatus.textContent = me.user.username + ' · ' + me.user.role;
+    const labels = { superadmin: '超级管理员', community: '社区管理员', developer: '开发者', user: '普通用户' };
+    authStatus.textContent = me.user.username + ' · ' + (labels[me.user.role] || me.user.role);
+    if (me.user.role === 'community' && !me.user.githubBound) toast('社区管理员需要先绑定 GitHub', 'warn');
+    return true;
   } catch {
-    authStatus.textContent = '登录已失效';
     localStorage.removeItem('modPlatformToken');
+    authStatus.textContent = '尚未登录';
+    return false;
+  }
+}
+
+async function setupPlatform() {
+  try {
+    if (setupPassword.value !== setupPassword2.value) throw new Error('两次输入的密码不一致');
+    await request('/api/v1/setup', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token: setupToken.value, username: setupUser.value, password: setupPassword.value }) });
+    const r = await request('/api/v1/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: setupUser.value, password: setupPassword.value }) });
+    localStorage.setItem('modPlatformToken', r.token);
+    setupToken.value = '';
+    setupPassword.value = '';
+    setupPassword2.value = '';
+    window.__initialized = true;
+    await refreshMe();
+    setMode('authed');
+    show('社区已初始化');
+    showTab('mods');
+  } catch (e) {
+    const text = e.message === 'Invalid setup token'
+      ? 'ADMIN_TOKEN 不正确。'
+      : e.message === 'Platform is already initialized'
+        ? '平台已经初始化，请返回登录。'
+        : e.message;
+    show(text);
   }
 }
 
@@ -515,6 +636,7 @@ async function login() {
     }
     loginPassword.value = '';
     await refreshMe();
+    setMode('authed');
     show('登录成功');
     showTab('mods');
   } catch (e) { show(e.message); }
@@ -525,17 +647,47 @@ async function logout() {
   localStorage.removeItem('modPlatformToken');
   bootstrapToken.value = '';
   await refreshMe();
-  showTab('account');
+  setMode(window.__initialized === false ? 'setup' : 'guest');
+  showAuth('login');
   show('已退出登录');
 }
 
 async function register() {
   try {
-    const r = await request('/api/v1/auth/register', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: registerUser.value, password: registerPassword.value, inviteCode: registerInvite.value }) });
+    const r = await request('/api/v1/auth/register', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: registerUser.value, password: registerPassword.value, inviteCode: registerInvite.value || undefined }) });
+    loginUser.value = registerUser.value;
     registerPassword.value = '';
     registerInvite.value = '';
     show('注册成功，请登录');
     out.textContent = JSON.stringify({ user: r.user }, null, 2);
+    showAuth('login');
+  } catch (e) { show(e.message); }
+}
+
+async function activateDeveloper() {
+  try {
+    const r = await request('/api/v1/auth/activate', { method: 'POST', headers: headers(), body: JSON.stringify({ inviteCode: activateCode.value }) });
+    activateCode.value = '';
+    show(r, { message: '已激活为开发者' });
+    await refreshMe();
+  } catch (e) { show(e.message); }
+}
+
+async function bindGithub() {
+  try {
+    const r = await fetch('/api/v1/auth/github', { headers: { authorization: headers().authorization } });
+    if (r.status === 503) {
+      const login = prompt('未配置 GitHub OAuth。请输入 GitHub 用户名以完成开发绑定');
+      if (!login) throw new Error('已取消');
+      show(await request('/api/v1/auth/github/bind', { method: 'POST', headers: headers(), body: JSON.stringify({ id: login, login }) }), { message: '已绑定 GitHub' });
+      await refreshMe();
+      return;
+    }
+    if (r.redirected || r.status === 302) {
+      window.location.href = r.url;
+      return;
+    }
+    window.location.href = '/api/v1/auth/github';
   } catch (e) { show(e.message); }
 }
 
@@ -717,7 +869,23 @@ async function approveReview() {
   });
 })();
 
-refreshMe();
+loginPassword.addEventListener('keydown', (e) => { if (e.key === 'Enter') login(); });
+registerInvite.addEventListener('keydown', (e) => { if (e.key === 'Enter') register(); });
+setupPassword2.addEventListener('keydown', (e) => { if (e.key === 'Enter') setupPlatform(); });
+(async function boot() {
+  window.__initialized = true;
+  try {
+    const status = await request('/status');
+    window.__initialized = status.initialized !== false;
+  } catch {}
+  const ok = await refreshMe();
+  if (ok) {
+    setMode('authed');
+    showTab('mods');
+    return;
+  }
+  setMode(window.__initialized ? 'guest' : 'setup');
+})();
 </script>
 </body>
 </html>

@@ -72,7 +72,7 @@ test('requires a one-use invitation for registration and supports login sessions
   assert.match(invitation.code, /^inv_/);
 
   const registration = await jsonRequest(`${base}/api/v1/auth/register`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'Alice.Admin', password: 'correct horse battery staple', inviteCode: invitation.code }) });
-  assert.equal(registration.user.role, 'admin');
+  assert.equal(registration.user.role, 'superadmin');
   const retiredBootstrap = await fetch(`${base}/api/v1/admin/state`, { headers: { authorization: 'Bearer test-admin-token-1234' } });
   assert.equal(retiredBootstrap.status, 401);
 
@@ -89,16 +89,54 @@ test('requires a one-use invitation for registration and supports login sessions
   assert.equal(Object.values(state.users)[0].passwordHash, undefined);
   assert.equal(state.sessions.activeCount, 1);
 
-  const viewerInvite = await jsonRequest(`${base}/api/v1/invites`, { method: 'POST', headers: { ...sessionHeaders, 'content-type': 'application/json' }, body: JSON.stringify({ role: 'viewer', maxUses: 1, expiresInHours: 24 }) });
-  await jsonRequest(`${base}/api/v1/auth/register`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'ReadOnlyUser', password: 'read only secure password', inviteCode: viewerInvite.code }) });
+  await jsonRequest(`${base}/api/v1/auth/register`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'ReadOnlyUser', password: 'read only secure password' }) });
   const viewerLogin = await jsonRequest(`${base}/api/v1/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'ReadOnlyUser', password: 'read only secure password' }) });
   const viewerHeaders = { authorization: `Bearer ${viewerLogin.token}`, 'content-type': 'application/json' };
   assert.equal((await fetch(`${base}/api/v1/admin/state`, { headers: viewerHeaders })).status, 200);
   assert.equal((await fetch(`${base}/api/v1/invites`, { method: 'POST', headers: viewerHeaders, body: JSON.stringify({ role: 'admin' }) })).status, 403);
 
+  const openUser = await jsonRequest(`${base}/api/v1/auth/register`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'PlayerOne', password: 'community member password' }) });
+  assert.equal(openUser.user.role, 'user');
+
   await jsonRequest(`${base}/api/v1/auth/logout`, { method: 'POST', headers: { ...sessionHeaders, 'content-type': 'application/json' }, body: '{}' });
   const afterLogout = await fetch(`${base}/api/v1/auth/me`, { headers: sessionHeaders });
   assert.equal(afterLogout.status, 401);
+});
+
+test('community admins need a superadmin invite and GitHub bind; developers activate by invite', async (t) => {
+  const { base } = await fixture(t);
+  const bootstrap = { authorization: 'Bearer test-admin-token-1234', 'content-type': 'application/json' };
+  await jsonRequest(`${base}/api/v1/setup`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token: 'test-admin-token-1234', username: 'Owner', password: 'correct horse battery staple' }) });
+  const owner = await jsonRequest(`${base}/api/v1/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'owner', password: 'correct horse battery staple' }) });
+  const ownerHeaders = { authorization: `Bearer ${owner.token}`, 'content-type': 'application/json' };
+  const communityInvite = await jsonRequest(`${base}/api/v1/invites`, { method: 'POST', headers: ownerHeaders, body: JSON.stringify({ role: 'community', maxUses: 1, expiresInHours: 24 }) });
+  const community = await jsonRequest(`${base}/api/v1/auth/register`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'CommAdmin', password: 'community admin password', inviteCode: communityInvite.code }) });
+  assert.equal(community.user.role, 'community');
+  const communityLogin = await jsonRequest(`${base}/api/v1/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'commadmin', password: 'community admin password' }) });
+  const communityHeaders = { authorization: `Bearer ${communityLogin.token}`, 'content-type': 'application/json' };
+  assert.equal((await fetch(`${base}/api/v1/invites`, { method: 'POST', headers: communityHeaders, body: JSON.stringify({ role: 'developer' }) })).status, 403);
+  const bound = await jsonRequest(`${base}/api/v1/auth/github/bind`, { method: 'POST', headers: communityHeaders, body: JSON.stringify({ id: '12345', login: 'comm-admin' }) });
+  assert.equal(bound.user.githubBound, true);
+  const developerInvite = await jsonRequest(`${base}/api/v1/invites`, { method: 'POST', headers: communityHeaders, body: JSON.stringify({ role: 'developer', maxUses: 1, expiresInHours: 24 }) });
+  assert.equal((await fetch(`${base}/api/v1/invites`, { method: 'POST', headers: communityHeaders, body: JSON.stringify({ role: 'community' }) })).status, 403);
+  const player = await jsonRequest(`${base}/api/v1/auth/register`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'Modder', password: 'regular user password' }) });
+  assert.equal(player.user.role, 'user');
+  const playerLogin = await jsonRequest(`${base}/api/v1/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'modder', password: 'regular user password' }) });
+  const activated = await jsonRequest(`${base}/api/v1/auth/activate`, { method: 'POST', headers: { authorization: `Bearer ${playerLogin.token}`, 'content-type': 'application/json' }, body: JSON.stringify({ inviteCode: developerInvite.code }) });
+  assert.equal(activated.user.role, 'developer');
+});
+
+test('setup page creates the first community admin then retires the token', async (t) => {
+  const { base } = await fixture(t, { bootstrapDisabled: true, allowBootstrapAdmin: false });
+  const status = await jsonRequest(`${base}/status`);
+  assert.equal(status.initialized, false);
+  assert.equal((await fetch(`${base}/api/v1/setup`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token: 'wrong-token-value', username: 'Owner', password: 'correct horse battery staple' }) })).status, 401);
+  const created = await jsonRequest(`${base}/api/v1/setup`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token: 'test-admin-token-1234', username: 'Owner', password: 'correct horse battery staple' }) });
+  assert.equal(created.user.role, 'superadmin');
+  assert.equal((await jsonRequest(`${base}/status`)).initialized, true);
+  assert.equal((await fetch(`${base}/api/v1/setup`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token: 'test-admin-token-1234', username: 'Second', password: 'another secure password' }) })).status, 409);
+  const login = await jsonRequest(`${base}/api/v1/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'owner', password: 'correct horse battery staple' }) });
+  assert.ok(login.token);
 });
 
 test('production bootstrap token can create the first invite then retires', async (t) => {

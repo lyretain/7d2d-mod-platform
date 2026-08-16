@@ -30,6 +30,8 @@ node apps/api/src/server.js
 | `PORT` | API 端口 |
 | `PUBLIC_BASE_URL` | manifest 中使用的公网 HTTPS 地址 |
 | `ADMIN_TOKEN` | 后台管理员令牌，至少 16 位 |
+| `GITHUB_CLIENT_ID` | 社区管理员 GitHub OAuth 应用 ID |
+| `GITHUB_CLIENT_SECRET` | 社区管理员 GitHub OAuth 应用密钥 |
 | `ALLOW_BOOTSTRAP_ADMIN` | 首个用户注册后是否继续允许 `ADMIN_TOKEN` 登录，默认 `false` |
 | `DATA_DIR` | 数据、Mod 文件和开发签名密钥目录 |
 | `SIGNING_PRIVATE_KEY` | Base64 PKCS#8 Ed25519 私钥；生产环境必须提供，或改用 `SIGNING_SERVICE_URL` |
@@ -93,10 +95,10 @@ Invoke-RestMethod http://localhost:8080/health
 
 ## 五、后台使用顺序
 
-1. 进入管理页面，在首次部署区域填写 `ADMIN_TOKEN`。
-2. 创建一个单次使用、管理员角色的邀请码。
-3. 使用邀请码注册首个管理员账户。
-4. 使用用户名和密码登录。首个账户创建后，引导令牌默认失效。
+1. 未初始化时首页只显示初始化页。填写 `ADMIN_TOKEN` 和首位管理员账户。
+2. 完成后自动登录运营后台，引导令牌默认失效。
+3. 之后访客看到的是社区登录/邀请码注册页，不再露出 `ADMIN_TOKEN`。
+4. 已登录超级管理员可邀请社区管理员；社区管理员绑定 GitHub 后可邀请开发者。普通用户开放注册。
 5. 上传 ZIP，获得 SHA-256。
 6. 注册 Mod 版本。
 7. 填写支持的游戏版本，例如 `3.0.1-b4`。

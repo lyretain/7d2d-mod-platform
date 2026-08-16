@@ -59,6 +59,8 @@ export async function consumeRateLimit(store, { key, limit, windowMs }) {
 export function routeLimit(pathname, method) {
   if (method === 'POST' && pathname === '/api/v1/auth/login') return { key: 'login', limit: 40, windowMs: 15 * 60_000 };
   if (method === 'POST' && pathname === '/api/v1/auth/register') return { key: 'register', limit: 40, windowMs: 60 * 60_000 };
+  if (method === 'POST' && pathname === '/api/v1/setup') return { key: 'setup', limit: 10, windowMs: 60 * 60_000 };
+  if (method === 'POST' && pathname === '/api/v1/auth/activate') return { key: 'activate', limit: 40, windowMs: 60 * 60_000 };
   if (method === 'POST' && pathname === '/api/v1/invites') return { key: 'invite', limit: 30, windowMs: 60 * 60_000 };
   if (method === 'POST' && pathname === '/api/v1/diagnostics') return { key: 'diagnostics', limit: 60, windowMs: 60_000 };
   if (method === 'GET' && pathname.startsWith('/api/v1/public/artifacts/')) return { key: 'download', limit: 120, windowMs: 60_000 };

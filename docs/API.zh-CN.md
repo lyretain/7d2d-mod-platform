@@ -13,10 +13,14 @@ Authorization: Bearer <ADMIN_TOKEN>
 | GET | `/health` | 公开 | 健康检查 |
 | GET | `/health/live` | 公开 | 存活检查 |
 | GET | `/health/ready` | 公开 | 就绪检查（数据库、对象存储、签名） |
-| GET | `/status` | 公开 | 维护公告与停发状态 |
+| GET | `/status` | 公开 | 维护公告、停发状态，以及是否已完成初始化 |
+| POST | `/api/v1/setup` | 引导令牌 | 未初始化时创建首位社区管理员 |
 | GET | `/metrics` | 登录用户 | 请求量、延迟、登录失败、崩溃率 |
 | GET | `/api/v1/public-key` | 公开 | 获取 Ed25519 公钥和钥匙环 |
-| POST | `/api/v1/auth/register` | 邀请码 | 注册账户 |
+| POST | `/api/v1/auth/register` | 公开 | 注册普通用户；携带社区/开发者邀请码则获得对应角色 |
+| POST | `/api/v1/auth/activate` | 普通用户 | 用开发者邀请码激活 |
+| GET | `/api/v1/auth/github` | 登录用户 | 跳转 GitHub OAuth，社区管理员必须绑定 |
+| POST | `/api/v1/auth/github/bind` | 登录用户 | 开发环境绑定 GitHub 资料 |
 | POST | `/api/v1/auth/login` | 公开 | 登录；启用 2FA 时返回 `requiresTotp` |
 | POST | `/api/v1/auth/login/totp` | 公开 | 用 TOTP 或恢复码完成登录 |
 | POST | `/api/v1/auth/logout` | 登录用户 | 注销当前会话 |
@@ -71,6 +75,20 @@ Authorization: Bearer <ADMIN_TOKEN>
 | GET | `/api/v1/public/servers/resolve?address=host:port` | 公开 | 根据服务器地址解析 ModPack |
 | GET | `/api/v1/servers/{id}/assignment` | 服务端令牌 | 获取服务器分配和心跳 |
 | POST | `/api/v1/diagnostics` | 公开、受限流保护 | 上传诊断事件 |
+
+## 初始化
+
+未创建任何用户时，`GET /status` 的 `initialized` 为 `false`，首页只提供初始化页。
+
+```json
+{
+  "token": "<ADMIN_TOKEN>",
+  "username": "Owner",
+  "password": "correct horse battery staple"
+}
+```
+
+`POST /api/v1/setup` 只允许调用一次。成功后首位账户为管理员，引导令牌默认停用。
 
 ## 邀请注册与登录
 

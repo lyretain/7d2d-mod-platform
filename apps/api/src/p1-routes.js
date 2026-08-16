@@ -6,20 +6,19 @@ import { notify } from './alerts.js';
 import { referencedHashes } from './objects.js';
 import { recordAudit } from './protocol.js';
 import { json, now, problem, readJson, requireFields } from './util.js';
+import { can, denyReason } from './roles.js';
 
 export async function handleP1(req, res, ctx) {
   const { pathname, store, auth, signing, objects, metrics, config } = ctx;
   const principal = () => auth.principal(req);
-  const requireAdmin = () => {
+  const requirePerm = (permission) => {
     const user = principal();
-    if (!user) {
-      problem(res, 401, 'UNAUTHORIZED', 'Login required');
-      return false;
-    }
-    if (user.role === 'admin') return true;
-    problem(res, 403, 'FORBIDDEN', 'Administrator role required');
-    return false;
+    const reason = denyReason(user, permission);
+    if (!reason) return user;
+    problem(res, user ? 403 : 401, user ? 'FORBIDDEN' : 'UNAUTHORIZED', reason === 'GitHub binding required' ? 'Community admins must bind GitHub first' : (user ? 'Insufficient role' : 'Login required'));
+    return null;
   };
+  const requireAdmin = () => requirePerm('platform.manage');
   const requireUser = () => {
     const user = principal();
     if (user) return user;
@@ -46,7 +45,8 @@ export async function handleP1(req, res, ctx) {
     return json(res, 200, {
       status: snapshot.maintenance?.enabled ? 'maintenance' : 'ok',
       message: snapshot.maintenance?.message || null,
-      distributionPaused: Boolean(snapshot.settings?.distributionPaused)
+      distributionPaused: Boolean(snapshot.settings?.distributionPaused),
+      initialized: Object.keys(snapshot.users || {}).length > 0
     }), true;
   }
 
@@ -61,12 +61,12 @@ export async function handleP1(req, res, ctx) {
     return json(res, 200, await auth.consumePasswordReset(body.token, body.password)), true;
   }
   if (req.method === 'GET' && pathname === '/api/v1/users') {
-    if (!requireAdmin()) return true;
+    if (!requirePerm('users.manage')) return true;
     return json(res, 200, { users: await auth.listUsers() }), true;
   }
   const userMatch = pathname.match(/^\/api\/v1\/users\/([^/]+)$/);
   if (req.method === 'PATCH' && userMatch) {
-    if (!requireAdmin()) return true;
+    if (!requirePerm('users.manage')) return true;
     const body = await readJson(req, 32 * 1024);
     const actor = principal().username;
     let result = null;
@@ -84,13 +84,13 @@ export async function handleP1(req, res, ctx) {
   }
   const userReset = pathname.match(/^\/api\/v1\/users\/([^/]+)\/reset$/);
   if (req.method === 'POST' && userReset) {
-    if (!requireAdmin()) return true;
+    if (!requirePerm('users.manage')) return true;
     return json(res, 201, await auth.createPasswordReset(userReset[1], principal().username)), true;
   }
   if (req.method === 'GET' && pathname === '/api/v1/sessions') {
     const user = requireUser();
     if (!user) return true;
-    return json(res, 200, { sessions: auth.listSessions(user.role === 'admin' ? undefined : user.id) }), true;
+    return json(res, 200, { sessions: auth.listSessions(can(user, 'users.manage') ? undefined : user.id) }), true;
   }
   const sessionMatch = pathname.match(/^\/api\/v1\/sessions\/([^/]+)$/);
   if (req.method === 'DELETE' && sessionMatch) {
@@ -99,7 +99,7 @@ export async function handleP1(req, res, ctx) {
   }
   const userSessions = pathname.match(/^\/api\/v1\/users\/([^/]+)\/sessions$/);
   if (req.method === 'DELETE' && userSessions) {
-    if (!requireAdmin()) return true;
+    if (!requirePerm('users.manage')) return true;
     return json(res, 200, await auth.revokeUserSessions(userSessions[1], principal().username)), true;
   }
   if (req.method === 'POST' && pathname === '/api/v1/auth/totp/setup') {
@@ -121,7 +121,7 @@ export async function handleP1(req, res, ctx) {
   }
   const reviewMatch = pathname.match(/^\/api\/v1\/reviews\/([a-f0-9]{64})$/);
   if (req.method === 'POST' && reviewMatch) {
-    if (!requireAdmin()) return true;
+    if (!requirePerm('review.approve')) return true;
     const body = await readJson(req, 32 * 1024);
     const result = await store.mutate((draft) => {
       const review = draft.reviews[reviewMatch[1]];

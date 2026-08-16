@@ -62,8 +62,7 @@ test('viewer cannot manage users and disabled accounts cannot login', async (t) 
   await jsonRequest(`${base}/api/v1/auth/register`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'Boss', password: 'correct horse battery staple', inviteCode: adminInvite.code }) });
   const adminLogin = await jsonRequest(`${base}/api/v1/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'boss', password: 'correct horse battery staple' }) });
   const adminHeaders = { authorization: `Bearer ${adminLogin.token}`, 'content-type': 'application/json' };
-  const viewerInvite = await jsonRequest(`${base}/api/v1/invites`, { method: 'POST', headers: adminHeaders, body: JSON.stringify({ role: 'viewer', maxUses: 1, expiresInHours: 24 }) });
-  const viewer = await jsonRequest(`${base}/api/v1/auth/register`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'Looker', password: 'read only secure password', inviteCode: viewerInvite.code }) });
+  const viewer = await jsonRequest(`${base}/api/v1/auth/register`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'Looker', password: 'read only secure password' }) });
   const viewerLogin = await jsonRequest(`${base}/api/v1/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'looker', password: 'read only secure password' }) });
   assert.equal((await fetch(`${base}/api/v1/users`, { headers: { authorization: `Bearer ${viewerLogin.token}` } })).status, 403);
   await jsonRequest(`${base}/api/v1/users/${viewer.user.id}`, { method: 'PATCH', headers: adminHeaders, body: JSON.stringify({ disabled: true }) });

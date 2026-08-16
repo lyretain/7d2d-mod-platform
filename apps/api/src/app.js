@@ -15,6 +15,8 @@ import { consumeRateLimit, inspectRequest, routeLimit, securityHeaders } from '.
 import { notify } from './alerts.js';
 import { recordDownload, requireConfirm } from './catalog.js';
 import { artifactPublicUrl, cloudflareCacheHeaders, manifestPublicUrl, purgeCloudflare } from './cloudflare.js';
+import { denyReason, describePrincipal } from './roles.js';
+import { exchangeGithubCode, githubAuthorizeUrl } from './github.js';
 
 const ADMIN_HTML_V2 = readFileSync(new URL('./admin.html', import.meta.url), 'utf8');
 
@@ -53,14 +55,16 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
   const artifactBase = (cdnBaseUrl || publicBaseUrl || '').replace(/\/$/, '');
   const metricsApi = metrics || { snapshot: () => ({}), observe() {} };
 
-  function isAdmin(req) {
-    return auth.principal(req)?.role === 'admin';
+  function requirePerm(req, res, permission) {
+    const user = auth.principal(req);
+    const reason = denyReason(user, permission);
+    if (!reason) return user;
+    problem(res, user ? 403 : 401, user ? 'FORBIDDEN' : 'UNAUTHORIZED', reason === 'GitHub binding required' ? 'Community admins must bind GitHub first' : (user ? 'Insufficient role' : 'Login required'));
+    return null;
   }
 
   function requireAdmin(req, res) {
-    if (isAdmin(req)) return true;
-    problem(res, 401, 'UNAUTHORIZED', 'Administrator token required');
-    return false;
+    return Boolean(requirePerm(req, res, 'platform.manage'));
   }
 
   function requireUser(req, res) {
@@ -94,9 +98,17 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
       if (req.method === 'GET' && pathname === '/health') return json(res, 200, { status: 'ok', time: now() });
       if (req.method === 'GET' && pathname === '/api/v1/public-key') return json(res, 200, signing.publicJwk());
 
+      if (req.method === 'POST' && pathname === '/api/v1/setup') {
+        const body = await readJson(req, 32 * 1024);
+        requireFields(body, ['token', 'username', 'password']);
+        const user = await auth.setupFirstAdmin(body);
+        metricsApi.observe('setup');
+        return json(res, 201, { initialized: true, user });
+      }
+
       if (req.method === 'POST' && pathname === '/api/v1/auth/register') {
         const body = await readJson(req, 32 * 1024);
-        requireFields(body, ['username', 'password', 'inviteCode']);
+        requireFields(body, ['username', 'password']);
         const user = await auth.register(body);
         metricsApi.observe('register');
         return json(res, 201, { user });
@@ -121,27 +133,63 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
       if (req.method === 'GET' && pathname === '/api/v1/auth/me') {
         const user = auth.principal(req);
         if (!user) return problem(res, 401, 'UNAUTHORIZED', 'Login required');
-        return json(res, 200, { user: { id: user.id, username: user.username, role: user.role, bootstrap: user.bootstrap } });
+        return json(res, 200, { user: describePrincipal(user) });
+      }
+
+      if (req.method === 'POST' && pathname === '/api/v1/auth/activate') {
+        const user = requireUser(req, res);
+        if (!user) return;
+        const body = await readJson(req, 32 * 1024);
+        requireFields(body, ['inviteCode']);
+        return json(res, 200, { user: await auth.activateDeveloper(user.id, body.inviteCode) });
+      }
+
+      if (req.method === 'GET' && pathname === '/api/v1/auth/github') {
+        const user = requireUser(req, res);
+        if (!user) return;
+        if (!config.githubClientId) return problem(res, 503, 'GITHUB_NOT_CONFIGURED', 'GitHub OAuth is not configured');
+        const state = await auth.createGithubState(user.id);
+        const redirectUri = `${publicBaseUrl.replace(/\/$/, '')}/api/v1/auth/github/callback`;
+        res.writeHead(302, { location: githubAuthorizeUrl({ clientId: config.githubClientId, redirectUri, state }) });
+        return res.end();
+      }
+
+      if (req.method === 'GET' && pathname === '/api/v1/auth/github/callback') {
+        const pending = auth.consumeGithubState(url.searchParams.get('state'));
+        if (!pending) return problem(res, 401, 'UNAUTHORIZED', 'GitHub state is invalid');
+        const redirectUri = `${publicBaseUrl.replace(/\/$/, '')}/api/v1/auth/github/callback`;
+        const profile = await exchangeGithubCode({ clientId: config.githubClientId, clientSecret: config.githubClientSecret, code: url.searchParams.get('code'), redirectUri });
+        await auth.bindGithub(pending.userId, profile);
+        res.writeHead(302, { location: `${publicBaseUrl.replace(/\/$/, '')}/?github=bound` });
+        return res.end();
+      }
+
+      if (req.method === 'POST' && pathname === '/api/v1/auth/github/bind') {
+        const user = requireUser(req, res);
+        if (!user) return;
+        if (config.githubClientId && config.production) return problem(res, 400, 'USE_OAUTH', 'Use GitHub OAuth to bind this account');
+        const body = await readJson(req, 32 * 1024);
+        requireFields(body, ['id', 'login']);
+        return json(res, 200, { user: await auth.bindGithub(user.id, body) });
       }
 
       if (req.method === 'POST' && pathname === '/api/v1/invites') {
         const principal = auth.principal(req);
         if (!principal) return problem(res, 401, 'UNAUTHORIZED', 'Login required');
-        if (principal.role !== 'admin') return problem(res, 403, 'FORBIDDEN', 'Administrator role required');
         const body = await readJson(req, 32 * 1024);
-        const result = await auth.createInvite({ ...body, createdBy: principal.id });
+        const result = await auth.createInvite({ ...body, createdBy: principal.id, actor: principal });
         metricsApi.observe('invites');
         return json(res, 201, result);
       }
 
       if (req.method === 'GET' && pathname === '/api/v1/invites') {
-        if (!requireAdmin(req, res)) return;
+        if (!requirePerm(req, res, 'invite.developer')) return;
         return json(res, 200, { invites: auth.listInvites() });
       }
 
       const revokeInviteMatch = pathname.match(/^\/api\/v1\/invites\/([^/]+)$/);
       if (req.method === 'DELETE' && revokeInviteMatch) {
-        if (!requireAdmin(req, res)) return;
+        if (!requirePerm(req, res, 'invite.developer')) return;
         if (!await auth.revokeInvite(revokeInviteMatch[1])) return problem(res, 404, 'INVITE_NOT_FOUND', 'Invitation was not found');
         return json(res, 200, { revoked: true });
       }
@@ -160,7 +208,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
 
       const artifactMatch = pathname.match(/^\/api\/v1\/artifacts\/([a-f0-9]{64})$/);
       if (req.method === 'PUT' && artifactMatch) {
-        if (!requireAdmin(req, res)) return;
+        if (!requirePerm(req, res, 'catalog.write')) return;
         const expected = artifactMatch[1];
         await mkdir(objectDir, { recursive: true });
         const target = path.join(objectDir, expected);
@@ -213,7 +261,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
       }
 
       if (req.method === 'POST' && pathname === '/api/v1/mods') {
-        if (!requireAdmin(req, res)) return;
+        if (!requirePerm(req, res, 'catalog.write')) return;
         const body = await readJson(req);
         requireFields(body, ['id', 'name', 'version', 'artifactSha']);
         if (!isSafeId(body.id) || !isSafeId(body.version) || !/^[a-f0-9]{64}$/.test(body.artifactSha)) throw Object.assign(new Error('Invalid id, version, or SHA-256'), { code: 'VALIDATION' });
@@ -244,7 +292,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
       }
 
       if (req.method === 'POST' && pathname === '/api/v1/packs') {
-        if (!requireAdmin(req, res)) return;
+        if (!requirePerm(req, res, 'pack.publish')) return;
         const body = await readJson(req);
         requireFields(body, ['id', 'name', 'gameVersion', 'entries']);
         if (!isSafeId(body.id) || !Array.isArray(body.entries)) throw Object.assign(new Error('Invalid pack'), { code: 'VALIDATION' });
@@ -269,7 +317,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
 
       const releaseMatch = pathname.match(/^\/api\/v1\/packs\/([^/]+)\/releases$/);
       if (req.method === 'POST' && releaseMatch) {
-        if (!requireAdmin(req, res)) return;
+        if (!requirePerm(req, res, 'pack.publish')) return;
         const snapshot = store.snapshot();
         const pack = snapshot.packs[releaseMatch[1]];
         if (!pack) return problem(res, 404, 'PACK_NOT_FOUND', 'ModPack was not found');
@@ -347,7 +395,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
 
       const revokeMatch = pathname.match(/^\/api\/v1\/packs\/([^/]+)\/releases\/([^/]+)\/revoke$/);
       if (req.method === 'POST' && revokeMatch) {
-        if (!requireAdmin(req, res)) return;
+        if (!requirePerm(req, res, 'pack.publish')) return;
         const body = await readJson(req, 32 * 1024);
         const principal = auth.principal(req);
         const result = await store.mutate((draft) => {
@@ -367,7 +415,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
 
       const rollbackMatch = pathname.match(/^\/api\/v1\/packs\/([^/]+)\/rollback$/);
       if (req.method === 'POST' && rollbackMatch) {
-        if (!requireAdmin(req, res)) return;
+        if (!requirePerm(req, res, 'pack.publish')) return;
         const body = await readJson(req, 32 * 1024);
         requireFields(body, ['releaseId']);
         const principal = auth.principal(req);
@@ -388,7 +436,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
       }
 
       if (req.method === 'POST' && pathname === '/api/v1/servers') {
-        if (!requireAdmin(req, res)) return;
+        if (!requirePerm(req, res, 'server.manage')) return;
         const body = await readJson(req);
         requireFields(body, ['name', 'packId']);
         if (!store.snapshot().packs[body.packId]) throw Object.assign(new Error('Unknown packId'), { code: 'VALIDATION' });
@@ -430,7 +478,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
 
       const serverPatch = pathname.match(/^\/api\/v1\/servers\/([^/]+)$/);
       if (req.method === 'PATCH' && serverPatch) {
-        if (!requireAdmin(req, res)) return;
+        if (!requirePerm(req, res, 'server.manage')) return;
         const body = await readJson(req, 32 * 1024);
         const principal = auth.principal(req);
         const result = await store.mutate((draft) => {
@@ -475,7 +523,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
       }
 
       if (req.method === 'POST' && pathname === '/api/v1/admin/distribution') {
-        if (!requireAdmin(req, res)) return;
+        if (!requirePerm(req, res, 'platform.manage')) return;
         const body = await readJson(req, 32 * 1024);
         const principal = auth.principal(req);
         const settings = await store.mutate((draft) => {
@@ -517,6 +565,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
       if (error.code === 'INVALID_CREDENTIALS') return problem(res, 401, error.code, error.message);
       if (error.code === 'RATE_LIMITED') return problem(res, 429, error.code, error.message);
       if (error.code === 'CONFLICT') return problem(res, 409, error.code, error.message);
+      if (error.code === 'FORBIDDEN') return problem(res, 403, error.code, error.message);
       if (error.code === 'INVALID_INVITE') return problem(res, 422, error.code, error.message);
       if (error.code === 'INVALID_JSON' || error.code === 'VALIDATION') return problem(res, 422, error.code, error.message, error.details);
       console.error(error);

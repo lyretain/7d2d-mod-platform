@@ -4,6 +4,7 @@ import { bearer, id, now } from './util.js';
 import { consumeRateLimit } from './security.js';
 import { generateRecoveryCodes, generateTotpSecret, verifyTotp } from './totp.js';
 import { recordAudit } from './protocol.js';
+import { canInviteRole, describePrincipal, normalizeRole } from './roles.js';
 
 const scrypt = promisify(scryptCallback);
 const USERNAME = /^[a-zA-Z0-9][a-zA-Z0-9_.-]{2,31}$/;
@@ -50,12 +51,12 @@ export function createAuthService({ store, bootstrapToken, allowBootstrapAfterSe
     const snapshot = store.snapshot();
     const noUsers = Object.keys(snapshot.users).length === 0;
     const bootstrapAllowed = noUsers || (allowBootstrapAfterSetup && !bootstrapDisabled);
-    if (bootstrapToken && token === bootstrapToken && bootstrapAllowed) return { id: 'bootstrap', username: 'bootstrap', role: 'admin', bootstrap: true };
+    if (bootstrapToken && token === bootstrapToken && bootstrapAllowed) return { id: 'bootstrap', username: 'bootstrap', role: 'superadmin', bootstrap: true, githubId: 'bootstrap', githubLogin: 'bootstrap' };
     const session = snapshot.sessions[tokenHash(token)];
     if (!session || Date.parse(session.expiresAt) <= Date.now()) return null;
     const user = snapshot.users[session.userId];
     if (!user || user.disabledAt) return null;
-    return { id: user.id, username: user.username, role: user.role, bootstrap: false, sessionHash: tokenHash(token) };
+    return { id: user.id, username: user.username, role: normalizeRole(user.role), bootstrap: false, sessionHash: tokenHash(token), githubId: user.githubId || null, githubLogin: user.githubLogin || null };
   }
 
   async function allowLogin(req, username) {
@@ -63,15 +64,16 @@ export function createAuthService({ store, bootstrapToken, allowBootstrapAfterSe
     return consumeRateLimit(store, { key: `login:${address}|${normalizedUsername(username)}`, limit: 8, windowMs: 15 * 60 * 1000 });
   }
 
-  async function createInvite({ createdBy, role = 'admin', maxUses = 1, expiresInHours = 168, code }) {
-    if (!['admin', 'viewer'].includes(role)) throw Object.assign(new Error('Invite role must be admin or viewer'), { code: 'VALIDATION' });
+  async function createInvite({ createdBy, actor, role = 'developer', maxUses = 1, expiresInHours = 168, code }) {
+    const normalized = normalizeRole(role);
+    if (!canInviteRole(actor, normalized)) throw Object.assign(new Error('This account cannot issue that invitation'), { code: 'FORBIDDEN' });
     const uses = Number(maxUses);
     const hours = Number(expiresInHours);
     if (!Number.isInteger(uses) || uses < 1 || uses > 100 || !Number.isFinite(hours) || hours < 1 || hours > 8760) throw Object.assign(new Error('Invalid invite limits'), { code: 'VALIDATION' });
     const rawCode = code || `inv_${randomBytes(24).toString('base64url')}`;
     if (rawCode.length < 12 || rawCode.length > 256) throw Object.assign(new Error('Invite code must contain 12 to 256 characters'), { code: 'VALIDATION' });
     const invite = {
-      id: id('invite'), codeHash: tokenHash(rawCode), role, maxUses: uses, usedCount: 0,
+      id: id('invite'), codeHash: tokenHash(rawCode), role: normalized, maxUses: uses, usedCount: 0,
       createdBy, createdAt: now(), expiresAt: new Date(Date.now() + hours * 3600_000).toISOString(), revokedAt: null
     };
     await store.mutate((draft) => { draft.invites[invite.id] = invite; });
@@ -81,17 +83,44 @@ export function createAuthService({ store, bootstrapToken, allowBootstrapAfterSe
   async function register({ username, password, inviteCode }) {
     const normalized = normalizedUsername(username);
     if (!USERNAME.test(String(username || '').trim())) throw Object.assign(new Error('Username must be 3-32 characters using letters, numbers, dot, underscore or dash'), { code: 'VALIDATION' });
-    if (typeof inviteCode !== 'string' || !inviteCode) throw Object.assign(new Error('Invitation code is required'), { code: 'VALIDATION' });
     const passwordHash = await hashPassword(password);
-    const codeHash = tokenHash(inviteCode);
     return store.mutate((draft) => {
       if (Object.values(draft.users).some((user) => user.normalizedUsername === normalized)) throw Object.assign(new Error('Username is already registered'), { code: 'CONFLICT' });
-      const invite = Object.values(draft.invites).find((item) => item.codeHash === codeHash);
-      if (!invite || invite.revokedAt || Date.parse(invite.expiresAt) <= Date.now() || invite.usedCount >= invite.maxUses) throw Object.assign(new Error('Invitation code is invalid, expired or fully used'), { code: 'INVALID_INVITE' });
-      const user = { id: id('usr'), username: String(username).trim(), normalizedUsername: normalized, passwordHash, role: invite.role, createdAt: now(), invitedBy: invite.createdBy, disabledAt: null };
-      invite.usedCount += 1;
-      invite.lastUsedAt = now();
+      let role = 'user';
+      let invitedBy = null;
+      if (inviteCode) {
+        const invite = Object.values(draft.invites).find((item) => item.codeHash === tokenHash(inviteCode));
+        if (!invite || invite.revokedAt || Date.parse(invite.expiresAt) <= Date.now() || invite.usedCount >= invite.maxUses) throw Object.assign(new Error('Invitation code is invalid, expired or fully used'), { code: 'INVALID_INVITE' });
+        role = normalizeRole(invite.role);
+        invitedBy = invite.createdBy;
+        invite.usedCount += 1;
+        invite.lastUsedAt = now();
+      }
+      const user = { id: id('usr'), username: String(username).trim(), normalizedUsername: normalized, passwordHash, role, createdAt: now(), invitedBy, disabledAt: null, githubId: null, githubLogin: null };
       draft.users[user.id] = user;
+      return { id: user.id, username: user.username, role: user.role, createdAt: user.createdAt, githubBound: false };
+    });
+  }
+
+  async function setupFirstAdmin({ token, username, password }) {
+    if (!bootstrapToken || token !== bootstrapToken) throw Object.assign(new Error('Invalid setup token'), { code: 'INVALID_CREDENTIALS' });
+    const normalized = normalizedUsername(username);
+    if (!USERNAME.test(String(username || '').trim())) throw Object.assign(new Error('Username must be 3-32 characters using letters, numbers, dot, underscore or dash'), { code: 'VALIDATION' });
+    const passwordHash = await hashPassword(password);
+    return store.mutate((draft) => {
+      if (Object.keys(draft.users).length > 0) throw Object.assign(new Error('Platform is already initialized'), { code: 'CONFLICT' });
+      const user = {
+        id: id('usr'),
+        username: String(username).trim(),
+        normalizedUsername: normalized,
+        passwordHash,
+        role: 'superadmin',
+        createdAt: now(),
+        invitedBy: 'bootstrap',
+        disabledAt: null
+      };
+      draft.users[user.id] = user;
+      recordAudit(draft, { actor: 'bootstrap', action: 'setup.initialize', target: user.id, details: { username: user.username } });
       return { id: user.id, username: user.username, role: user.role, createdAt: user.createdAt };
     });
   }
@@ -122,7 +151,7 @@ export function createAuthService({ store, bootstrapToken, allowBootstrapAfterSe
       for (const [key, value] of Object.entries(draft.sessions)) if (Date.parse(value.expiresAt) <= Date.now()) delete draft.sessions[key];
       draft.sessions[tokenHash(token)] = session;
     });
-    return { token, expiresAt: session.expiresAt, user: { id: user.id, username: user.username, role: user.role } };
+    return { token, expiresAt: session.expiresAt, user: describePrincipal({ ...user, role: normalizeRole(user.role) }) };
   }
 
   async function logout(req) {
@@ -159,7 +188,67 @@ export function createAuthService({ store, bootstrapToken, allowBootstrapAfterSe
   }
 
   function publicUser(user) {
-    return { id: user.id, username: user.username, role: user.role, createdAt: user.createdAt, disabledAt: user.disabledAt || null, totpEnabled: Boolean(user.totpEnabled) };
+    return {
+      id: user.id,
+      username: user.username,
+      role: normalizeRole(user.role),
+      createdAt: user.createdAt,
+      disabledAt: user.disabledAt || null,
+      totpEnabled: Boolean(user.totpEnabled),
+      githubBound: Boolean(user.githubId),
+      githubLogin: user.githubLogin || null
+    };
+  }
+
+  async function activateDeveloper(userId, inviteCode) {
+    if (!inviteCode) throw Object.assign(new Error('Invitation code is required'), { code: 'VALIDATION' });
+    return store.mutate((draft) => {
+      const user = draft.users[userId];
+      if (!user) throw Object.assign(new Error('User was not found'), { code: 'VALIDATION' });
+      if (normalizeRole(user.role) !== 'user') throw Object.assign(new Error('Only regular users can activate a developer invite'), { code: 'VALIDATION' });
+      const invite = Object.values(draft.invites).find((item) => item.codeHash === tokenHash(inviteCode));
+      if (!invite || normalizeRole(invite.role) !== 'developer' || invite.revokedAt || Date.parse(invite.expiresAt) <= Date.now() || invite.usedCount >= invite.maxUses) {
+        throw Object.assign(new Error('Invitation code is invalid, expired or fully used'), { code: 'INVALID_INVITE' });
+      }
+      invite.usedCount += 1;
+      invite.lastUsedAt = now();
+      user.role = 'developer';
+      user.invitedBy = invite.createdBy;
+      recordAudit(draft, { actor: user.username, action: 'user.activate_developer', target: user.id });
+      return publicUser(user);
+    });
+  }
+
+  async function bindGithub(userId, { id: githubId, login }) {
+    if (!githubId || !login) throw Object.assign(new Error('GitHub profile is incomplete'), { code: 'VALIDATION' });
+    return store.mutate((draft) => {
+      const user = draft.users[userId];
+      if (!user) throw Object.assign(new Error('User was not found'), { code: 'VALIDATION' });
+      if (Object.values(draft.users).some((item) => item.id !== userId && item.githubId === String(githubId))) {
+        throw Object.assign(new Error('This GitHub account is already bound'), { code: 'CONFLICT' });
+      }
+      user.githubId = String(githubId);
+      user.githubLogin = String(login);
+      recordAudit(draft, { actor: user.username, action: 'user.github.bind', target: user.id, details: { login } });
+      return publicUser(user);
+    });
+  }
+
+  async function createGithubState(userId) {
+    const state = randomBytes(16).toString('hex');
+    await store.mutate((draft) => {
+      draft.oauthStates = draft.oauthStates || {};
+      draft.oauthStates[state] = { userId, expiresAt: new Date(Date.now() + 10 * 60_000).toISOString() };
+    });
+    return state;
+  }
+
+  function consumeGithubState(state) {
+    const snapshot = store.snapshot();
+    const pending = snapshot.oauthStates?.[state];
+    if (!pending || Date.parse(pending.expiresAt) <= Date.now()) return null;
+    store.mutate((draft) => { if (draft.oauthStates) delete draft.oauthStates[state]; }).catch(() => {});
+    return pending;
   }
 
   async function listUsers() {
@@ -178,7 +267,9 @@ export function createAuthService({ store, bootstrapToken, allowBootstrapAfterSe
   }
 
   async function setUserRole(userId, role, actor) {
-    if (!['admin', 'viewer'].includes(role)) throw Object.assign(new Error('Invalid role'), { code: 'VALIDATION' });
+    const normalized = normalizeRole(role);
+    if (!['community', 'developer', 'user'].includes(normalized)) throw Object.assign(new Error('Invalid role'), { code: 'VALIDATION' });
+    role = normalized;
     return store.mutate((draft) => {
       const user = draft.users[userId];
       if (!user) return null;
@@ -259,7 +350,7 @@ export function createAuthService({ store, bootstrapToken, allowBootstrapAfterSe
   }
 
   return {
-    principal, createInvite, register, login, logout, revokeInvite, listInvites,
+    principal, createInvite, register, setupFirstAdmin, activateDeveloper, bindGithub, createGithubState, consumeGithubState, login, logout, revokeInvite, listInvites,
     completeTotp, listUsers, setUserDisabled, setUserRole, changePassword,
     createPasswordReset, consumePasswordReset, listSessions, revokeSession, revokeUserSessions,
     enableTotp, confirmTotp

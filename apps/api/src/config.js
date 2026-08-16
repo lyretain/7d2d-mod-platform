@@ -32,6 +32,8 @@ export function loadConfig(env = process.env) {
     signingPrivateKey: env.SIGNING_PRIVATE_KEY || '',
     signingServiceUrl: env.SIGNING_SERVICE_URL || '',
     signingServiceToken: env.SIGNING_SERVICE_TOKEN || '',
+    githubClientId: env.GITHUB_CLIENT_ID || '',
+    githubClientSecret: env.GITHUB_CLIENT_SECRET || '',
     s3: {
       endpoint: env.S3_ENDPOINT || '',
       region: env.S3_REGION || 'us-east-1',
