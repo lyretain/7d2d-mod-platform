@@ -23,6 +23,7 @@ import { renderUserGuide } from './guide.js';
 import { claimHandshake, normalizePlayerIds, sanitizeHello, storeHandshake } from './handshakes.js';
 import { applyAddresses, parseAddresses, publicAddressView, resolveRegisteredServer } from './servers.js';
 import { currentLauncher, launcherArtifactUrl, launcherManifestPayload, normalizePlatform, validateLauncherZip } from './launcher-update.js';
+import { createChunkUploadStore, DEFAULT_CHUNK_BYTES, receiveExactBytes } from './artifact-upload.js';
 
 const ADMIN_HTML_V2 = readFileSync(new URL('./admin.html', import.meta.url), 'utf8');
 const WEB_DIST = path.resolve(fileURLToPath(new URL('../../web/dist/', import.meta.url)));
@@ -113,6 +114,7 @@ async function receiveArtifact(req, target, expectedHash, limit) {
 
 export function createApp({ store, signing, dataDir, adminToken, allowBootstrapAdmin = false, bootstrapDisabled = false, publicBaseUrl, launcherUrl, cdnBaseUrl, maxArtifactBytes = 2_147_483_648, maxDiagnosticBytes = 262_144, objects, metrics, config = {}, requireReview = false, logger }) {
   const objectDir = objects?.localDir || path.join(dataDir, 'objects');
+  const chunkUploads = createChunkUploadStore({ dataDir, maxArtifactBytes });
   const auth = createAuthService({ store, bootstrapToken: adminToken, allowBootstrapAfterSetup: allowBootstrapAdmin, bootstrapDisabled });
   const artifactBase = (cdnBaseUrl || publicBaseUrl || '').replace(/\/$/, '');
   const metricsApi = metrics || { snapshot: () => ({}), observe() {} };
@@ -287,16 +289,8 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
         return json(res, 200, state);
       }
 
-      const artifactMatch = pathname.match(/^\/api\/v1\/artifacts\/([a-f0-9]{64})$/);
-      if (req.method === 'PUT' && artifactMatch) {
-        if (!requirePerm(req, res, 'catalog.write')) return;
-        const expected = artifactMatch[1];
-        await mkdir(objectDir, { recursive: true });
-        const target = path.join(objectDir, expected);
-        if (store.snapshot().bannedHashes?.[expected]) return problem(res, 409, 'HASH_BANNED', 'This artifact hash is banned');
-        const received = await receiveArtifact(req, target, expected, maxArtifactBytes);
-        if (objects?.put) await objects.put(expected, target, received.size);
-        const fileName = decodeHeaderFileName(req.headers['x-file-name']);
+      async function commitArtifact(expected, target, size, fileName) {
+        if (objects?.put) await objects.put(expected, target, size);
         const analysis = await analyzeZipFile(target, fileName);
         const scan = config.production ? await scanFile(target) : { skipped: true, ok: true };
         const highRisk = analysis.findings.some((item) => item.severity === 'high') || scan.ok === false;
@@ -305,7 +299,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
           const value = {
             sha256: expected,
             fileName,
-            size: received.size,
+            size,
             status: highRisk || analysis.containsDll ? 'pending' : 'approved',
             licenseConfirmed: false,
             analysis,
@@ -315,7 +309,70 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
           draft.reviews[expected] = value;
           return value;
         });
-        return json(res, 201, { sha256: expected, size: received.size, fileName, review });
+        return { sha256: expected, size, fileName, review };
+      }
+
+      const artifactUploadMatch = pathname.match(/^\/api\/v1\/artifacts\/([a-f0-9]{64})\/uploads$/);
+      if (req.method === 'POST' && artifactUploadMatch) {
+        if (!requirePerm(req, res, 'catalog.write')) return;
+        const expected = artifactUploadMatch[1];
+        if (store.snapshot().bannedHashes?.[expected]) return problem(res, 409, 'HASH_BANNED', 'This artifact hash is banned');
+        const body = await readJson(req, 32 * 1024);
+        const session = await chunkUploads.create({
+          sha256: expected,
+          size: body.size,
+          chunkSize: body.chunkSize || DEFAULT_CHUNK_BYTES,
+          fileName: body.fileName || decodeHeaderFileName(req.headers['x-file-name'])
+        });
+        return json(res, 201, await chunkUploads.sessionView(session));
+      }
+
+      const artifactStatusMatch = pathname.match(/^\/api\/v1\/artifacts\/([a-f0-9]{64})\/uploads\/([^/]+)$/);
+      if (req.method === 'GET' && artifactStatusMatch) {
+        if (!requirePerm(req, res, 'catalog.write')) return;
+        const session = await chunkUploads.get(artifactStatusMatch[2], artifactStatusMatch[1]);
+        return json(res, 200, await chunkUploads.sessionView(session));
+      }
+
+      const artifactChunkMatch = pathname.match(/^\/api\/v1\/artifacts\/([a-f0-9]{64})\/uploads\/([^/]+)\/(\d+)$/);
+      if (req.method === 'PUT' && artifactChunkMatch) {
+        if (!requirePerm(req, res, 'catalog.write')) return;
+        const expected = artifactChunkMatch[1];
+        const session = await chunkUploads.get(artifactChunkMatch[2], expected);
+        const index = Number(artifactChunkMatch[3]);
+        const expectedSize = chunkUploads.expectedChunkLength(session, index);
+        const already = await chunkUploads.hasChunk(session, index, expectedSize);
+        if (already) {
+          for await (const _chunk of req) { /* discard duplicate chunk for resume/retry */ }
+        } else {
+          await receiveExactBytes(req, chunkUploads.chunkPath(session.id, index), expectedSize, Math.min(session.chunkSize, maxArtifactBytes));
+        }
+        const view = await chunkUploads.sessionView(session);
+        return json(res, 200, { ...view, index, size: expectedSize, skipped: already });
+      }
+
+      const artifactCompleteMatch = pathname.match(/^\/api\/v1\/artifacts\/([a-f0-9]{64})\/uploads\/([^/]+)\/complete$/);
+      if (req.method === 'POST' && artifactCompleteMatch) {
+        if (!requirePerm(req, res, 'catalog.write')) return;
+        const expected = artifactCompleteMatch[1];
+        if (store.snapshot().bannedHashes?.[expected]) return problem(res, 409, 'HASH_BANNED', 'This artifact hash is banned');
+        const session = await chunkUploads.get(artifactCompleteMatch[2], expected);
+        await mkdir(objectDir, { recursive: true });
+        const target = path.join(objectDir, expected);
+        const received = await chunkUploads.assemble(session, target);
+        return json(res, 201, await commitArtifact(expected, target, received.size, session.fileName));
+      }
+
+      const artifactMatch = pathname.match(/^\/api\/v1\/artifacts\/([a-f0-9]{64})$/);
+      if (req.method === 'PUT' && artifactMatch) {
+        if (!requirePerm(req, res, 'catalog.write')) return;
+        const expected = artifactMatch[1];
+        await mkdir(objectDir, { recursive: true });
+        const target = path.join(objectDir, expected);
+        if (store.snapshot().bannedHashes?.[expected]) return problem(res, 409, 'HASH_BANNED', 'This artifact hash is banned');
+        const received = await receiveArtifact(req, target, expected, maxArtifactBytes);
+        const fileName = decodeHeaderFileName(req.headers['x-file-name']);
+        return json(res, 201, await commitArtifact(expected, target, received.size, fileName));
       }
 
       const publicArtifact = pathname.match(/^\/api\/v1\/public\/artifacts\/([a-f0-9]{64})$/);

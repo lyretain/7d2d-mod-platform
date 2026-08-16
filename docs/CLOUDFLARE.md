@@ -76,6 +76,7 @@ Manifest download URLs become `https://cdn.example.com/objects/<sha256>`. Hash b
 - Managed rules plus rate limits on `/api/v1/auth/login`, `/api/v1/auth/register`, `/api/v1/diagnostics`.
 - Admin host `admin.example.com` can add IP Access or Zero Trust.
 - Allow only Cloudflare IPs to the origin, or use Authenticated Origin Pulls.
+- Free/Pro plans cap a single upload at 100 MB. The admin UI chunks ZIP files larger than 8 MiB (8 MiB each). Player downloads are not affected.
 
 ## Traffic notes
 

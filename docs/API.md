@@ -60,7 +60,11 @@ Session routes use the login Bearer token instead. Server-token routes use the o
 | POST | `/api/v1/invites` | Admin | Create an invite |
 | GET | `/api/v1/invites` | Admin | Invite metadata |
 | DELETE | `/api/v1/invites/{id}` | Admin | Revoke an invite |
-| PUT | `/api/v1/artifacts/{sha256}` | Admin | Upload an immutable Mod ZIP |
+| PUT | `/api/v1/artifacts/{sha256}` | Admin | Upload a small immutable Mod ZIP in one request |
+| POST | `/api/v1/artifacts/{sha256}/uploads` | Admin | Start or reuse a chunked upload session |
+| GET | `/api/v1/artifacts/{sha256}/uploads/{uploadId}` | Admin | List received chunks (resume) |
+| PUT | `/api/v1/artifacts/{sha256}/uploads/{uploadId}/{index}` | Admin | Upload one chunk |
+| POST | `/api/v1/artifacts/{sha256}/uploads/{uploadId}/complete` | Admin | Assemble chunks and store the artifact |
 | POST | `/api/v1/mods` | Admin | Register a Mod version |
 | POST | `/api/v1/packs` | Admin | Create or update a ModPack draft |
 | POST | `/api/v1/packs/{id}/releases` | Admin | Publish a signed release |
@@ -142,7 +146,7 @@ With `REQUIRE_REVIEW=true` (or `NODE_ENV=production`), uploaded ZIPs are analyze
 
 ## Upload a Mod file
 
-Hash the ZIP on the client, then:
+Hash the ZIP on the client. Files under about 8 MiB can be sent in one request:
 
 ```http
 PUT /api/v1/artifacts/<sha256>
@@ -150,7 +154,22 @@ Content-Type: application/zip
 Authorization: Bearer <ADMIN_TOKEN>
 ```
 
-The API hashes while receiving. A URL hash that does not match the body never enters the object directory.
+Larger files should be chunked so each request stays under Cloudflare's 100 MB upload limit. The default chunk size is 8 MiB and must be between 256 KiB and 32 MiB. An unfinished session with the same SHA-256, size, and chunk size is reused; chunks that already arrived are skipped:
+
+```http
+POST /api/v1/artifacts/<sha256>/uploads
+{ "size": 114066860, "chunkSize": 8388608, "fileName": "Z_CustomAvatars.zip" }
+
+GET /api/v1/artifacts/<sha256>/uploads/<uploadId>
+# { "received": [0, 1, 4], "missing": [2, 3], "receivedBytes": ... }
+
+PUT /api/v1/artifacts/<sha256>/uploads/<uploadId>/<index>
+Content-Type: application/octet-stream
+
+POST /api/v1/artifacts/<sha256>/uploads/<uploadId>/complete
+```
+
+The API hashes the assembled file. A URL hash that does not match never enters the object directory. The admin UI chunks ZIP files larger than 8 MiB and resumes from chunks that already reached the server.
 
 ## Register a Mod version
 

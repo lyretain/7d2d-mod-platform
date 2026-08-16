@@ -159,7 +159,7 @@
     'ws.addedDraft': '已加入 Pack，尚未发布',
 
     'mod.uploadTitle': '上传 Mod ZIP',
-    'mod.uploadHint': '上传后自动计算 SHA-256，并填入右侧登记表。',
+    'mod.uploadHint': '大于 8MiB 的 ZIP 会自动切片；中断后再次上传会从已成功的分片继续。',
     'mod.drop': '拖入 ZIP，或点击选择',
     'mod.chosen': '已选择 {name}（{size}）',
     'mod.upload': '上传并计算哈希',
@@ -570,7 +570,7 @@
     'ws.addedDraft': 'Added to pack, not published yet',
 
     'mod.uploadTitle': 'Upload mod ZIP',
-    'mod.uploadHint': 'SHA-256 is computed after upload and filled into the form.',
+    'mod.uploadHint': 'ZIPs larger than 8 MiB are uploaded in chunks. A retry resumes from chunks that already reached the server.',
     'mod.drop': 'Drop a ZIP here, or click to choose',
     'mod.chosen': 'Selected {name} ({size})',
     'mod.upload': 'Upload and hash',

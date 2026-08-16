@@ -58,7 +58,11 @@ Authorization: Bearer <ADMIN_TOKEN>
 | POST | `/api/v1/invites` | 管理员 | 创建邀请码 |
 | GET | `/api/v1/invites` | 管理员 | 查看邀请码状态 |
 | DELETE | `/api/v1/invites/{id}` | 管理员 | 吊销邀请码 |
-| PUT | `/api/v1/artifacts/{sha256}` | 管理员 | 上传不可变 Mod ZIP |
+| PUT | `/api/v1/artifacts/{sha256}` | 管理员 | 整包上传不可变 Mod ZIP（小于约 8MiB） |
+| POST | `/api/v1/artifacts/{sha256}/uploads` | 管理员 | 开始或复用切片上传会话 |
+| GET | `/api/v1/artifacts/{sha256}/uploads/{uploadId}` | 管理员 | 查询已收到的切片（断点续传） |
+| PUT | `/api/v1/artifacts/{sha256}/uploads/{uploadId}/{index}` | 管理员 | 上传一个切片 |
+| POST | `/api/v1/artifacts/{sha256}/uploads/{uploadId}/complete` | 管理员 | 合并切片并入库 |
 | POST | `/api/v1/mods` | 管理员 | 注册 Mod 版本 |
 | POST | `/api/v1/packs` | 管理员 | 创建或更新 ModPack 草稿 |
 | POST | `/api/v1/packs/{id}/releases` | 管理员 | 发布签名版本 |
@@ -140,7 +144,7 @@ Authorization: Bearer <ADMIN_TOKEN>
 
 ## 上传 Mod 文件
 
-先在客户端计算 ZIP 的 SHA-256，然后上传到：
+先在客户端计算 ZIP 的 SHA-256。小于约 8MiB 的文件可以整包上传：
 
 ```http
 PUT /api/v1/artifacts/<sha256>
@@ -148,7 +152,22 @@ Content-Type: application/zip
 Authorization: Bearer <ADMIN_TOKEN>
 ```
 
-后台会边接收边计算 SHA-256。如果 URL 中的哈希与文件不一致，文件不会进入对象目录。
+更大的文件请走切片，以绕过 Cloudflare 单次 100MB 限制。默认块大小 8MiB，必须在 256KiB～32MiB 之间。同一 SHA-256 / 大小 / 块大小的未过期会话会复用，已成功的切片不会重传：
+
+```http
+POST /api/v1/artifacts/<sha256>/uploads
+{ "size": 114066860, "chunkSize": 8388608, "fileName": "Z_CustomAvatars.zip" }
+
+GET /api/v1/artifacts/<sha256>/uploads/<uploadId>
+# { "received": [0, 1, 4], "missing": [2, 3], "receivedBytes": ... }
+
+PUT /api/v1/artifacts/<sha256>/uploads/<uploadId>/<index>
+Content-Type: application/octet-stream
+
+POST /api/v1/artifacts/<sha256>/uploads/<uploadId>/complete
+```
+
+后台合并后再计算 SHA-256。如果 URL 中的哈希与文件不一致，文件不会进入对象目录。管理后台对大于 8MiB 的 ZIP 会自动切片，中断后再次选择同一文件会从已上传分片继续。
 
 ## 注册 Mod 版本
 

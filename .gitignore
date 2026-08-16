@@ -1,6 +1,7 @@
 data/state/*
 data/objects/*
 data/logs/*
+data/uploads/*
 !data/state/.gitkeep
 !data/objects/.gitkeep
 !data/logs/.gitkeep

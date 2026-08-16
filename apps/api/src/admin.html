@@ -1413,25 +1413,113 @@ async function hashAndPutArtifact(file, progressRoot) {
   const bytes = await file.arrayBuffer();
   setUploadProgress(progressRoot, { phase: 'hash', loaded: file.size, total: file.size || 1 });
   const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map((x) => x.toString(16).padStart(2, '0')).join('');
-  const result = await new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open('PUT', '/api/v1/artifacts/' + hash);
-    xhr.setRequestHeader('authorization', headers().authorization);
-    xhr.setRequestHeader('content-type', 'application/zip');
-    xhr.setRequestHeader('x-file-name', encodeURIComponent(file.name));
-    xhr.upload.onprogress = (event) => {
-      setUploadProgress(progressRoot, { phase: 'upload', loaded: event.loaded, total: event.lengthComputable ? event.total : file.size });
+  const chunkSize = 8 * 1024 * 1024;
+  const storageKey = 'hordepin.artifactUpload.' + hash + '.' + file.size + '.' + chunkSize;
+  setUploadProgress(progressRoot, { phase: 'upload', loaded: 0, total: file.size });
+  let result;
+  if (file.size > chunkSize) {
+    let session;
+    const savedId = localStorage.getItem(storageKey);
+    if (savedId) {
+      try {
+        session = await request('/api/v1/artifacts/' + hash + '/uploads/' + savedId, { headers: headers() });
+        if (session.chunkSize !== chunkSize || session.size !== file.size) session = null;
+      } catch (e) {
+        localStorage.removeItem(storageKey);
+        session = null;
+      }
+    }
+    if (!session) {
+      session = await request('/api/v1/artifacts/' + hash + '/uploads', {
+        method: 'POST',
+        headers: { ...headers(), 'content-type': 'application/json' },
+        body: JSON.stringify({ size: file.size, chunkSize, fileName: file.name })
+      });
+    }
+    localStorage.setItem(storageKey, session.uploadId);
+    const received = new Array(session.totalChunks).fill(0);
+    const done = new Set(session.received || []);
+    done.forEach(function (index) {
+      const start = index * session.chunkSize;
+      received[index] = Math.min(start + session.chunkSize, file.size) - start;
+    });
+    const pending = (session.missing && session.missing.length)
+      ? session.missing.slice()
+      : Array.from({ length: session.totalChunks }, function (_, index) { return index; }).filter(function (index) { return !done.has(index); });
+    const report = function () {
+      setUploadProgress(progressRoot, { phase: 'upload', loaded: received.reduce(function (sum, value) { return sum + value; }, 0), total: file.size });
     };
-    xhr.onload = () => {
-      let body = {};
-      try { body = JSON.parse(xhr.responseText || '{}'); } catch { /* empty */ }
-      if (xhr.status >= 200 && xhr.status < 300) resolve(body);
-      else reject(new Error((body.error && body.error.message) || ('HTTP ' + xhr.status)));
-    };
-    xhr.onerror = () => reject(new Error('Upload failed'));
-    setUploadProgress(progressRoot, { phase: 'upload', loaded: 0, total: file.size });
-    xhr.send(file);
-  });
+    report();
+    let next = 0;
+    async function putChunk(index) {
+      const start = index * session.chunkSize;
+      const end = Math.min(start + session.chunkSize, file.size);
+      let lastError;
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await new Promise(function (resolve, reject) {
+            const xhr = new XMLHttpRequest();
+            xhr.open('PUT', '/api/v1/artifacts/' + hash + '/uploads/' + session.uploadId + '/' + index);
+            xhr.setRequestHeader('authorization', headers().authorization);
+            xhr.setRequestHeader('content-type', 'application/octet-stream');
+            xhr.upload.onprogress = function (event) {
+              received[index] = event.lengthComputable ? event.loaded : 0;
+              report();
+            };
+            xhr.onload = function () {
+              let body = {};
+              try { body = JSON.parse(xhr.responseText || '{}'); } catch (e) { /* empty */ }
+              if (xhr.status >= 200 && xhr.status < 300) resolve(body);
+              else reject(new Error((body.error && body.error.message) || ('HTTP ' + xhr.status)));
+            };
+            xhr.onerror = function () { reject(new Error('Upload failed')); };
+            xhr.send(file.slice(start, end));
+          });
+          received[index] = end - start;
+          report();
+          return;
+        } catch (error) {
+          lastError = error;
+          await new Promise(function (resolve) { setTimeout(resolve, 400 * (attempt + 1)); });
+        }
+      }
+      throw lastError;
+    }
+    async function worker() {
+      while (next < pending.length) {
+        const index = pending[next];
+        next += 1;
+        await putChunk(index);
+      }
+    }
+    await Promise.all([worker(), worker(), worker()]);
+    try {
+      result = await request('/api/v1/artifacts/' + hash + '/uploads/' + session.uploadId + '/complete', { method: 'POST', headers: headers() });
+      localStorage.removeItem(storageKey);
+    } catch (error) {
+      if (/SHA-256/.test(error.message || '')) localStorage.removeItem(storageKey);
+      throw error;
+    }
+  } else {
+    result = await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('PUT', '/api/v1/artifacts/' + hash);
+      xhr.setRequestHeader('authorization', headers().authorization);
+      xhr.setRequestHeader('content-type', 'application/zip');
+      xhr.setRequestHeader('x-file-name', encodeURIComponent(file.name));
+      xhr.upload.onprogress = (event) => {
+        setUploadProgress(progressRoot, { phase: 'upload', loaded: event.loaded, total: event.lengthComputable ? event.total : file.size });
+      };
+      xhr.onload = () => {
+        let body = {};
+        try { body = JSON.parse(xhr.responseText || '{}'); } catch { /* empty */ }
+        if (xhr.status >= 200 && xhr.status < 300) resolve(body);
+        else reject(new Error((body.error && body.error.message) || ('HTTP ' + xhr.status)));
+      };
+      xhr.onerror = () => reject(new Error('Upload failed'));
+      xhr.send(file);
+    });
+  }
   setUploadProgress(progressRoot, { phase: 'analyze', loaded: 1, total: 1 });
   return { hash, ...result };
 }

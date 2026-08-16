@@ -76,6 +76,7 @@ manifest 中的下载地址会变成 `https://cdn.example.com/objects/<sha256>`�
 - 对 `/api/v1/auth/login`、`/api/v1/auth/register`、`/api/v1/diagnostics` 加托管规则 + 速率限制。
 - 管理主机 `admin.example.com` 可再加 IP Access 或 Zero Trust。
 - 源站只允许 Cloudflare IP，或用 Authenticated Origin Pulls。
+- 免费/专业版单次上传上限 100MB。管理后台对大于 8MiB 的 ZIP 会自动切片（每片 8MiB），玩家下载不受此限制。
 
 ## 流量估算要点
 

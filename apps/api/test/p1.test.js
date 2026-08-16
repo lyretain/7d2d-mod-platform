@@ -13,6 +13,7 @@ import { SigningService } from '../src/signing.js';
 import { JsonStore } from '../src/store.js';
 import { totp } from '../src/totp.js';
 import { sha256 } from '../src/util.js';
+import { chunkByteLength, totalChunks } from '../src/artifact-upload.js';
 import { verifyManifest } from '../../updater/src/verify.js';
 import { createDeflatedZip, createStoredZip } from '../../updater/test/zip-helper.js';
 
@@ -123,6 +124,144 @@ test('account lifecycle, 2FA and health endpoints', async (t) => {
   const users = await jsonRequest(`${base}/api/v1/users`, { headers: { authorization: `Bearer ${completed.token}` } });
   assert.equal(users.users[0].totpEnabled, true);
   await jsonRequest(`${base}/api/v1/users/${users.users[0].id}`, { method: 'PATCH', headers: { authorization: `Bearer ${completed.token}`, 'content-type': 'application/json' }, body: JSON.stringify({ disabled: true }) });
+});
+
+test('chunk sizes cover a file without overlap or gap', () => {
+  const size = 114066860;
+  const chunkSize = 8 * 1024 * 1024;
+  const chunks = totalChunks(size, chunkSize);
+  let covered = 0;
+  for (let index = 0; index < chunks; index += 1) {
+    covered += chunkByteLength(size, chunkSize, index);
+  }
+  assert.equal(covered, size);
+  assert.equal(chunks, 14);
+});
+
+test('chunked artifact upload assembles and verifies sha256', async (t) => {
+  const { base } = await fixture(t);
+  const archive = createStoredZip({
+    'ExampleMod/ModInfo.xml': '<xml />',
+    'ExampleMod/Data/blob.bin': 'A'.repeat(400_000)
+  });
+  const artifactSha = sha256(archive);
+  const chunkSize = 256 * 1024;
+  const admin = { authorization: 'Bearer test-admin-token-1234' };
+  const session = await jsonRequest(`${base}/api/v1/artifacts/${artifactSha}/uploads`, {
+    method: 'POST',
+    headers: { ...admin, 'content-type': 'application/json' },
+    body: JSON.stringify({ size: archive.length, chunkSize, fileName: 'chunked.zip' })
+  });
+  assert.ok(session.totalChunks > 1);
+  assert.equal(session.chunkSize, chunkSize);
+  for (let index = 0; index < session.totalChunks; index += 1) {
+    const part = archive.subarray(index * chunkSize, index * chunkSize + chunkSize);
+    const uploaded = await jsonRequest(`${base}/api/v1/artifacts/${artifactSha}/uploads/${session.uploadId}/${index}`, {
+      method: 'PUT',
+      headers: { ...admin, 'content-type': 'application/octet-stream' },
+      body: part
+    });
+    assert.equal(uploaded.index, index);
+    assert.equal(uploaded.size, part.length);
+  }
+  const completed = await jsonRequest(`${base}/api/v1/artifacts/${artifactSha}/uploads/${session.uploadId}/complete`, {
+    method: 'POST',
+    headers: admin
+  });
+  assert.equal(completed.sha256, artifactSha);
+  assert.equal(completed.size, archive.length);
+  assert.equal(completed.fileName, 'chunked.zip');
+  assert.equal(completed.review.status, 'approved');
+});
+
+test('chunked artifact upload resumes from received chunks', async (t) => {
+  const { base } = await fixture(t);
+  const archive = createStoredZip({
+    'ExampleMod/ModInfo.xml': '<xml />',
+    'ExampleMod/Data/blob.bin': 'D'.repeat(400_000)
+  });
+  const artifactSha = sha256(archive);
+  const chunkSize = 256 * 1024;
+  const admin = { authorization: 'Bearer test-admin-token-1234' };
+  const first = await jsonRequest(`${base}/api/v1/artifacts/${artifactSha}/uploads`, {
+    method: 'POST',
+    headers: { ...admin, 'content-type': 'application/json' },
+    body: JSON.stringify({ size: archive.length, chunkSize, fileName: 'resume.zip' })
+  });
+  await jsonRequest(`${base}/api/v1/artifacts/${artifactSha}/uploads/${first.uploadId}/0`, {
+    method: 'PUT',
+    headers: { ...admin, 'content-type': 'application/octet-stream' },
+    body: archive.subarray(0, chunkSize)
+  });
+  const reused = await jsonRequest(`${base}/api/v1/artifacts/${artifactSha}/uploads`, {
+    method: 'POST',
+    headers: { ...admin, 'content-type': 'application/json' },
+    body: JSON.stringify({ size: archive.length, chunkSize, fileName: 'resume.zip' })
+  });
+  assert.equal(reused.uploadId, first.uploadId);
+  assert.deepEqual(reused.received, [0]);
+  assert.ok(reused.missing.includes(1));
+  const status = await jsonRequest(`${base}/api/v1/artifacts/${artifactSha}/uploads/${first.uploadId}`, { headers: admin });
+  assert.deepEqual(status.received, [0]);
+  const skipped = await jsonRequest(`${base}/api/v1/artifacts/${artifactSha}/uploads/${first.uploadId}/0`, {
+    method: 'PUT',
+    headers: { ...admin, 'content-type': 'application/octet-stream' },
+    body: archive.subarray(0, chunkSize)
+  });
+  assert.equal(skipped.skipped, true);
+  for (const index of reused.missing) {
+    await jsonRequest(`${base}/api/v1/artifacts/${artifactSha}/uploads/${first.uploadId}/${index}`, {
+      method: 'PUT',
+      headers: { ...admin, 'content-type': 'application/octet-stream' },
+      body: archive.subarray(index * chunkSize, index * chunkSize + chunkSize)
+    });
+  }
+  const completed = await jsonRequest(`${base}/api/v1/artifacts/${artifactSha}/uploads/${first.uploadId}/complete`, {
+    method: 'POST',
+    headers: admin
+  });
+  assert.equal(completed.sha256, artifactSha);
+  assert.equal(completed.fileName, 'resume.zip');
+});
+
+test('chunked artifact upload rejects missing chunks and hash mismatch', async (t) => {
+  const { base } = await fixture(t);
+  const archive = createStoredZip({ 'ExampleMod/ModInfo.xml': '<xml />', 'ExampleMod/Data/blob.bin': 'B'.repeat(300_000) });
+  const other = createStoredZip({ 'OtherMod/ModInfo.xml': '<xml />', 'OtherMod/Data/blob.bin': 'C'.repeat(300_000) });
+  const artifactSha = sha256(archive);
+  const admin = { authorization: 'Bearer test-admin-token-1234' };
+  const chunkSize = 256 * 1024;
+  const missing = await jsonRequest(`${base}/api/v1/artifacts/${artifactSha}/uploads`, {
+    method: 'POST',
+    headers: { ...admin, 'content-type': 'application/json' },
+    body: JSON.stringify({ size: archive.length, chunkSize, fileName: 'missing.zip' })
+  });
+  const first = archive.subarray(0, chunkSize);
+  await jsonRequest(`${base}/api/v1/artifacts/${artifactSha}/uploads/${missing.uploadId}/0`, {
+    method: 'PUT',
+    headers: { ...admin, 'content-type': 'application/octet-stream' },
+    body: first
+  });
+  const incomplete = await fetch(`${base}/api/v1/artifacts/${artifactSha}/uploads/${missing.uploadId}/complete`, { method: 'POST', headers: admin });
+  assert.equal(incomplete.status, 422);
+
+  const mismatched = await jsonRequest(`${base}/api/v1/artifacts/${artifactSha}/uploads`, {
+    method: 'POST',
+    headers: { ...admin, 'content-type': 'application/json' },
+    body: JSON.stringify({ size: other.length, chunkSize, fileName: 'mismatch.zip' })
+  });
+  for (let index = 0; index < mismatched.totalChunks; index += 1) {
+    const part = other.subarray(index * chunkSize, index * chunkSize + chunkSize);
+    await jsonRequest(`${base}/api/v1/artifacts/${artifactSha}/uploads/${mismatched.uploadId}/${index}`, {
+      method: 'PUT',
+      headers: { ...admin, 'content-type': 'application/octet-stream' },
+      body: part
+    });
+  }
+  const wrongHash = await fetch(`${base}/api/v1/artifacts/${artifactSha}/uploads/${mismatched.uploadId}/complete`, { method: 'POST', headers: admin });
+  assert.equal(wrongHash.status, 422);
+  const body = await wrongHash.json();
+  assert.equal(body.error.code, 'HASH_MISMATCH');
 });
 
 test('upload accepts a deflated ZIP whose DLL exceeds 64 KiB', async (t) => {

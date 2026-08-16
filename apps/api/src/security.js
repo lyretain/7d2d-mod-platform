@@ -82,6 +82,8 @@ export function routeLimit(pathname, method) {
   if (method === 'POST' && pathname === '/api/v1/diagnostics') return { key: 'diagnostics', limit: 60, windowMs: 60_000 };
   if (method === 'POST' && pathname === '/api/v1/public/handshakes') return { key: 'handshake', limit: 60, windowMs: 60_000 };
   if (method === 'GET' && pathname.startsWith('/api/v1/public/artifacts/')) return { key: 'download', limit: 120, windowMs: 60_000 };
+  if (method === 'PUT' && /^\/api\/v1\/artifacts\/[a-f0-9]{64}\/uploads\/[^/]+\/\d+$/.test(pathname)) return { key: 'artifact-chunk', limit: 600, windowMs: 60_000 };
+  if (method === 'POST' && /^\/api\/v1\/artifacts\/[a-f0-9]{64}\/uploads$/.test(pathname)) return { key: 'artifact-upload', limit: 40, windowMs: 60_000 };
   if (method === 'GET' && pathname === '/api/v1/public/launcher/latest') return { key: 'launcher', limit: 120, windowMs: 60_000 };
   return null;
 }
