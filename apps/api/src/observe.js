@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { logLine as defaultLogLine, redactPath } from './logger.js';
 
 export function createMetrics() {
   const state = {
@@ -47,11 +48,18 @@ export function createMetrics() {
   return { observe, request, snapshot };
 }
 
-export function logLine(fields) {
-  console.log(JSON.stringify({ time: new Date().toISOString(), ...fields }));
+export { logLine } from './logger.js';
+
+function clientIp(req, trustedProxy) {
+  if (trustedProxy) {
+    const forwarded = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+    if (forwarded) return forwarded;
+  }
+  return req.socket?.remoteAddress || '';
 }
 
-export function wrapHandler(handler, { metrics, forceHttps, securityHeaders }) {
+export function wrapHandler(handler, { metrics, forceHttps, securityHeaders, logger, trustedProxy = false }) {
+  const writeLog = logger?.write || defaultLogLine;
   return async function wrapped(req, res) {
     const traceId = req.headers['x-request-id'] || randomUUID();
     const started = Date.now();
@@ -66,7 +74,16 @@ export function wrapHandler(handler, { metrics, forceHttps, securityHeaders }) {
     res.end = (chunk, encoding) => {
       if (chunk) bytes += Buffer.byteLength(chunk, encoding);
       metrics.request(Date.now() - started, res.statusCode || 200, bytes);
-      logLine({ traceId, method: req.method, path: req.url, status: res.statusCode || 200, ms: Date.now() - started });
+      Promise.resolve(writeLog({
+        level: 'info',
+        type: 'http',
+        traceId,
+        method: req.method,
+        path: redactPath(req.url),
+        status: res.statusCode || 200,
+        ms: Date.now() - started,
+        ip: clientIp(req, trustedProxy)
+      })).catch(() => {});
       return originalEnd(chunk, encoding);
     };
     return handler(req, res);

@@ -49,7 +49,7 @@ async function receiveArtifact(req, target, expectedHash, limit) {
   }
 }
 
-export function createApp({ store, signing, dataDir, adminToken, allowBootstrapAdmin = false, bootstrapDisabled = false, publicBaseUrl, launcherUrl, cdnBaseUrl, maxArtifactBytes = 2_147_483_648, maxDiagnosticBytes = 262_144, objects, metrics, config = {}, requireReview = false }) {
+export function createApp({ store, signing, dataDir, adminToken, allowBootstrapAdmin = false, bootstrapDisabled = false, publicBaseUrl, launcherUrl, cdnBaseUrl, maxArtifactBytes = 2_147_483_648, maxDiagnosticBytes = 262_144, objects, metrics, config = {}, requireReview = false, logger }) {
   const objectDir = objects?.localDir || path.join(dataDir, 'objects');
   const auth = createAuthService({ store, bootstrapToken: adminToken, allowBootstrapAfterSetup: allowBootstrapAdmin, bootstrapDisabled });
   const artifactBase = (cdnBaseUrl || publicBaseUrl || '').replace(/\/$/, '');
@@ -569,6 +569,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
       if (error.code === 'INVALID_INVITE') return problem(res, 422, error.code, error.message);
       if (error.code === 'INVALID_JSON' || error.code === 'VALIDATION') return problem(res, 422, error.code, error.message, error.details);
       console.error(error);
+      logger?.error?.('unhandled', { error: error.message, stack: error.stack, method: req.method, path: pathname });
       return problem(res, 500, 'INTERNAL_ERROR', 'Unexpected server error');
     }
   }

@@ -2,6 +2,7 @@ import { createServer } from 'node:http';
 import path from 'node:path';
 import { createApp } from './app.js';
 import { loadConfig } from './config.js';
+import { createLogger } from './logger.js';
 import { createMetrics, wrapHandler } from './observe.js';
 import { createObjectStore } from './objects.js';
 import { securityHeaders } from './security.js';
@@ -15,6 +16,11 @@ if (!config.adminToken || config.adminToken.length < 16) {
 }
 
 const dataDir = path.resolve(config.dataDir);
+const logger = createLogger({
+  logDir: path.join(dataDir, 'logs'),
+  retentionDays: config.logRetentionDays
+});
+await logger.prune();
 const store = await createStore({ dataDir, databaseUrl: config.databaseUrl });
 const objects = createObjectStore({ dataDir, s3: config.s3, cdnBaseUrl: config.cdnBaseUrl, publicBaseUrl: config.publicBaseUrl, cdnStyle: config.cdnStyle });
 const signing = new SigningService({
@@ -43,18 +49,34 @@ const app = createApp({
   objects,
   metrics,
   config,
-  requireReview: config.requireReview
+  requireReview: config.requireReview,
+  logger
 });
 
 const server = createServer(wrapHandler(app, {
   metrics,
   forceHttps: config.forceHttps,
+  trustedProxy: config.trustedProxy,
+  logger,
   securityHeaders: (req) => securityHeaders(req, { forceHttps: config.forceHttps, adminHost: config.adminHost })
 }));
 server.requestTimeout = 10 * 60 * 1000;
 server.headersTimeout = 30_000;
-server.listen(config.port, config.host, () => console.log(`7DTD Mod Platform listening at ${config.publicBaseUrl}`));
+server.listen(config.port, config.host, () => {
+  logger.info('listening', { url: config.publicBaseUrl, host: config.host, port: config.port });
+});
+
+process.on('uncaughtException', (error) => {
+  logger.error('uncaughtException', { error: error.message, stack: error.stack });
+});
+process.on('unhandledRejection', (reason) => {
+  const error = reason instanceof Error ? reason : new Error(String(reason));
+  logger.error('unhandledRejection', { error: error.message, stack: error.stack });
+});
 
 for (const signal of ['SIGINT', 'SIGTERM']) {
-  process.on(signal, () => server.close(() => process.exit(0)));
+  process.on(signal, () => {
+    logger.info('shutdown', { signal });
+    server.close(() => process.exit(0));
+  });
 }

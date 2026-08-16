@@ -1,7 +1,9 @@
 data/state/*
 data/objects/*
+data/logs/*
 !data/state/.gitkeep
 !data/objects/.gitkeep
+!data/logs/.gitkeep
 *.log
 .env
 node_modules/

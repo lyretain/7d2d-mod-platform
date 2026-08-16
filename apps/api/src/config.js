@@ -1,3 +1,5 @@
+import { clampLogRetentionDays } from './logger.js';
+
 export function loadConfig(env = process.env) {
   const production = env.NODE_ENV === 'production';
   return {
@@ -20,7 +22,7 @@ export function loadConfig(env = process.env) {
     maxDiagnosticBytes: Number(env.MAX_DIAGNOSTIC_BYTES || 262_144),
     diagnosticRetentionDays: Number(env.DIAGNOSTIC_RETENTION_DAYS || 30),
     auditRetentionDays: Number(env.AUDIT_RETENTION_DAYS || 365),
-    logRetentionDays: Number(env.LOG_RETENTION_DAYS || 14),
+    logRetentionDays: clampLogRetentionDays(env.LOG_RETENTION_DAYS || 30),
     forceHttps: env.FORCE_HTTPS === 'true',
     trustedProxy: env.TRUSTED_PROXY === 'true',
     adminHost: env.ADMIN_HOST || '',
