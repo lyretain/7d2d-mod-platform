@@ -94,6 +94,11 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
         return problem(res, 429, 'RATE_LIMITED', 'Too many requests');
       }
       if (await handleP1(req, res, { pathname, store, auth, signing, objects: objects || { localDir: objectDir, ready: async () => ({ ok: true, driver: 'local' }), listLocal: async () => [], remove: async () => {} }, metrics: metricsApi, config })) return;
+      if (req.method === 'GET' && pathname === '/admin-i18n.js') {
+        const body = readFileSync(new URL('./admin-i18n.js', import.meta.url));
+        res.writeHead(200, { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'no-cache', 'x-content-type-options': 'nosniff' });
+        return res.end(body);
+      }
       if (req.method === 'GET' && pathname === '/') {
         const body = Buffer.from(ADMIN_HTML_V2);
         res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'content-length': body.length, 'x-content-type-options': 'nosniff' });

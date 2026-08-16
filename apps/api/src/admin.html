@@ -77,6 +77,10 @@
     button.ghost { width: auto; margin: 0; background: #2a2f38; }
     .actions { display: flex; gap: 8px; flex-wrap: wrap; }
     .actions button { width: auto; flex: 1; min-width: 110px; margin: 0; }
+    .lang-switch { display: inline-flex; gap: 4px; }
+    .lang-switch button { width: auto; min-width: 0; margin: 0; padding: 6px 10px; background: #2a2f38; font-weight: 650; }
+    .lang-switch button.active { background: #2a2114; color: var(--accent); }
+    .auth-card .lang-switch, .hero .lang-switch { margin-bottom: 12px; }
     .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .three { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
     .check { display: flex; align-items: center; gap: 8px; margin: 8px 0 12px; color: var(--muted); }
@@ -159,70 +163,72 @@
 <div id="toast" class="toast" hidden></div>
 <section id="setup">
   <div class="auth-card">
-    <div class="brand"><strong>初始化社区</strong><span>平台尚未创建首位管理员</span></div>
-    <p class="steps"><b>1</b> 验证部署令牌　<b>2</b> 创建管理员　<b>3</b> 进入运营后台</p>
-    <p class="hint">使用部署时写入的 ADMIN_TOKEN。完成后该令牌默认停用，日常请用账户登录。</p>
-    <label class="field">ADMIN_TOKEN</label>
-    <input id="setupToken" type="password" placeholder="至少 16 位的部署令牌">
-    <label class="field">首位管理员用户名</label>
-    <input id="setupUser" autocomplete="username" placeholder="3-32 位字母数字">
-    <label class="field">密码</label>
-    <input id="setupPassword" type="password" autocomplete="new-password" placeholder="至少 10 位">
-    <label class="field">确认密码</label>
-    <input id="setupPassword2" type="password" autocomplete="new-password" placeholder="再输入一次">
-    <div class="actions"><button onclick="setupPlatform()">完成初始化</button></div>
+    <div class="lang-switch" data-lang-switch></div>
+    <div class="brand"><strong data-i18n="setup.brand">初始化社区</strong><span data-i18n="setup.sub">平台尚未创建首位管理员</span></div>
+    <p class="steps" data-i18n="setup.steps">1 验证部署令牌　2 创建管理员　3 进入运营后台</p>
+    <p class="hint" data-i18n="setup.hint">使用部署时写入的 ADMIN_TOKEN。完成后该令牌默认停用，日常请用账户登录。</p>
+    <label class="field" data-i18n="setup.token">ADMIN_TOKEN</label>
+    <input id="setupToken" type="password" data-i18n-placeholder="setup.phToken" placeholder="至少 16 位的部署令牌">
+    <label class="field" data-i18n="setup.user">首位管理员用户名</label>
+    <input id="setupUser" autocomplete="username" data-i18n-placeholder="setup.phUser" placeholder="3-32 位字母数字">
+    <label class="field" data-i18n="setup.password">密码</label>
+    <input id="setupPassword" type="password" autocomplete="new-password" data-i18n-placeholder="setup.phPassword" placeholder="至少 10 位">
+    <label class="field" data-i18n="setup.password2">确认密码</label>
+    <input id="setupPassword2" type="password" autocomplete="new-password" data-i18n-placeholder="setup.phPassword2" placeholder="再输入一次">
+    <div class="actions"><button onclick="setupPlatform()" data-i18n="setup.submit">完成初始化</button></div>
   </div>
 </section>
 <section id="gate">
   <div class="community">
     <div class="hero">
-      <h1>七日杀 Mod 社区</h1>
-      <p>面向服主与玩家的验签分发平台。普通用户可直接注册并登记服务器，更新器只安装已签名的 Pack。</p>
-      <p><a href="/guide" style="color:var(--accent)">阅读玩家与服主教程</a></p>
+      <div class="lang-switch" data-lang-switch></div>
+      <h1 data-i18n="gate.title">七日杀 Mod 社区</h1>
+      <p data-i18n="gate.lead">面向服主与玩家的验签分发平台。普通用户可直接注册并登记服务器，更新器只安装已签名的 Pack。</p>
+      <p><a href="/guide" style="color:var(--accent)" data-i18n="gate.guide">阅读玩家与服主教程</a></p>
       <ul>
-        <li><strong>验签分发</strong><span>Ed25519 签名的不可变 Release，防止被篡改的 ZIP 进服。</span></li>
-        <li><strong>服务器同步</strong><span>按公开地址解析当前 Pack，玩家与专用服保持同一版本。</span></li>
-        <li><strong>工坊浏览</strong><span>登录后像创意工坊一样查找 Mod，浏览时加入已有 Pack 或创建新 Pack。</span></li>
-        <li><strong>邀请制社区</strong><span>管理员邀请服主或只读成员，审核、停发和回滚都留审计。</span></li>
+        <li><strong data-i18n="gate.f1t">验签分发</strong><span data-i18n="gate.f1d">Ed25519 签名的不可变 Release，防止被篡改的 ZIP 进服。</span></li>
+        <li><strong data-i18n="gate.f2t">服务器同步</strong><span data-i18n="gate.f2d">按 Server ID 或地址解析当前 Pack，玩家与专用服保持同一版本。</span></li>
+        <li><strong data-i18n="gate.f3t">工坊浏览</strong><span data-i18n="gate.f3d">登录后像创意工坊一样查找 Mod，浏览时加入已有 Pack 或创建新 Pack。</span></li>
+        <li><strong data-i18n="gate.f4t">邀请制社区</strong><span data-i18n="gate.f4d">管理员邀请服主或只读成员，审核、停发和回滚都留审计。</span></li>
       </ul>
     </div>
     <div class="auth-card">
-      <div class="brand"><strong>加入社区</strong><span>登录后浏览工坊、管理 Pack，或使用邀请码注册</span></div>
+      <div class="brand"><strong data-i18n="gate.brand">加入社区</strong><span data-i18n="gate.brandSub">登录后浏览工坊、管理 Pack，或使用邀请码注册</span></div>
       <div class="auth-tabs">
-        <button class="active" data-auth="login" onclick="showAuth('login')">登录</button>
-        <button data-auth="register" onclick="showAuth('register')">注册</button>
+        <button class="active" data-auth="login" onclick="showAuth('login')" data-i18n="gate.login">登录</button>
+        <button data-auth="register" onclick="showAuth('register')" data-i18n="gate.register">注册</button>
       </div>
       <div class="auth-pane on" id="auth-login">
-        <p class="hint">服主与运营使用已有账户登录。</p>
-        <label class="field">用户名</label>
-        <input id="loginUser" autocomplete="username" placeholder="用户名">
-        <label class="field">密码</label>
-        <input id="loginPassword" type="password" autocomplete="current-password" placeholder="密码">
-        <div class="actions"><button onclick="login()">登录</button></div>
+        <p class="hint" data-i18n="gate.loginHint">服主与运营使用已有账户登录。</p>
+        <label class="field" data-i18n="gate.user">用户名</label>
+        <input id="loginUser" autocomplete="username" data-i18n-placeholder="gate.phUser" placeholder="用户名">
+        <label class="field" data-i18n="gate.password">密码</label>
+        <input id="loginPassword" type="password" autocomplete="current-password" data-i18n-placeholder="gate.phPassword" placeholder="密码">
+        <div class="actions"><button onclick="login()" data-i18n="gate.login">登录</button></div>
       </div>
       <div class="auth-pane" id="auth-register">
-        <h2>邀请码注册</h2>
-        <p class="hint">普通用户可直接注册。社区管理员需超级管理员邀请；开发者也可先注册再激活。</p>
-        <label class="field">用户名</label>
-        <input id="registerUser" autocomplete="username" placeholder="3-32位">
-        <label class="field">密码</label>
-        <input id="registerPassword" type="password" autocomplete="new-password" placeholder="至少10位">
-        <label class="field">邀请码（可选）</label>
-        <input id="registerInvite" placeholder="社区管理员邀请码，可留空">
-        <div class="actions"><button onclick="register()">加入社区</button></div>
+        <h2 data-i18n="gate.regTitle">邀请码注册</h2>
+        <p class="hint" data-i18n="gate.regHint">普通用户可直接注册。社区管理员需超级管理员邀请；开发者也可先注册再激活。</p>
+        <label class="field" data-i18n="gate.user">用户名</label>
+        <input id="registerUser" autocomplete="username" data-i18n-placeholder="gate.phRegUser" placeholder="3-32位">
+        <label class="field" data-i18n="gate.password">密码</label>
+        <input id="registerPassword" type="password" autocomplete="new-password" data-i18n-placeholder="gate.phRegPassword" placeholder="至少10位">
+        <label class="field" data-i18n="gate.invite">邀请码（可选）</label>
+        <input id="registerInvite" data-i18n-placeholder="gate.phInvite" placeholder="社区管理员邀请码，可留空">
+        <div class="actions"><button onclick="register()" data-i18n="gate.join">加入社区</button></div>
       </div>
     </div>
   </div>
 </section>
 <aside class="sidebar">
-  <div class="brand"><strong>七日杀 Mod 社区</strong><span>运营后台</span></div>
+  <div class="brand"><strong data-i18n="nav.brand">七日杀 Mod 社区</strong><span data-i18n="nav.sub">运营后台</span></div>
   <nav>
-    <button class="active" data-tab="workshop" onclick="showTab('workshop')">工坊</button>
-    <button data-tab="mods" onclick="showTab('mods')">Mod</button>
-    <button data-tab="packs" onclick="showTab('packs')">Pack</button>
-    <button data-tab="servers" onclick="showTab('servers')">服务器</button>
-    <button data-tab="ops" onclick="showTab('ops')">运维</button>
-    <button data-tab="account" onclick="showTab('account')">账户</button>
+    <button class="active" data-tab="workshop" onclick="showTab('workshop')" data-i18n="nav.workshop">工坊</button>
+    <button data-tab="mods" onclick="showTab('mods')" data-i18n="nav.mods">Mod</button>
+    <button data-tab="packs" onclick="showTab('packs')" data-i18n="nav.packs">Pack</button>
+    <button data-tab="servers" onclick="showTab('servers')" data-i18n="nav.servers">服务器</button>
+    <button data-tab="ops" onclick="showTab('ops')" data-i18n="nav.ops">运维</button>
+    <button data-tab="account" onclick="showTab('account')" data-i18n="nav.account">账户</button>
   </nav>
   <div class="who" id="authStatus">尚未登录</div>
 </aside>
@@ -233,22 +239,23 @@
       <p id="pageHint">浏览、搜索已登记 Mod，挑选后加入 Pack 或创建新 Pack</p>
     </div>
     <div class="actions" style="width:auto">
-      <a class="ghost" href="/guide" style="display:inline-block;padding:9px 10px;text-decoration:none;color:#fff;background:#2a2f38;border-radius:7px">教程</a>
-      <button class="ghost" onclick="logout()">退出登录</button>
+      <div class="lang-switch" data-lang-switch></div>
+      <a class="ghost" href="/guide" style="display:inline-block;padding:9px 10px;text-decoration:none;color:#fff;background:#2a2f38;border-radius:7px" data-i18n="guide">教程</a>
+      <button class="ghost" onclick="logout()" data-i18n="logout">退出登录</button>
     </div>
   </div>
 
   <div class="page" id="tab-account">
     <div class="grid">
       <article class="card stretch">
-        <h2>邀请与身份</h2>
-        <p class="hint">超级管理员邀请社区管理员；社区管理员绑定 GitHub 后可邀请开发者。普通用户开放注册，开发者用邀请码激活。</p>
+        <h2 data-i18n="account.title">邀请与身份</h2>
+        <p class="hint" data-i18n="account.hint">超级管理员邀请社区管理员；社区管理员绑定 GitHub 后可邀请开发者。普通用户开放注册，开发者用邀请码激活。</p>
         <div class="actions" style="margin-bottom:12px">
-          <button class="secondary" onclick="bindGithub()">绑定 GitHub</button>
+          <button class="secondary" onclick="bindGithub()" data-i18n="account.bindGithub">绑定 GitHub</button>
         </div>
-        <label class="field">开发者邀请码</label>
-        <input id="activateCode" placeholder="已注册普通用户可在此激活为开发者">
-        <div class="actions"><button class="secondary" onclick="activateDeveloper()">激活开发者</button></div>
+        <label class="field" data-i18n="account.devCode">开发者邀请码</label>
+        <input id="activateCode" data-i18n-placeholder="account.phActivate" placeholder="已注册普通用户可在此激活为开发者">
+        <div class="actions"><button class="secondary" onclick="activateDeveloper()" data-i18n="account.activate">激活开发者</button></div>
         <div id="inviteHostApp"></div>
       </article>
     </div>
@@ -259,42 +266,42 @@
       <article class="card stretch">
         <div class="workshop-toolbar">
           <div>
-            <label class="field">搜索</label>
-            <input id="workshopQuery" placeholder="名称、作者、简介或 Mod ID" oninput="scheduleWorkshopSearch()">
+            <label class="field" data-i18n="ws.search">搜索</label>
+            <input id="workshopQuery" data-i18n-placeholder="ws.phSearch" placeholder="名称、作者、简介或 Mod ID" oninput="scheduleWorkshopSearch()">
           </div>
           <div>
-            <label class="field">游戏版本</label>
-            <input id="workshopGame" placeholder="例如 3.10.14" oninput="scheduleWorkshopSearch()">
+            <label class="field" data-i18n="ws.game">游戏版本</label>
+            <input id="workshopGame" data-i18n-placeholder="ws.phGame" placeholder="例如 3.1.0" oninput="scheduleWorkshopSearch()">
           </div>
           <div>
-            <label class="field">类型</label>
+            <label class="field" data-i18n="ws.type">类型</label>
             <select id="workshopDll" onchange="loadWorkshop({ silent: true })">
-              <option value="">全部</option>
-              <option value="yes">含 DLL</option>
-              <option value="no">无 DLL</option>
+              <option value="" data-i18n="ws.all">全部</option>
+              <option value="yes" data-i18n="ws.dllYes">含 DLL</option>
+              <option value="no" data-i18n="ws.dllNo">无 DLL</option>
             </select>
           </div>
           <div>
-            <label class="field">排序</label>
+            <label class="field" data-i18n="ws.sort">排序</label>
             <select id="workshopSort" onchange="renderWorkshop()">
-              <option value="name">名称</option>
-              <option value="downloads">下载</option>
-              <option value="updated">最近更新</option>
+              <option value="name" data-i18n="ws.sortName">名称</option>
+              <option value="downloads" data-i18n="ws.sortDownloads">下载</option>
+              <option value="updated" data-i18n="ws.sortUpdated">最近更新</option>
             </select>
           </div>
-          <div class="actions" style="min-width:110px"><button class="secondary" onclick="loadWorkshop()">刷新</button></div>
+          <div class="actions" style="min-width:110px"><button class="secondary" onclick="loadWorkshop()" data-i18n="refresh">刷新</button></div>
         </div>
-        <p class="hint" id="workshopCount">登录后自动加载已登记 Mod</p>
+        <p class="hint" id="workshopCount" data-i18n="ws.countIdle">登录后自动加载已登记 Mod</p>
         <div id="workshopGrid" class="workshop-grid"></div>
         <div class="workshop-tray" id="workshopTray">
           <div>
-            <strong id="workshopTrayTitle">尚未挑选</strong>
-            <div class="chips" id="workshopChips"><span class="hint">点卡片上的「加入挑选」开始组 Pack</span></div>
+            <strong id="workshopTrayTitle" data-i18n="ws.nonePicked">尚未挑选</strong>
+            <div class="chips" id="workshopChips"><span class="hint" data-i18n="ws.pickHint">点卡片上的「加入挑选」开始组 Pack</span></div>
           </div>
           <div class="actions" id="workshopTrayActions" style="width:auto">
-            <button class="secondary" onclick="clearWorkshopCart()">清空</button>
-            <button class="secondary" onclick="openWorkshopAdd()">加入已有 Pack</button>
-            <button onclick="openWorkshopCreate()">创建新 Pack</button>
+            <button class="secondary" onclick="clearWorkshopCart()" data-i18n="ws.clear">清空</button>
+            <button class="secondary" onclick="openWorkshopAdd()" data-i18n="ws.addExisting">加入已有 Pack</button>
+            <button onclick="openWorkshopCreate()" data-i18n="ws.createNew">创建新 Pack</button>
           </div>
         </div>
       </article>
@@ -304,41 +311,41 @@
   <div class="page" id="tab-mods">
     <div class="grid">
       <article class="card">
-        <h2>上传 Mod ZIP</h2>
-        <p class="hint">上传后自动计算 SHA-256，并填入右侧登记表。</p>
+        <h2 data-i18n="mod.uploadTitle">上传 Mod ZIP</h2>
+        <p class="hint" data-i18n="mod.uploadHint">上传后自动计算 SHA-256，并填入右侧登记表。</p>
         <label class="drop" id="dropZone">
           <input id="artifact" type="file" accept=".zip">
-          <span id="dropHint">拖入 ZIP，或点击选择</span>
+          <span id="dropHint" data-i18n="mod.drop">拖入 ZIP，或点击选择</span>
         </label>
-        <div class="actions"><button onclick="upload()">上传并计算哈希</button></div>
-        <pre id="uploadResult">上传结果会显示在这里。</pre>
+        <div class="actions"><button onclick="upload()" data-i18n="mod.upload">上传并计算哈希</button></div>
+        <pre id="uploadResult" data-i18n="mod.uploadIdle">上传结果会显示在这里。</pre>
       </article>
       <article class="card">
-        <h2>登记 Mod 版本</h2>
+        <h2 data-i18n="mod.registerTitle">登记 Mod 版本</h2>
         <div class="row">
-          <div><label class="field">Mod ID</label><input id="modId" placeholder="example-vehicles"></div>
-          <div><label class="field">显示名称</label><input id="modName" placeholder="Example Vehicles"></div>
+          <div><label class="field" data-i18n="mod.id">Mod ID</label><input id="modId" placeholder="example-vehicles"></div>
+          <div><label class="field" data-i18n="mod.name">显示名称</label><input id="modName" placeholder="Example Vehicles"></div>
         </div>
         <div class="row">
-          <div><label class="field">版本</label><input id="modVersion" placeholder="1.0.0"></div>
-          <div><label class="field">文件 SHA-256</label><input id="artifactSha" placeholder="上传后自动填写"></div>
+          <div><label class="field" data-i18n="mod.version">版本</label><input id="modVersion" placeholder="1.0.0"></div>
+          <div><label class="field" data-i18n="mod.sha">文件 SHA-256</label><input id="artifactSha" data-i18n-placeholder="mod.phSha" placeholder="上传后自动填写"></div>
         </div>
-        <label class="field">游戏版本</label>
-        <input id="gameVersions" placeholder="逗号分隔，例如 3.0 或 3.10.14">
-        <label class="check"><input id="genericGameVersion" type="checkbox"> 泛版本：从填写的版本起，同一大版本内均兼容（如 3.0 可用于 3.10.14，但不能用于 4.0）</label>
-        <label class="field">ZIP 顶层目录</label>
-        <input id="installRoots" placeholder="逗号分隔，例如 ExampleVehicles">
-        <label class="check"><input id="containsDll" type="checkbox"> 包含客户端 DLL / 需要重启</label>
-        <label class="check"><input id="licenseConfirm" type="checkbox"> 我确认拥有再分发许可，并已审核该 ZIP</label>
-        <p class="hint" id="reviewHint">生产环境必须先确认许可证。含 DLL 的文件默认待审核。</p>
+        <label class="field" data-i18n="mod.game">游戏版本</label>
+        <input id="gameVersions" data-i18n-placeholder="mod.phGames" placeholder="逗号分隔，例如 3.0 或 3.1.0">
+        <label class="check"><input id="genericGameVersion" type="checkbox"> <span data-i18n="mod.generic">泛版本：从填写的版本起，同一大版本内均兼容（如 3.0 可用于 3.1.0，但不能用于 4.0）</span></label>
+        <label class="field" data-i18n="mod.roots">ZIP 顶层目录</label>
+        <input id="installRoots" data-i18n-placeholder="mod.phRoots" placeholder="逗号分隔，例如 ExampleVehicles">
+        <label class="check"><input id="containsDll" type="checkbox"> <span data-i18n="mod.containsDll">包含客户端 DLL / 需要重启</span></label>
+        <label class="check"><input id="licenseConfirm" type="checkbox"> <span data-i18n="mod.license">我确认拥有再分发许可，并已审核该 ZIP</span></label>
+        <p class="hint" id="reviewHint" data-i18n="mod.reviewHint">生产环境必须先确认许可证。含 DLL 的文件默认待审核。</p>
         <div class="actions">
-          <button onclick="registerMod()">登记版本</button>
-          <button class="secondary" onclick="loadMods()">刷新列表</button>
+          <button onclick="registerMod()" data-i18n="mod.register">登记版本</button>
+          <button class="secondary" onclick="loadMods()" data-i18n="mod.refresh">刷新列表</button>
         </div>
       </article>
       <article class="card stretch">
-        <div class="card-head"><h2>已登记 Mod</h2><span class="hint">点击一行可回填表单</span></div>
-        <div id="list-mods" class="table-wrap"><p class="empty">登录后自动加载</p></div>
+        <div class="card-head"><h2 data-i18n="mod.listTitle">已登记 Mod</h2><span class="hint" data-i18n="mod.clickFill">点击一行可回填表单</span></div>
+        <div id="list-mods" class="table-wrap"><p class="empty" data-i18n="loginEmpty">登录后自动加载</p></div>
       </article>
     </div>
   </div>
@@ -346,47 +353,47 @@
   <div class="page" id="tab-packs">
     <div class="grid">
       <article class="card">
-        <h2>创建并发布</h2>
-        <p class="hint">新建时自动生成 Pack ID。也可先到「工坊」浏览挑选，再回来发布。<a href="#" onclick="showTab('workshop'); return false;" style="color:var(--accent)">去工坊挑选</a></p>
+        <h2 data-i18n="pack.createTitle">创建并发布</h2>
+        <p class="hint"><span data-i18n="pack.createHint">新建时自动生成 Pack ID。也可先到「工坊」浏览挑选，再回来发布。</span> <a href="#" onclick="showTab('workshop'); return false;" style="color:var(--accent)" data-i18n="pack.toWorkshop">去工坊挑选</a></p>
         <div class="row">
-          <div><label class="field">Pack ID</label><input id="packId" readonly placeholder="创建后自动生成"></div>
-          <div><label class="field">名称</label><input id="packName" placeholder="正式服 Pack"></div>
+          <div><label class="field" data-i18n="pack.id">Pack ID</label><input id="packId" readonly data-i18n-placeholder="pack.phId" placeholder="创建后自动生成"></div>
+          <div><label class="field" data-i18n="pack.name">名称</label><input id="packName" data-i18n-placeholder="pack.phName" placeholder="正式服 Pack"></div>
         </div>
-        <label class="field">游戏版本</label>
-        <input id="packGame" placeholder="3.10.14">
-        <label class="field">包含的 Mod</label>
+        <label class="field" data-i18n="pack.game">游戏版本</label>
+        <input id="packGame" placeholder="3.1.0">
+        <label class="field" data-i18n="pack.mods">包含的 Mod</label>
         <div class="picker" id="packEntryPicker">
-          <button type="button" class="picker-btn" id="packEntryToggle" onclick="togglePackEntries(event)">选择已登记的 Mod（可多选）</button>
+          <button type="button" class="picker-btn" id="packEntryToggle" onclick="togglePackEntries(event)" data-i18n="pack.pick">选择已登记的 Mod（可多选）</button>
           <div class="picker-menu" id="packEntryMenu" hidden></div>
         </div>
-        <label class="field">发布原因</label>
-        <input id="releaseReason" placeholder="发布 / 吊销 / 回滚原因">
+        <label class="field" data-i18n="pack.reason">发布原因</label>
+        <input id="releaseReason" data-i18n-placeholder="pack.phReason" placeholder="发布 / 吊销 / 回滚原因">
         <div class="actions">
-          <button onclick="publishPack()">创建并发布</button>
-          <button class="secondary" onclick="newPack()">新建</button>
-          <button class="secondary" onclick="loadPacks()">刷新 Pack</button>
+          <button onclick="publishPack()" data-i18n="pack.publish">创建并发布</button>
+          <button class="secondary" onclick="newPack()" data-i18n="pack.new">新建</button>
+          <button class="secondary" onclick="loadPacks()" data-i18n="pack.refresh">刷新 Pack</button>
         </div>
       </article>
       <article class="card danger">
-        <h2>吊销与回滚</h2>
-        <p class="hint">回滚可能影响已有存档。点击下方表格可填入 Release ID。</p>
+        <h2 data-i18n="pack.revokeTitle">吊销与回滚</h2>
+        <p class="hint" data-i18n="pack.revokeHint">回滚可能影响已有存档。点击下方表格可填入 Release ID。</p>
         <div class="row">
-          <div><label class="field">Pack</label><select id="releasePackId"><option value="">请选择 Pack</option></select></div>
-          <div><label class="field">Release ID</label><input id="releaseId" placeholder="rel_..."></div>
+          <div><label class="field" data-i18n="srv.pack">Pack</label><select id="releasePackId"><option value="" data-i18n="pack.select">请选择 Pack</option></select></div>
+          <div><label class="field" data-i18n="pack.releaseId">Release ID</label><input id="releaseId" placeholder="rel_..."></div>
         </div>
         <div class="actions">
-          <button class="secondary" onclick="listReleases()">列出 Release</button>
-          <button onclick="revokeRelease()">吊销</button>
-          <button onclick="rollbackRelease()">回滚</button>
+          <button class="secondary" onclick="listReleases()" data-i18n="pack.listReleases">列出 Release</button>
+          <button onclick="revokeRelease()" data-i18n="pack.revoke">吊销</button>
+          <button onclick="rollbackRelease()" data-i18n="pack.rollback">回滚</button>
         </div>
       </article>
       <article class="card">
-        <div class="card-head"><h2>Pack 目录</h2><span class="hint">点击一行可回填</span></div>
-        <div id="list-packs" class="table-wrap"><p class="empty">登录后自动加载</p></div>
+        <div class="card-head"><h2 data-i18n="pack.dir">Pack 目录</h2><span class="hint" data-i18n="mod.clickFill">点击一行可回填</span></div>
+        <div id="list-packs" class="table-wrap"><p class="empty" data-i18n="loginEmpty">登录后自动加载</p></div>
       </article>
       <article class="card">
-        <div class="card-head"><h2>Release</h2><span class="hint">先选 Pack 再列出</span></div>
-        <div id="list-releases" class="table-wrap"><p class="empty">尚未读取</p></div>
+        <div class="card-head"><h2 data-i18n="pack.release">Release</h2><span class="hint" data-i18n="pack.releaseHint">先选 Pack 再列出</span></div>
+        <div id="list-releases" class="table-wrap"><p class="empty" data-i18n="pack.unread">尚未读取</p></div>
       </article>
     </div>
   </div>
@@ -394,40 +401,40 @@
   <div class="page" id="tab-servers">
     <div class="grid">
       <article class="card">
-        <h2>登记服务器</h2>
-        <p class="hint">普通用户可登记自己的专用服。登记后会生成与插件相同的 server.config.json，令牌只显示一次。</p>
-        <label class="field">名称</label>
-        <input id="serverName" placeholder="周末 PVE">
+        <h2 data-i18n="srv.title">登记服务器</h2>
+        <p class="hint" data-i18n="srv.hint">普通用户可登记自己的专用服。登记后会生成与插件相同的 server.config.json，令牌只显示一次。</p>
+        <label class="field" data-i18n="srv.name">名称</label>
+        <input id="serverName" data-i18n-placeholder="srv.phName" placeholder="周末 PVE">
         <div class="row">
-          <div><label class="field">Server ID</label><input id="serverId" placeholder="新建后自动填写"></div>
-          <div><label class="field">Pack</label><select id="serverPackId"><option value="">请选择已发布的 Pack</option></select></div>
+          <div><label class="field" data-i18n="srv.id">Server ID</label><input id="serverId" data-i18n-placeholder="srv.phId" placeholder="新建后自动填写"></div>
+          <div><label class="field" data-i18n="srv.pack">Pack</label><select id="serverPackId"><option value="" data-i18n="pack.selectPublished">请选择已发布的 Pack</option></select></div>
         </div>
-        <label class="field">地址（可选，每行一条）</label>
-        <textarea id="serverAddress" rows="3" placeholder="可空。校验以 Server ID 为准。&#10;192.168.3.42:26900&#10;play.example.com:26900"></textarea>
-        <p class="hint">局域网、公网、动态 IP 可以同时登记。插件在线后会自动补上本机监听地址。同一地址允许被多台服使用。</p>
+        <label class="field" data-i18n="srv.addresses">地址（可选，每行一条）</label>
+        <textarea id="serverAddress" rows="3" data-i18n-placeholder="srv.phAddr" placeholder="可空。校验以 Server ID 为准。&#10;192.168.3.42:26900&#10;play.example.com:26900"></textarea>
+        <p class="hint" data-i18n="srv.addrHint">局域网、公网、动态 IP 可以同时登记。插件在线后会自动补上本机监听地址。同一地址允许被多台服使用。</p>
         <div class="actions">
-          <button onclick="createServer()">登记服务器</button>
-          <button class="secondary" onclick="updateServer()">更新绑定</button>
-          <button class="secondary" onclick="loadServers()">刷新状态</button>
+          <button onclick="createServer()" data-i18n="srv.create">登记服务器</button>
+          <button class="secondary" onclick="updateServer()" data-i18n="srv.update">更新绑定</button>
+          <button class="secondary" onclick="loadServers()" data-i18n="srv.refresh">刷新状态</button>
         </div>
         <div class="actions">
-          <button class="secondary" onclick="copyServerConfig()">复制 server.config.json</button>
+          <button class="secondary" onclick="copyServerConfig()" data-i18n="srv.copy">复制 server.config.json</button>
         </div>
-        <pre id="serverTokenResult">登记成功后，这里会给出可直接覆盖到插件目录的 server.config.json。</pre>
+        <pre id="serverTokenResult" data-i18n="srv.tokenIdle">登记成功后，这里会给出可直接覆盖到插件目录的 server.config.json。</pre>
       </article>
       <article class="card danger" id="pauseCard">
-        <h2>紧急停发</h2>
-        <p class="hint">停止后更新器将无法拉取新包，不影响已安装玩家继续游戏。</p>
-        <label class="field">停发原因</label>
-        <input id="pauseReason" placeholder="可选">
+        <h2 data-i18n="srv.pauseTitle">紧急停发</h2>
+        <p class="hint" data-i18n="srv.pauseHint">停止后更新器将无法拉取新包，不影响已安装玩家继续游戏。</p>
+        <label class="field" data-i18n="srv.pauseReason">停发原因</label>
+        <input id="pauseReason" data-i18n-placeholder="srv.phReason" placeholder="可选">
         <div class="actions">
-          <button onclick="pauseDistribution(true)">紧急停止分发</button>
-          <button class="ok" onclick="pauseDistribution(false)">恢复分发</button>
+          <button onclick="pauseDistribution(true)" data-i18n="srv.pause">紧急停止分发</button>
+          <button class="ok" onclick="pauseDistribution(false)" data-i18n="srv.resume">恢复分发</button>
         </div>
       </article>
       <article class="card stretch">
-        <div class="card-head"><h2>服务器</h2><span class="hint">点击一行可回填</span></div>
-        <div id="list-servers" class="table-wrap"><p class="empty">登录后自动加载</p></div>
+        <div class="card-head"><h2 data-i18n="srv.list">服务器</h2><span class="hint" data-i18n="mod.clickFill">点击一行可回填</span></div>
+        <div id="list-servers" class="table-wrap"><p class="empty" data-i18n="loginEmpty">登录后自动加载</p></div>
       </article>
     </div>
   </div>
@@ -435,100 +442,141 @@
   <div class="page" id="tab-ops">
     <div class="grid">
       <div class="stats">
-        <div class="stat"><b id="statDownloads">—</b><span>下载次数</span></div>
-        <div class="stat"><b id="statBytes">—</b><span>流量</span></div>
-        <div class="stat"><b id="statMods">—</b><span>Mod</span></div>
-        <div class="stat"><b id="statPacks">—</b><span>Pack</span></div>
-        <div class="stat"><b id="statServers">—</b><span>服务器</span></div>
-        <div class="stat"><b id="statUsers">—</b><span>用户</span></div>
+        <div class="stat"><b id="statDownloads">—</b><span data-i18n="ops.downloads">下载次数</span></div>
+        <div class="stat"><b id="statBytes">—</b><span data-i18n="ops.bytes">流量</span></div>
+        <div class="stat"><b id="statMods">—</b><span data-i18n="nav.mods">Mod</span></div>
+        <div class="stat"><b id="statPacks">—</b><span data-i18n="nav.packs">Pack</span></div>
+        <div class="stat"><b id="statServers">—</b><span data-i18n="nav.servers">服务器</span></div>
+        <div class="stat"><b id="statUsers">—</b><span data-i18n="ops.usersTitle">用户</span></div>
       </div>
       <article class="card">
-        <h2>快捷查看</h2>
+        <h2 data-i18n="ops.quick">快捷查看</h2>
         <div class="actions">
-          <button class="secondary" onclick="loadReviews()">审核队列</button>
-          <button class="secondary" onclick="loadMatrix()">兼容性矩阵</button>
-          <button class="secondary" onclick="loadStats()">下载统计</button>
-          <button class="secondary" onclick="loadUsers()">用户列表</button>
-          <button class="secondary" onclick="loadSessions()">登录会话</button>
-          <button class="secondary" onclick="loadState()">平台状态</button>
+          <button class="secondary" onclick="loadReviews()" data-i18n="ops.reviews">审核队列</button>
+          <button class="secondary" onclick="loadMatrix()" data-i18n="ops.matrix">兼容性矩阵</button>
+          <button class="secondary" onclick="loadStats()" data-i18n="ops.stats">下载统计</button>
+          <button class="secondary" onclick="loadUsers()" data-i18n="ops.users">用户列表</button>
+          <button class="secondary" onclick="loadSessions()" data-i18n="ops.sessions">登录会话</button>
+          <button class="secondary" onclick="loadState()" data-i18n="ops.state">平台状态</button>
         </div>
       </article>
       <article class="card">
-        <h2>审核与审计</h2>
+        <h2 data-i18n="ops.auditTitle">审核与审计</h2>
         <div class="row">
-          <div><label class="field">审计 action</label><input id="auditAction" placeholder="例如 release.publish"></div>
-          <div><label class="field">审核 SHA-256</label><input id="reviewSha" placeholder="点击审核表可回填"></div>
+          <div><label class="field" data-i18n="ops.auditAction">审计 action</label><input id="auditAction" data-i18n-placeholder="ops.phAction" placeholder="例如 release.publish"></div>
+          <div><label class="field" data-i18n="ops.reviewSha">审核 SHA-256</label><input id="reviewSha" data-i18n-placeholder="ops.phSha" placeholder="点击审核表可回填"></div>
         </div>
         <div class="actions">
-          <button class="secondary" onclick="loadAudit()">查询审计</button>
-          <button class="ok" onclick="approveReview()">确认许可证并批准</button>
+          <button class="secondary" onclick="loadAudit()" data-i18n="ops.queryAudit">查询审计</button>
+          <button class="ok" onclick="approveReview()" data-i18n="ops.approve">确认许可证并批准</button>
         </div>
       </article>
       <article class="card stretch">
-        <div class="card-head"><h2 id="opsTitle">数据</h2><span class="hint">审核行可点选 SHA</span></div>
-        <div id="list-ops" class="table-wrap"><p class="empty">选择上方操作查看表格</p></div>
+        <div class="card-head"><h2 id="opsTitle" data-i18n="ops.data">数据</h2><span class="hint" data-i18n="ops.pickSha">审核行可点选 SHA</span></div>
+        <div id="list-ops" class="table-wrap"><p class="empty" data-i18n="ops.pickOp">选择上方操作查看表格</p></div>
       </article>
     </div>
   </div>
 
   <details class="raw">
-    <summary>原始响应</summary>
-    <pre id="out">尚未读取</pre>
+    <summary data-i18n="rawResponse">原始响应</summary>
+    <pre id="out" data-i18n="rawEmpty">尚未读取</pre>
   </details>
 </main>
 
 <div id="workshopDialog" class="dialog" hidden onclick="if (event.target === this) closeWorkshopDialog()">
   <div class="dialog-card">
-    <h2 id="workshopDialogTitle">创建 Pack</h2>
-    <p class="hint" id="workshopDialogHint">用当前挑选的 Mod 创建并发布。</p>
+    <h2 id="workshopDialogTitle" data-i18n="ws.dlgCreate">创建 Pack</h2>
+    <p class="hint" id="workshopDialogHint" data-i18n="ws.dlgCreateHint">用当前挑选的 Mod 创建并发布。</p>
     <div id="workshopCreateFields">
-      <label class="field">名称</label>
-      <input id="workshopPackName" placeholder="例如 周末 PVE">
-      <label class="field">游戏版本</label>
-      <input id="workshopPackGame" placeholder="3.10.14">
+      <label class="field" data-i18n="ws.dlgName">名称</label>
+      <input id="workshopPackName" data-i18n-placeholder="ws.phName" placeholder="例如 周末 PVE">
+      <label class="field" data-i18n="ws.dlgGame">游戏版本</label>
+      <input id="workshopPackGame" placeholder="3.1.0">
     </div>
     <div id="workshopAddFields" hidden>
-      <label class="field">加入哪个 Pack</label>
-      <select id="workshopPackId"><option value="">请选择 Pack</option></select>
+      <label class="field" data-i18n="ws.dlgPack">加入哪个 Pack</label>
+      <select id="workshopPackId"><option value="" data-i18n="pack.select">请选择 Pack</option></select>
     </div>
-    <label class="check"><input id="workshopPublish" type="checkbox" checked> 同时发布新的 Release</label>
+    <label class="check"><input id="workshopPublish" type="checkbox" checked> <span data-i18n="ws.dlgPublish">同时发布新的 Release</span></label>
     <div class="actions">
-      <button class="secondary" onclick="closeWorkshopDialog()">取消</button>
-      <button id="workshopDialogSubmit" onclick="submitWorkshopDialog()">确定</button>
+      <button class="secondary" onclick="closeWorkshopDialog()" data-i18n="cancel">取消</button>
+      <button id="workshopDialogSubmit" onclick="submitWorkshopDialog()" data-i18n="confirm">确定</button>
     </div>
   </div>
 </div>
 <div id="inviteBox" hidden>
-  <p class="hint">还没有管理员时，填写 ADMIN_TOKEN 创建第一张邀请码。已经注册过管理员后，必须先登录，ADMIN_TOKEN 会失效。</p>
-  <label class="field">ADMIN_TOKEN（仅首次部署）</label>
-  <input id="bootstrapToken" type="password" placeholder="仅在还没有管理员账户时使用">
+  <p class="hint" data-i18n="account.inviteHint">还没有管理员时，填写 ADMIN_TOKEN 创建第一张邀请码。已经注册过管理员后，必须先登录，ADMIN_TOKEN 会失效。</p>
+  <label class="field" data-i18n="account.bootstrap">ADMIN_TOKEN（仅首次部署）</label>
+  <input id="bootstrapToken" type="password" data-i18n-placeholder="account.phBootstrap" placeholder="仅在还没有管理员账户时使用">
   <div class="three">
-    <div><label class="field">角色</label><select id="inviteRole"><option value="community">社区管理员</option><option value="developer">开发者</option></select></div>
-    <div><label class="field">可用次数</label><input id="inviteUses" type="number" min="1" max="100" value="1"></div>
-    <div><label class="field">有效小时</label><input id="inviteHours" type="number" min="1" max="8760" value="168"></div>
+    <div><label class="field" data-i18n="account.role">角色</label><select id="inviteRole"><option value="community" data-i18n="account.roleCommunity">社区管理员</option><option value="developer" data-i18n="account.roleDeveloper">开发者</option></select></div>
+    <div><label class="field" data-i18n="account.uses">可用次数</label><input id="inviteUses" type="number" min="1" max="100" value="1"></div>
+    <div><label class="field" data-i18n="account.hours">有效小时</label><input id="inviteHours" type="number" min="1" max="8760" value="168"></div>
   </div>
-  <div class="actions"><button onclick="createInvite()">创建邀请码</button></div>
-  <pre id="inviteResult">邀请码只显示一次，请安全发送给受邀用户。</pre>
+  <div class="actions"><button onclick="createInvite()" data-i18n="account.createInvite">创建邀请码</button></div>
+  <pre id="inviteResult" data-i18n="account.inviteOnce">邀请码只显示一次，请安全发送给受邀用户。</pre>
 </div>
+<script src="/admin-i18n.js"></script>
 <script>
-const PAGES = {
-  account: { title: '账户', hint: '邀请新管理员或只读用户' },
-  workshop: { title: '工坊', hint: '浏览、搜索已登记 Mod，挑选后加入 Pack 或创建新 Pack' },
-  mods: { title: 'Mod', hint: '上传 ZIP、登记版本；点击表格行可回填表单' },
-  packs: { title: 'Pack', hint: '组装发布包。吊销与回滚会影响玩家下载' },
-  servers: { title: '服务器', hint: '登记专用服并绑定已发布的 Pack；玩家按公开地址同步' },
-  ops: { title: '运维', hint: '审核、审计、统计与会话' }
-};
-const LABELS = {
-  id: 'ID', name: '名称', latestVersion: '最新版本', versionCount: '版本数', containsDll: '含DLL',
-  gameVersion: '游戏', entryCount: '条目', packVersion: 'Pack版本', latestReleaseId: '当前Release',
-  createdAt: '创建时间', revokedAt: '吊销时间', packId: 'Pack', publicAddress: '地址', online: '在线',
-  acceptingPlayers: '接玩家', lastSeenAt: '最近心跳', sha256: 'SHA-256', fileName: '文件', status: '状态',
-  size: '大小', username: '用户', role: '角色', totpEnabled: '2FA', disabledAt: '停用', userId: '用户',
-  expiresAt: '过期', ip: 'IP', at: '时间', actor: '操作者', action: '动作', target: '对象', mod: 'Mod',
-  events: '事件', failCount: '失败', successCount: '成功', crashRate: '崩溃率', conclusion: '结论',
-  hash: '会话', count: '次数'
-};
+const PAGE_KEYS = ['account', 'workshop', 'mods', 'packs', 'servers', 'ops'];
+const DYNAMIC_I18N = new Set(['workshopCount', 'workshopTrayTitle', 'workshopChips', 'dropHint', 'uploadResult', 'reviewHint', 'serverTokenResult', 'inviteResult', 'out', 'opsTitle', 'packEntryToggle', 'workshopDialogTitle', 'workshopDialogHint', 'authStatus', 'pageTitle', 'pageHint']);
+
+function t(key, vars) {
+  return (window.I18N && window.I18N.t) ? window.I18N.t(key, vars) : key;
+}
+
+function localeTag() {
+  return (window.I18N && window.I18N.currentLang() === 'en') ? 'en' : 'zh-CN';
+}
+
+function applyI18n() {
+  const lang = window.I18N ? window.I18N.currentLang() : 'zh';
+  document.documentElement.lang = lang === 'en' ? 'en' : 'zh-CN';
+  document.title = t('docTitle');
+  document.querySelectorAll('[data-i18n]').forEach((el) => {
+    if (DYNAMIC_I18N.has(el.id)) return;
+    el.textContent = t(el.getAttribute('data-i18n'));
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => {
+    el.placeholder = t(el.getAttribute('data-i18n-placeholder'));
+  });
+  document.querySelectorAll('[data-lang-switch]').forEach((host) => {
+    host.innerHTML = '<button type="button" class="' + (lang === 'zh' ? 'active' : '') + '" onclick="setLang(\'zh\')">' + t('langZh') + '</button>'
+      + '<button type="button" class="' + (lang === 'en' ? 'active' : '') + '" onclick="setLang(\'en\')">' + t('langEn') + '</button>';
+  });
+  const active = document.querySelector('nav button.active');
+  const tab = active && active.getAttribute('data-tab');
+  if (tab && PAGE_KEYS.includes(tab) && document.body.classList.contains('authed')) {
+    pageTitle.textContent = t('page.' + tab + '.title');
+    pageHint.textContent = t('page.' + tab + '.hint');
+  }
+  fillPackSelects();
+  fillPackEntryPicker();
+  fillWorkshopPackSelect();
+  renderWorkshop();
+  renderWorkshopTray();
+  if (window.__lastPaint) paint(window.__lastPaint);
+  refreshDropHint();
+  refreshAuthStatus();
+  if (workshopDialog && !workshopDialog.hidden) refreshWorkshopDialogCopy();
+  const tokenBox = document.getElementById('serverTokenResult');
+  if (tokenBox && tokenBox.dataset.config) tokenBox.textContent = t('srv.configPrefix') + tokenBox.dataset.config;
+  else if (tokenBox && !tokenBox.dataset.config) tokenBox.textContent = t('srv.tokenIdle');
+  const invite = document.getElementById('inviteResult');
+  if (invite && invite.dataset.code) invite.textContent = t('auth.inviteOnce', { code: invite.dataset.code, json: invite.dataset.json || '' });
+  else if (invite && !invite.dataset.code) invite.textContent = t('account.inviteOnce');
+  const uploadBox = document.getElementById('uploadResult');
+  if (uploadBox && uploadBox.dataset.hash) {
+    uploadBox.textContent = t('mod.uploadResult', { hash: uploadBox.dataset.hash, status: uploadBox.dataset.status, size: uploadBox.dataset.size, next: t(uploadBox.dataset.nextKey) });
+    if (reviewHint) reviewHint.textContent = t(uploadBox.dataset.nextKey);
+  } else if (uploadBox && !uploadBox.dataset.hash) uploadBox.textContent = t('mod.uploadIdle');
+}
+
+function setLang(lang) {
+  localStorage.setItem('modPlatformLang', lang);
+  applyI18n();
+}
 
 function showAuth(name) {
   document.querySelectorAll('.auth-pane').forEach((el) => el.classList.toggle('on', el.id === 'auth-' + name));
@@ -550,8 +598,8 @@ function showTab(name) {
   if (!document.body.classList.contains('authed')) return;
   document.querySelectorAll('.page').forEach((el) => el.classList.toggle('on', el.id === 'tab-' + name));
   document.querySelectorAll('nav button').forEach((el) => el.classList.toggle('active', el.getAttribute('data-tab') === name));
-  pageTitle.textContent = PAGES[name].title;
-  pageHint.textContent = PAGES[name].hint;
+  pageTitle.textContent = t('page.' + name + '.title');
+  pageHint.textContent = t('page.' + name + '.hint');
   if (name === 'workshop') { loadMods({ silent: true }); loadPacks({ silent: true }); loadWorkshop({ silent: true }); }
   if (name === 'mods') loadMods({ silent: true });
   if (name === 'packs') { loadMods({ silent: true }); loadPacks({ silent: true }); }
@@ -584,7 +632,7 @@ function prettyBytes(n) {
 
 function fmt(key, v) {
   if (v == null || v === '') return '—';
-  if (typeof v === 'boolean') return v ? '是' : '否';
+  if (typeof v === 'boolean') return v ? t('yes') : t('no');
   if (key === 'bytes' || key === 'artifactSize' || key === 'size') return prettyBytes(v);
   if (/At$/.test(key) || key === 'createdAt' || key === 'expiresAt') return String(v).replace('T', ' ').slice(0, 19);
   if ((key === 'sha256' || key === 'artifactSha' || key === 'hash') && String(v).length > 16) return String(v).slice(0, 10) + '…';
@@ -598,10 +646,10 @@ function table(id, rows, cols, onpick) {
   const el = document.getElementById(id);
   if (!el) return;
   if (!rows || !rows.length) {
-    el.innerHTML = '<p class="empty">暂无数据</p>';
+    el.innerHTML = '<p class="empty">' + esc(t('empty')) + '</p>';
     return;
   }
-  let html = '<table><thead><tr>' + cols.map((c) => '<th>' + esc(LABELS[c] || c) + '</th>').join('') + '</tr></thead><tbody>';
+  let html = '<table><thead><tr>' + cols.map((c) => '<th>' + esc(t('col.' + c) || c) + '</th>').join('') + '</tr></thead><tbody>';
   rows.forEach((row, i) => {
     html += '<tr data-i="' + i + '">' + cols.map((c) => '<td>' + esc(fmt(c, row[c])) + '</td>').join('') + '</tr>';
   });
@@ -632,7 +680,7 @@ function fillStats(s) {
   set('statUsers', s.users);
   if (s.topArtifacts) {
     table('list-ops', s.topArtifacts, ['sha256', 'count']);
-    opsTitle('下载热度');
+    opsTitle(t('ops.hot'));
   }
 }
 
@@ -655,27 +703,27 @@ function renderWorkshop() {
   const rows = workshopMods.slice().sort((a, b) => {
     if (sort === 'downloads') return (b.downloads || 0) - (a.downloads || 0);
     if (sort === 'updated') return String(b.updatedAt || '').localeCompare(String(a.updatedAt || ''));
-    return String(a.name || a.id).localeCompare(String(b.name || b.id), 'zh-CN');
+    return String(a.name || a.id).localeCompare(String(b.name || b.id), localeTag());
   });
-  if (count) count.textContent = rows.length ? ('找到 ' + rows.length + ' 个 Mod') : '没有符合条件的 Mod';
+  if (count) count.textContent = rows.length ? t('ws.found', { n: rows.length }) : t('ws.none');
   if (!rows.length) {
-    grid.innerHTML = '<p class="empty">没有符合条件的 Mod。开发者可到 Mod 页上传登记。</p>';
+    grid.innerHTML = '<p class="empty">' + esc(t('ws.noneHint')) + '</p>';
     return;
   }
   grid.innerHTML = rows.map((mod) => {
     const picked = workshopCart.some((item) => item.modId === mod.id);
-    const desc = mod.description || '暂无简介。上传 ZIP 时若包含 ModInfo.xml，会自动带上作者和说明。';
-    const games = (mod.gameVersions || []).join(' / ') || '未标注游戏版本';
+    const desc = mod.description || t('ws.noDesc');
+    const games = (mod.gameVersions || []).join(' / ') || t('ws.noGame');
     return '<article class="mod-card' + (picked ? ' picked' : '') + '">'
       + '<div class="cover">' + esc((mod.name || mod.id).slice(0, 2).toUpperCase()) + '</div>'
       + '<h3>' + esc(mod.name || mod.id) + '</h3>'
-      + '<p class="meta">' + esc(mod.author || '未知作者') + ' · v' + esc(mod.latestVersion || '—') + ' · ' + esc(prettyBytes(mod.artifactSize)) + '</p>'
+      + '<p class="meta">' + esc(mod.author || t('ws.unknownAuthor')) + ' · v' + esc(mod.latestVersion || '—') + ' · ' + esc(prettyBytes(mod.artifactSize)) + '</p>'
       + '<p class="desc">' + esc(desc) + '</p>'
       + '<div class="tags"><span class="tag">' + esc(games) + '</span>'
-      + (mod.containsDll ? '<span class="tag dll">含 DLL</span>' : '')
-      + (mod.downloads ? '<span class="tag">下载 ' + esc(mod.downloads) + '</span>' : '')
+      + (mod.containsDll ? '<span class="tag dll">' + esc(t('ws.hasDll')) + '</span>' : '')
+      + (mod.downloads ? '<span class="tag">' + esc(t('ws.downloads', { n: mod.downloads })) + '</span>' : '')
       + '</div>'
-      + '<div class="actions"><button class="' + (picked ? 'secondary' : 'ok') + '" onclick=\'toggleWorkshopMod(' + JSON.stringify(mod.id) + ')\'>' + (picked ? '移出挑选' : '加入挑选') + '</button></div>'
+      + '<div class="actions"><button class="' + (picked ? 'secondary' : 'ok') + '" onclick=\'toggleWorkshopMod(' + JSON.stringify(mod.id) + ')\'>' + (picked ? t('ws.remove') : t('ws.add')) + '</button></div>'
       + '</article>';
   }).join('');
 }
@@ -683,11 +731,11 @@ function renderWorkshop() {
 function renderWorkshopTray() {
   const title = document.getElementById('workshopTrayTitle');
   const chips = document.getElementById('workshopChips');
-  if (title) title.textContent = workshopCart.length ? ('已挑选 ' + workshopCart.length + ' 个 Mod') : '尚未挑选';
+  if (title) title.textContent = workshopCart.length ? t('ws.picked', { n: workshopCart.length }) : t('ws.nonePicked');
   if (chips) {
     chips.innerHTML = workshopCart.length
       ? workshopCart.map((item) => '<span class="chip">' + esc(item.name || item.modId) + '<button type="button" onclick=\'toggleWorkshopMod(' + JSON.stringify(item.modId) + ')\'>×</button></span>').join('')
-      : '<span class="hint">点卡片上的「加入挑选」开始组 Pack</span>';
+      : '<span class="hint">' + esc(t('ws.pickHint')) + '</span>';
   }
 }
 
@@ -696,7 +744,7 @@ function toggleWorkshopMod(modId) {
   if (existing >= 0) workshopCart.splice(existing, 1);
   else {
     const mod = workshopMods.concat(catalogMods).find((item) => item.id === modId);
-    if (!mod || !mod.latestVersion) return toast('这个 Mod 还没有可用版本', 'warn');
+    if (!mod || !mod.latestVersion) return toast(t('ws.noVersion'), 'warn');
     workshopCart.push({ modId: mod.id, version: mod.latestVersion, name: mod.name || mod.id, gameVersions: mod.gameVersions || [] });
   }
   renderWorkshop();
@@ -728,26 +776,30 @@ async function loadWorkshop(opts) {
     workshopMods = data.mods || [];
     renderWorkshop();
     renderWorkshopTray();
-    if (!opts || !opts.silent) toast('已加载工坊', 'ok');
+    if (!opts || !opts.silent) toast(t('ws.loaded'), 'ok');
   } catch (e) { show(e.message); }
 }
 
 function fillWorkshopPackSelect() {
   const el = document.getElementById('workshopPackId');
   if (!el) return;
-  el.innerHTML = '<option value="">请选择 Pack</option>' + catalogPacks.map((pack) =>
+  el.innerHTML = '<option value="">' + esc(t('pack.select')) + '</option>' + catalogPacks.map((pack) =>
     '<option value="' + esc(pack.id) + '">' + esc(packOptionLabel(pack)) + '</option>'
   ).join('');
 }
 
+function refreshWorkshopDialogCopy() {
+  workshopDialogTitle.textContent = workshopMode === 'create' ? t('ws.dlgCreate') : t('ws.dlgAdd');
+  workshopDialogHint.textContent = workshopMode === 'create'
+    ? t('ws.dlgCreateHint', { n: workshopCart.length })
+    : t('ws.dlgAddHint');
+}
+
 function openWorkshopDialog(mode) {
-  if (!workshopCart.length) return toast('请先挑选至少一个 Mod', 'warn');
-  if (!canPublishPack()) return toast('创建或更新 Pack 需要社区管理员或超级管理员', 'warn');
+  if (!workshopCart.length) return toast(t('ws.needPick'), 'warn');
+  if (!canPublishPack()) return toast(t('ws.needAdmin'), 'warn');
   workshopMode = mode;
-  workshopDialogTitle.textContent = mode === 'create' ? '创建新 Pack' : '加入已有 Pack';
-  workshopDialogHint.textContent = mode === 'create'
-    ? '用当前挑选的 ' + workshopCart.length + ' 个 Mod 创建 Pack。'
-    : '把挑选的 Mod 合并进已有 Pack，同名 Mod 使用工坊里的最新版本。';
+  refreshWorkshopDialogCopy();
   workshopCreateFields.hidden = mode !== 'create';
   workshopAddFields.hidden = mode !== 'add';
   if (mode === 'create') {
@@ -768,14 +820,14 @@ function closeWorkshopDialog() { workshopDialog.hidden = true; }
 async function submitWorkshopDialog() {
   try {
     const entries = workshopEntries();
-    if (!entries.length) throw new Error('请先挑选至少一个 Mod');
+    if (!entries.length) throw new Error(t('ws.needPick'));
     let pack;
     if (workshopMode === 'create') {
-      if (!workshopPackName.value.trim() || !workshopPackGame.value.trim()) throw new Error('请填写 Pack 名称和游戏版本');
+      if (!workshopPackName.value.trim() || !workshopPackGame.value.trim()) throw new Error(t('ws.needNameGame'));
       pack = await request('/api/v1/packs', { method: 'POST', headers: headers(), body: JSON.stringify({ name: workshopPackName.value.trim(), gameVersion: workshopPackGame.value.trim(), entries }) });
     } else {
       const current = catalogPacks.find((item) => item.id === workshopPackId.value);
-      if (!current) throw new Error('请选择要加入的 Pack');
+      if (!current) throw new Error(t('ws.needPack'));
       const merged = new Map((current.entries || []).map((entry) => [entry.modId, entry]));
       entries.forEach((entry) => merged.set(entry.modId, entry));
       pack = await request('/api/v1/packs', { method: 'POST', headers: headers(), body: JSON.stringify({ id: current.id, name: current.name, gameVersion: current.gameVersion, entries: [...merged.values()] }) });
@@ -784,9 +836,9 @@ async function submitWorkshopDialog() {
     packName.value = pack.name || '';
     packGame.value = pack.gameVersion || '';
     if (workshopPublish.checked) {
-      show(await request('/api/v1/packs/' + encodeURIComponent(pack.id) + '/releases', { method: 'POST', headers: headers(), body: JSON.stringify({ reason: workshopMode === 'create' ? 'workshop.create' : 'workshop.add' }) }), { message: workshopMode === 'create' ? '已创建并发布 Pack' : '已加入 Pack 并发布' });
+      show(await request('/api/v1/packs/' + encodeURIComponent(pack.id) + '/releases', { method: 'POST', headers: headers(), body: JSON.stringify({ reason: workshopMode === 'create' ? 'workshop.create' : 'workshop.add' }) }), { message: workshopMode === 'create' ? t('ws.createdPublished') : t('ws.addedPublished') });
     } else {
-      show(pack, { message: workshopMode === 'create' ? '已创建 Pack 草稿' : '已加入 Pack，尚未发布' });
+      show(pack, { message: workshopMode === 'create' ? t('ws.createdDraft') : t('ws.addedDraft') });
     }
     closeWorkshopDialog();
     clearWorkshopCart();
@@ -805,7 +857,7 @@ function fillPackSelects(selected) {
     const el = document.getElementById(id);
     if (!el) return;
     const keep = selected[id] !== undefined ? selected[id] : el.value;
-    const empty = id === 'serverPackId' ? '请选择已发布的 Pack' : '请选择 Pack';
+    const empty = id === 'serverPackId' ? t('pack.selectPublished') : t('pack.select');
     el.innerHTML = '<option value="">' + empty + '</option>' + catalogPacks.map((pack) =>
       '<option value="' + esc(pack.id) + '">' + esc(packOptionLabel(pack)) + '</option>'
     ).join('');
@@ -824,8 +876,8 @@ function refreshPackEntryToggle() {
   const btn = document.getElementById('packEntryToggle');
   if (!btn) return;
   const selected = selectedPackEntries();
-  if (!catalogMods.length) btn.textContent = '暂无已登记 Mod，请先到 Mod 页登记';
-  else if (!selected.length) btn.textContent = '选择已登记的 Mod（可多选）';
+  if (!catalogMods.length) btn.textContent = t('pack.pickEmpty');
+  else if (!selected.length) btn.textContent = t('pack.pick');
   else btn.textContent = selected.map((entry) => entry.modId + '@' + entry.version).join('，');
 }
 
@@ -848,12 +900,12 @@ function fillPackEntryPicker() {
       options.push({
         value: mod.id + '@' + ver.version,
         title: (mod.name || mod.id) + ' @ ' + ver.version,
-        hint: mod.id + (ver.gameVersions && ver.gameVersions.length ? ' · 游戏 ' + ver.gameVersions.join('/') + (ver.gameVersionRange === 'major' ? ' 泛版本' : '') : '')
+        hint: mod.id + (ver.gameVersions && ver.gameVersions.length ? ' · ' + t('pack.gameHint', { games: ver.gameVersions.join('/') }) + (ver.gameVersionRange === 'major' ? ' ' + t('pack.generic') : '') : '')
       });
     });
   });
   if (!options.length) {
-    menu.innerHTML = '<p class="picker-empty">暂无已登记 Mod</p>';
+    menu.innerHTML = '<p class="picker-empty">' + esc(t('pack.none')) + '</p>';
     refreshPackEntryToggle();
     return;
   }
@@ -881,6 +933,7 @@ function newPack() {
 
 function paint(data) {
   if (!data || typeof data !== 'object') return;
+  window.__lastPaint = data;
   if (Array.isArray(data.mods)) {
     catalogMods = data.mods;
     fillPackEntryPicker();
@@ -923,23 +976,23 @@ function paint(data) {
   }
   if (data.reviews) {
     table('list-ops', data.reviews, ['sha256', 'fileName', 'status', 'size', 'createdAt'], (r) => { reviewSha.value = r.sha256 || ''; });
-    opsTitle('审核队列');
+    opsTitle(t('ops.reviews'));
   }
   if (data.users) {
     table('list-ops', data.users, ['username', 'role', 'totpEnabled', 'disabledAt', 'createdAt']);
-    opsTitle('用户');
+    opsTitle(t('ops.usersTitle'));
   }
   if (data.sessions) {
     table('list-ops', data.sessions, ['userId', 'createdAt', 'expiresAt']);
-    opsTitle('登录会话');
+    opsTitle(t('ops.sessionsTitle'));
   }
   if (data.audit) {
     table('list-ops', data.audit, ['at', 'actor', 'action', 'target']);
-    opsTitle('审计');
+    opsTitle(t('ops.audit'));
   }
   if (data.rows) {
     table('list-ops', data.rows, ['gameVersion', 'mod', 'events', 'failCount', 'successCount', 'crashRate', 'conclusion']);
-    opsTitle(data.block && data.block.blocked ? '兼容性矩阵（已熔断）' : '兼容性矩阵');
+    opsTitle(data.block && data.block.blocked ? t('ops.matrixBlocked') : t('ops.matrix'));
   }
   if (data.downloads != null && data.topArtifacts) fillStats(data);
 }
@@ -955,10 +1008,8 @@ function toast(text, kind) {
 }
 
 function friendlyError(message) {
-  if (/Artifact must be reviewed and have a confirmed redistribution license/i.test(message)) {
-    return '该 ZIP 还没有完成审核或许可证确认。请勾选「我确认拥有再分发许可」后再登记；含 DLL 的文件需要社区管理员批准。';
-  }
-  if (/is not approved for redistribution/i.test(message)) return '该 Mod 尚未批准再分发，不能打进 Pack。';
+  if (/Artifact must be reviewed and have a confirmed redistribution license/i.test(message)) return t('mod.errLicense');
+  if (/is not approved for redistribution/i.test(message)) return t('mod.errRedistrib');
   return message;
 }
 
@@ -966,13 +1017,12 @@ function show(value, opts = {}) {
   if (typeof value === 'string') value = friendlyError(value);
   out.textContent = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
   if (typeof value === 'string') {
-    const cancelled = /已取消/.test(value);
-    const ok = /成功|已退出|已加载|已更新|已取消|已登记/.test(value);
-    toast(value, cancelled ? 'warn' : (ok ? 'ok' : 'err'));
+    const cancelled = value === t('cancelled');
+    toast(value, cancelled ? 'warn' : (opts.kind || 'err'));
     return;
   }
   paint(value);
-  if (!opts.silent) toast(opts.message || '已更新', 'ok');
+  if (!opts.silent) toast(opts.message || t('okUpdated'), 'ok');
 }
 
 function applyRole(user) {
@@ -993,30 +1043,39 @@ function applyRole(user) {
   return 'workshop';
 }
 
+function refreshAuthStatus() {
+  const me = window.__me;
+  if (!me) {
+    authStatus.textContent = t('notLoggedIn');
+    return;
+  }
+  authStatus.textContent = me.username + ' · ' + (t('role.' + me.role) || me.role);
+}
+
 async function refreshMe() {
   const token = localStorage.getItem('modPlatformToken');
   if (!token) {
-    authStatus.textContent = '尚未登录';
     applyRole(null);
+    refreshAuthStatus();
     return false;
   }
   try {
     const me = await request('/api/v1/auth/me', { headers: headers() });
-    const labels = { superadmin: '超级管理员', community: '社区管理员', developer: '开发者', user: '普通用户' };
-    authStatus.textContent = me.user.username + ' · ' + (labels[me.user.role] || me.user.role);
-    if (me.user.role === 'community' && !me.user.githubBound) toast('社区管理员需要先绑定 GitHub', 'warn');
-    return applyRole(me.user);
+    const home = applyRole(me.user);
+    refreshAuthStatus();
+    if (me.user.role === 'community' && !me.user.githubBound) toast(t('auth.needGithub'), 'warn');
+    return home;
   } catch {
     localStorage.removeItem('modPlatformToken');
-    authStatus.textContent = '尚未登录';
     applyRole(null);
+    refreshAuthStatus();
     return false;
   }
 }
 
 async function setupPlatform() {
   try {
-    if (setupPassword.value !== setupPassword2.value) throw new Error('两次输入的密码不一致');
+    if (setupPassword.value !== setupPassword2.value) throw new Error(t('setup.mismatch'));
     await request('/api/v1/setup', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + setupToken.value }, body: JSON.stringify({ token: setupToken.value, username: setupUser.value, password: setupPassword.value }) });
     const r = await request('/api/v1/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: setupUser.value, password: setupPassword.value }) });
     localStorage.setItem('modPlatformToken', r.token);
@@ -1026,13 +1085,13 @@ async function setupPlatform() {
     window.__initialized = true;
     const home = await refreshMe();
     setMode('authed');
-    show('社区已初始化');
+    show(t('setup.done'), { kind: 'ok' });
     showTab(home || 'workshop');
   } catch (e) {
     const text = e.message === 'Invalid setup token'
-      ? 'ADMIN_TOKEN 不正确。'
+      ? t('setup.badToken')
       : e.message === 'Platform is already initialized'
-        ? '平台已经初始化，请返回登录。'
+        ? t('setup.already')
         : e.message;
     show(text);
   }
@@ -1042,7 +1101,7 @@ async function login() {
   try {
     const r = await request('/api/v1/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: loginUser.value, password: loginPassword.value }) });
     if (r.requiresTotp) {
-      const code = prompt('请输入两步验证码或恢复码');
+      const code = prompt(t('auth.totp'));
       const done = await request('/api/v1/auth/login/totp', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ticket: r.ticket, code }) });
       localStorage.setItem('modPlatformToken', done.token);
     } else {
@@ -1051,7 +1110,7 @@ async function login() {
     loginPassword.value = '';
     const home = await refreshMe();
     setMode('authed');
-    show('登录成功');
+    show(t('auth.loginOk'), { kind: 'ok' });
     showTab(home || 'workshop');
   } catch (e) { show(e.message); }
 }
@@ -1063,7 +1122,7 @@ async function logout() {
   await refreshMe();
   setMode(window.__initialized === false ? 'setup' : 'guest');
   showAuth('login');
-  show('已退出登录');
+  show(t('auth.logoutOk'), { kind: 'ok' });
 }
 
 async function register() {
@@ -1072,7 +1131,7 @@ async function register() {
     loginUser.value = registerUser.value;
     registerPassword.value = '';
     registerInvite.value = '';
-    show('注册成功，请登录');
+    show(t('auth.registerOk'), { kind: 'ok' });
     out.textContent = JSON.stringify({ user: r.user }, null, 2);
     showAuth('login');
   } catch (e) { show(e.message); }
@@ -1082,7 +1141,7 @@ async function activateDeveloper() {
   try {
     const r = await request('/api/v1/auth/activate', { method: 'POST', headers: headers(), body: JSON.stringify({ inviteCode: activateCode.value }) });
     activateCode.value = '';
-    show(r, { message: '已激活为开发者' });
+    show(r, { message: t('auth.activated') });
     await refreshMe();
   } catch (e) { show(e.message); }
 }
@@ -1091,9 +1150,9 @@ async function bindGithub() {
   try {
     const r = await fetch('/api/v1/auth/github', { headers: { authorization: headers().authorization } });
     if (r.status === 503) {
-      const login = prompt('未配置 GitHub OAuth。请输入 GitHub 用户名以完成开发绑定');
-      if (!login) throw new Error('已取消');
-      show(await request('/api/v1/auth/github/bind', { method: 'POST', headers: headers(), body: JSON.stringify({ id: login, login }) }), { message: '已绑定 GitHub' });
+      const login = prompt(t('auth.githubUser'));
+      if (!login) throw new Error(t('cancelled'));
+      show(await request('/api/v1/auth/github/bind', { method: 'POST', headers: headers(), body: JSON.stringify({ id: login, login }) }), { message: t('auth.githubBound') });
       await refreshMe();
       return;
     }
@@ -1108,16 +1167,18 @@ async function bindGithub() {
 async function createInvite() {
   try {
     if (!bootstrapToken.value.trim() && !localStorage.getItem('modPlatformToken')) {
-      throw new Error('请先用管理员账户登录。若还没有账户，先填写 ADMIN_TOKEN。');
+      throw new Error(t('auth.inviteNeedLogin'));
     }
     const r = await request('/api/v1/invites', { method: 'POST', headers: inviteHeaders(), body: JSON.stringify({ role: inviteRole.value, maxUses: Number(inviteUses.value), expiresInHours: Number(inviteHours.value) }) });
-    inviteResult.textContent = '邀请码（只显示一次）：\n' + r.code + '\n\n' + JSON.stringify(r.invite, null, 2);
-    show('邀请码已创建，请立即复制');
+    inviteResult.dataset.code = r.code;
+    inviteResult.dataset.json = JSON.stringify(r.invite, null, 2);
+    inviteResult.textContent = t('auth.inviteOnce', { code: r.code, json: inviteResult.dataset.json });
+    show(t('auth.inviteCreated'), { kind: 'ok' });
   } catch (e) {
     const text = e.message === 'Login required'
-      ? '登录已失效，或 ADMIN_TOKEN 在首个管理员注册后已停用。请用管理员账户登录。'
+      ? t('auth.loginRequired')
       : e.message === 'Administrator role required'
-        ? '当前账户不是管理员，无法创建邀请码。'
+        ? t('auth.notAdmin')
         : e.message;
     inviteResult.textContent = text;
     show(text);
@@ -1126,16 +1187,16 @@ async function createInvite() {
 
 async function loadState() {
   try {
-    show(await request('/api/v1/admin/state', { headers: headers() }), { message: '已加载平台状态' });
-    opsTitle('平台状态（见原始响应）');
+    show(await request('/api/v1/admin/state', { headers: headers() }), { message: t('ops.loadedState') });
+    opsTitle(t('ops.stateTitle'));
   } catch (e) { show(e.message); }
 }
 
 async function upload() {
   try {
     const file = artifact.files[0];
-    if (!file) throw Error('请选择 ZIP');
-    uploadResult.textContent = '正在上传 ' + file.name + ' …';
+    if (!file) throw Error(t('mod.needZip'));
+    uploadResult.textContent = t('mod.uploading', { name: file.name });
     const bytes = await file.arrayBuffer();
     const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map((x) => x.toString(16).padStart(2, '0')).join('');
     const r = await request('/api/v1/artifacts/' + hash, { method: 'PUT', headers: { authorization: headers().authorization, 'content-type': 'application/zip', 'x-file-name': encodeURIComponent(file.name) }, body: bytes });
@@ -1151,13 +1212,15 @@ async function upload() {
         if (!modVersion.value && analysis.modInfo.version) modVersion.value = analysis.modInfo.version;
       }
     }
-    const status = r.review && r.review.status || '已上传';
-    const next = status === 'pending'
-      ? '含 DLL 或高风险规则，状态为待审核。勾选再分发许可后，有审核权的账号可直接登记。'
-      : '请勾选再分发许可，然后点「登记版本」。';
-    if (document.getElementById('reviewHint')) reviewHint.textContent = next;
-    uploadResult.textContent = 'SHA-256：' + hash + '\n审核：' + status + '\n大小：' + prettyBytes(r.size) + '\n' + next;
-    show(r, { message: '上传完成，请确认许可证后登记' });
+    const status = r.review && r.review.status || t('mod.uploaded');
+    const nextKey = status === 'pending' ? 'mod.pendingHint' : 'mod.readyHint';
+    if (document.getElementById('reviewHint')) reviewHint.textContent = t(nextKey);
+    uploadResult.dataset.hash = hash;
+    uploadResult.dataset.status = status;
+    uploadResult.dataset.size = prettyBytes(r.size);
+    uploadResult.dataset.nextKey = nextKey;
+    uploadResult.textContent = t('mod.uploadResult', { hash, status, size: prettyBytes(r.size), next: t(nextKey) });
+    show(r, { message: t('mod.uploadOk') });
   } catch (e) {
     uploadResult.textContent = e.message;
     show(e.message);
@@ -1166,7 +1229,7 @@ async function upload() {
 
 async function registerMod() {
   try {
-    if (!licenseConfirm.checked) throw new Error('请先勾选：我确认拥有再分发许可，并已审核该 ZIP');
+    if (!licenseConfirm.checked) throw new Error(t('mod.needLicense'));
     const perms = new Set((window.__me && window.__me.permissions) || []);
     if (perms.has('review.approve') && artifactSha.value) {
       await request('/api/v1/reviews/' + artifactSha.value, { method: 'POST', headers: headers(), body: JSON.stringify({ status: 'approved', licenseConfirmed: true }) });
@@ -1182,7 +1245,7 @@ async function registerMod() {
       containsDll: containsDll.checked,
       requiresRestart: containsDll.checked
     };
-    show(await request('/api/v1/mods', { method: 'POST', headers: headers(), body: JSON.stringify(body) }), { message: '已登记 Mod 版本' });
+    show(await request('/api/v1/mods', { method: 'POST', headers: headers(), body: JSON.stringify(body) }), { message: t('mod.registered') });
     await loadMods({ silent: true });
   } catch (e) { show(e.message); }
 }
@@ -1190,13 +1253,13 @@ async function registerMod() {
 async function publishPack() {
   try {
     const entries = selectedPackEntries();
-    if (!entries.length) throw new Error('请至少选择一个 Mod');
+    if (!entries.length) throw new Error(t('pack.needMod'));
     const body = { name: packName.value, gameVersion: packGame.value, entries };
     if (packId.value.trim()) body.id = packId.value.trim();
     const pack = await request('/api/v1/packs', { method: 'POST', headers: headers(), body: JSON.stringify(body) });
     packId.value = pack.id || '';
     fillPackSelects({ releasePackId: pack.id, serverPackId: serverPackId.value });
-    show(await request('/api/v1/packs/' + encodeURIComponent(pack.id) + '/releases', { method: 'POST', headers: headers(), body: JSON.stringify({ reason: releaseReason.value || 'publish' }) }), { message: 'Pack 已发布' });
+    show(await request('/api/v1/packs/' + encodeURIComponent(pack.id) + '/releases', { method: 'POST', headers: headers(), body: JSON.stringify({ reason: releaseReason.value || 'publish' }) }), { message: t('pack.published') });
     await loadPacks({ silent: true });
     await listReleases({ silent: true });
   } catch (e) { show(e.message); }
@@ -1204,28 +1267,28 @@ async function publishPack() {
 
 async function listReleases(opts) {
   try {
-    show(await request('/api/v1/packs/' + encodeURIComponent(releasePackId.value || packId.value) + '/releases', { headers: headers() }), Object.assign({ message: '已加载 Release' }, opts || {}));
+    show(await request('/api/v1/packs/' + encodeURIComponent(releasePackId.value || packId.value) + '/releases', { headers: headers() }), Object.assign({ message: t('pack.releasesLoaded') }, opts || {}));
   } catch (e) { show(e.message); }
 }
 
 async function confirmToken(action, message) {
-  if (!confirm(message)) throw new Error('已取消');
+  if (!confirm(message)) throw new Error(t('cancelled'));
   const r = await request('/api/v1/admin/confirm', { method: 'POST', headers: headers(), body: JSON.stringify({ action }) });
   return r.token;
 }
 
 async function revokeRelease() {
   try {
-    const token = await confirmToken('release.revoke', '确认吊销该 Release？玩家将无法再下载此版本。');
-    show(await request('/api/v1/packs/' + encodeURIComponent(releasePackId.value || packId.value) + '/releases/' + encodeURIComponent(releaseId.value) + '/revoke', { method: 'POST', headers: headers(), body: JSON.stringify({ reason: releaseReason.value || 'revoke', confirmToken: token }) }), { message: '已吊销' });
+    const token = await confirmToken('release.revoke', t('pack.confirmRevoke'));
+    show(await request('/api/v1/packs/' + encodeURIComponent(releasePackId.value || packId.value) + '/releases/' + encodeURIComponent(releaseId.value) + '/revoke', { method: 'POST', headers: headers(), body: JSON.stringify({ reason: releaseReason.value || 'revoke', confirmToken: token }) }), { message: t('pack.revoked') });
     await listReleases({ silent: true });
   } catch (e) { show(e.message); }
 }
 
 async function rollbackRelease() {
   try {
-    const token = await confirmToken('pack.rollback', '确认回滚？可能影响已有存档。');
-    show(await request('/api/v1/packs/' + encodeURIComponent(releasePackId.value || packId.value) + '/rollback', { method: 'POST', headers: headers(), body: JSON.stringify({ releaseId: releaseId.value, reason: releaseReason.value || 'rollback', confirmToken: token }) }), { message: '已回滚' });
+    const token = await confirmToken('pack.rollback', t('pack.confirmRollback'));
+    show(await request('/api/v1/packs/' + encodeURIComponent(releasePackId.value || packId.value) + '/rollback', { method: 'POST', headers: headers(), body: JSON.stringify({ releaseId: releaseId.value, reason: releaseReason.value || 'rollback', confirmToken: token }) }), { message: t('pack.rolled') });
     await loadPacks({ silent: true });
   } catch (e) { show(e.message); }
 }
@@ -1250,21 +1313,21 @@ function showServerPluginConfig(created) {
   if (!box) return;
   const json = JSON.stringify(pluginConfigFromCreate(created), null, 2);
   box.dataset.config = json;
-  box.textContent = '把下面整段覆盖到 Mods/ModPlatformServer/server.config.json，令牌只显示一次。\n\n' + json;
+  box.textContent = t('srv.configPrefix') + json;
 }
 
 async function copyServerConfig() {
   const box = document.getElementById('serverTokenResult');
   const text = box && box.dataset.config;
   if (!text) {
-    show('还没有可复制的配置，请先登记服务器');
+    show(t('srv.noCopy'));
     return;
   }
   try {
     await navigator.clipboard.writeText(text);
-    toast('已复制 server.config.json', 'ok');
+    toast(t('srv.copied'), 'ok');
   } catch (e) {
-    show(e.message || '复制失败，请手动选中下方内容');
+    show(e.message || t('srv.copyFail'));
   }
 }
 
@@ -1273,14 +1336,14 @@ async function createServer() {
     const created = await request('/api/v1/servers', { method: 'POST', headers: headers(), body: JSON.stringify({ name: serverName.value, packId: serverPackId.value, publicAddresses: serverAddress.value }) });
     serverId.value = created.serverId || (created.config && created.config.ServerId) || '';
     showServerPluginConfig(created);
-    show(created, { message: '服务器已登记，请保存 server.config.json' });
+    show(created, { message: t('srv.created') });
     await loadServers({ silent: true });
   } catch (e) { show(e.message); }
 }
 
 async function updateServer() {
   try {
-    show(await request('/api/v1/servers/' + encodeURIComponent(serverId.value), { method: 'PATCH', headers: headers(), body: JSON.stringify({ packId: serverPackId.value || undefined, publicAddresses: serverAddress.value }) }), { message: '服务器已更新' });
+    show(await request('/api/v1/servers/' + encodeURIComponent(serverId.value), { method: 'PATCH', headers: headers(), body: JSON.stringify({ packId: serverPackId.value || undefined, publicAddresses: serverAddress.value }) }), { message: t('srv.updated') });
     await loadServers({ silent: true });
   } catch (e) { show(e.message); }
 }
@@ -1288,69 +1351,73 @@ async function updateServer() {
 async function pauseDistribution(paused) {
   try {
     const action = paused ? 'distribution.pause' : 'distribution.resume';
-    const token = await confirmToken(action, paused ? '确认紧急停止分发？' : '确认恢复分发？');
-    show(await request('/api/v1/admin/distribution', { method: 'POST', headers: headers(), body: JSON.stringify({ paused, reason: pauseReason.value || undefined, confirmToken: token }) }), { message: paused ? '已停止分发' : '已恢复分发' });
+    const token = await confirmToken(action, paused ? t('srv.confirmPause') : t('srv.confirmResume'));
+    show(await request('/api/v1/admin/distribution', { method: 'POST', headers: headers(), body: JSON.stringify({ paused, reason: pauseReason.value || undefined, confirmToken: token }) }), { message: paused ? t('srv.paused') : t('srv.resumed') });
     await loadServers({ silent: true });
   } catch (e) { show(e.message); }
 }
 
 async function loadMods(opts) {
-  try { show(await request('/api/v1/mods', { headers: headers() }), Object.assign({ message: '已加载 Mod 列表' }, opts || {})); }
+  try { show(await request('/api/v1/mods', { headers: headers() }), Object.assign({ message: t('mod.loaded') }, opts || {})); }
   catch (e) { show(e.message); }
 }
 async function loadPacks(opts) {
-  try { show(await request('/api/v1/packs', { headers: headers() }), Object.assign({ message: '已加载 Pack 列表' }, opts || {})); }
+  try { show(await request('/api/v1/packs', { headers: headers() }), Object.assign({ message: t('pack.loaded') }, opts || {})); }
   catch (e) { show(e.message); }
 }
 async function loadServers(opts) {
-  try { show(await request('/api/v1/servers', { headers: headers() }), Object.assign({ message: '已加载服务器' }, opts || {})); }
+  try { show(await request('/api/v1/servers', { headers: headers() }), Object.assign({ message: t('srv.loaded') }, opts || {})); }
   catch (e) { show(e.message); }
 }
 async function loadUsers() {
-  try { show(await request('/api/v1/users', { headers: headers() }), { message: '已加载用户' }); }
+  try { show(await request('/api/v1/users', { headers: headers() }), { message: t('ops.loadedUsers') }); }
   catch (e) { show(e.message); }
 }
 async function loadReviews() {
-  try { show(await request('/api/v1/reviews', { headers: headers() }), { message: '已加载审核队列' }); }
+  try { show(await request('/api/v1/reviews', { headers: headers() }), { message: t('ops.loadedReviews') }); }
   catch (e) { show(e.message); }
 }
 async function loadMatrix() {
-  try { show(await request('/api/v1/diagnostics/matrix', { headers: headers() }), { message: '已加载兼容性矩阵' }); }
+  try { show(await request('/api/v1/diagnostics/matrix', { headers: headers() }), { message: t('ops.loadedMatrix') }); }
   catch (e) { show(e.message); }
 }
 async function loadAudit() {
-  try { show(await request('/api/v1/admin/audit' + (auditAction.value ? '?action=' + encodeURIComponent(auditAction.value) : ''), { headers: headers() }), { message: '已加载审计' }); }
+  try { show(await request('/api/v1/admin/audit' + (auditAction.value ? '?action=' + encodeURIComponent(auditAction.value) : ''), { headers: headers() }), { message: t('ops.loadedAudit') }); }
   catch (e) { show(e.message); }
 }
 async function loadStats(opts) {
-  try { show(await request('/api/v1/admin/stats', { headers: headers() }), Object.assign({ message: '已加载统计' }, opts || {})); }
+  try { show(await request('/api/v1/admin/stats', { headers: headers() }), Object.assign({ message: t('ops.loadedStats') }, opts || {})); }
   catch (e) { show(e.message); }
 }
 async function loadSessions() {
-  try { show(await request('/api/v1/sessions', { headers: headers() }), { message: '已加载会话' }); }
+  try { show(await request('/api/v1/sessions', { headers: headers() }), { message: t('ops.loadedSessions') }); }
   catch (e) { show(e.message); }
 }
 async function approveReview() {
   try {
-    show(await request('/api/v1/reviews/' + reviewSha.value, { method: 'POST', headers: headers(), body: JSON.stringify({ status: 'approved', licenseConfirmed: true }) }), { message: '已批准' });
+    show(await request('/api/v1/reviews/' + reviewSha.value, { method: 'POST', headers: headers(), body: JSON.stringify({ status: 'approved', licenseConfirmed: true }) }), { message: t('ops.approved') });
     await loadReviews();
   } catch (e) { show(e.message); }
+}
+
+function refreshDropHint() {
+  const input = document.getElementById('artifact');
+  const hint = document.getElementById('dropHint');
+  if (!input || !hint) return;
+  hint.textContent = input.files[0] ? t('mod.chosen', { name: input.files[0].name, size: prettyBytes(input.files[0].size) }) : t('mod.drop');
 }
 
 (function bindDropZone() {
   const zone = document.getElementById('dropZone');
   const input = document.getElementById('artifact');
-  const hint = document.getElementById('dropHint');
-  const name = () => {
-    hint.textContent = input.files[0] ? ('已选择 ' + input.files[0].name + '（' + prettyBytes(input.files[0].size) + '）') : '拖入 ZIP，或点击选择';
-  };
-  input.addEventListener('change', name);
+  if (!zone || !input) return;
+  input.addEventListener('change', refreshDropHint);
   ['dragenter', 'dragover'].forEach((ev) => zone.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.add('over'); }));
   ['dragleave', 'drop'].forEach((ev) => zone.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.remove('over'); }));
   zone.addEventListener('drop', (e) => {
     if (e.dataTransfer.files[0]) {
       input.files = e.dataTransfer.files;
-      name();
+      refreshDropHint();
     }
   });
 })();
@@ -1370,6 +1437,7 @@ setupPassword2.addEventListener('keydown', (e) => { if (e.key === 'Enter') setup
     const status = await request('/status');
     window.__initialized = status.initialized !== false;
   } catch {}
+  applyI18n();
   const ok = await refreshMe();
   if (ok) {
     setMode('authed');
