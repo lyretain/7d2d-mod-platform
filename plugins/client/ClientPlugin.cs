@@ -20,12 +20,15 @@ public sealed class ModPlatformClientPlugin : IModApi
     static bool handshakeBusy;
     static string handshakeAddress;
     static DateTime nextHandshakeAttempt;
+    static DateTime nextHandshakeSkipLog;
     static bool reconnectAttempted;
     static bool wasClient;
     static bool syncBusy;
     static bool syncReady;
     static string syncedAddress;
     static DateTime nextSyncAttempt;
+    static bool restartPromptPending;
+    static bool restartPromptShown;
 
     static ModPlatformClientPlugin()
     {
@@ -149,6 +152,7 @@ public sealed class ModPlatformClientPlugin : IModApi
         TryAutoReconnect();
         TrySyncPack();
         TrySendHandshake();
+        TryShowRestartPrompt();
     }
 
     static void TrySyncPack()
@@ -183,10 +187,13 @@ public sealed class ModPlatformClientPlugin : IModApi
             {
                 LocalState.WriteReconnect(modsDirectory, address);
                 Log.Warning("[ModPlatform] " + (result.Message ?? "Restart the game to load the new pack."));
-                if (config.ShouldRestart) RequestRestart();
+                if (config.ShouldRestart) QueueRestartPrompt();
                 else syncReady = false;
             }
-            else if (wasClient) TryReconnectNow(address);
+            else
+            {
+                TrySendHandshake();
+            }
             Ignore(SendAsync(result.Changed ? "pack_sync_ok" : "pack_sync_current", null));
         }
         catch (Exception error)
@@ -201,9 +208,60 @@ public sealed class ModPlatformClientPlugin : IModApi
         }
     }
 
-    static void RequestRestart()
+    static void QueueRestartPrompt()
     {
-        Log.Warning("[ModPlatform] Pack contains files that need a restart; the game will exit and reconnect.");
+        restartPromptPending = true;
+        restartPromptShown = false;
+        if (ThreadManager.IsMainThread()) TryShowRestartPrompt();
+        else ThreadManager.AddSingleTaskMainThread("ModPlatformRestartPrompt", new Action(TryShowRestartPrompt));
+    }
+
+    static void TryShowRestartPrompt()
+    {
+        if (!restartPromptPending || restartPromptShown) return;
+        var xui = FindXui();
+        if (xui == null) return;
+        restartPromptShown = true;
+        Log.Warning("[ModPlatform] Pack contains files that need a restart; waiting for confirmation.");
+        try
+        {
+            XUiC_MessageBoxWindowGroup.ShowOkCancel(
+                xui,
+                Localization.Get("xuiModPlatformRestartTitle"),
+                Localization.Get("xuiModPlatformRestartText"),
+                "",
+                new Action(ConfirmRestart),
+                new Action(CancelRestart),
+                false);
+        }
+        catch (Exception error)
+        {
+            restartPromptShown = false;
+            Log.Warning("[ModPlatform] Restart prompt failed: " + error.Message);
+        }
+    }
+
+    static XUi FindXui()
+    {
+        try
+        {
+            var ui = LocalPlayerUI.primaryUI;
+            if (ui != null && ui.xui != null) return ui.xui;
+        }
+        catch { }
+        try
+        {
+            var ui = LocalPlayerUI.GetUIForPrimaryPlayer();
+            if (ui != null && ui.xui != null) return ui.xui;
+        }
+        catch { }
+        return null;
+    }
+
+    static void ConfirmRestart()
+    {
+        restartPromptPending = false;
+        Log.Warning("[ModPlatform] Restart confirmed; the game will exit and reconnect next launch.");
         try { UnityEngine.Application.Quit(); }
         catch
         {
@@ -211,19 +269,50 @@ public sealed class ModPlatformClientPlugin : IModApi
         }
     }
 
+    static void CancelRestart()
+    {
+        restartPromptPending = false;
+        restartPromptShown = false;
+        syncReady = false;
+        Log.Warning("[ModPlatform] Restart cancelled; exit the game later so the new pack can load.");
+    }
+
     static void TrySendHandshake()
     {
         if (platform == null || handshakeBusy || DateTime.UtcNow < nextHandshakeAttempt) return;
-        if (ConnectionManager.Instance == null || !ConnectionManager.Instance.IsClient) return;
+        if (ConnectionManager.Instance == null || !ConnectionManager.Instance.IsClient)
+        {
+            LogHandshakeSkip("not a client yet");
+            return;
+        }
         var address = CurrentServerAddress();
-        if (string.IsNullOrEmpty(address)) return;
-        if (config != null && config.ShouldSync && !syncReady) return;
+        if (string.IsNullOrEmpty(address))
+        {
+            LogHandshakeSkip("no server address");
+            return;
+        }
+        if (config != null && config.ShouldSync && !syncReady)
+        {
+            LogHandshakeSkip("waiting for pack sync");
+            return;
+        }
         if (handshakeSent && string.Equals(handshakeAddress, address, StringComparison.OrdinalIgnoreCase)) return;
         var playerIds = CollectLocalPlayerIds();
-        if (playerIds.Count == 0) return;
+        if (playerIds.Count == 0)
+        {
+            LogHandshakeSkip("no local player ids");
+            return;
+        }
         handshakeBusy = true;
         nextHandshakeAttempt = DateTime.UtcNow.AddSeconds(2);
         Ignore(SendHandshakeAsync(address, playerIds));
+    }
+
+    static void LogHandshakeSkip(string reason)
+    {
+        if (DateTime.UtcNow < nextHandshakeSkipLog) return;
+        nextHandshakeSkipLog = DateTime.UtcNow.AddSeconds(5);
+        Log.Out("[ModPlatform] Handshake deferred: " + reason);
     }
 
     static async Task SendHandshakeAsync(string address, List<string> playerIds)
@@ -275,8 +364,23 @@ public sealed class ModPlatformClientPlugin : IModApi
     {
         var ids = new List<string>();
         try { AddPlatformId(ids, PlatformManager.NativePlatform.User.PlatformUserId); } catch { }
-        try { AddPlatformId(ids, PlatformManager.CrossplatformPlatform.User.PlatformUserId); } catch { }
+        try { if (PlatformManager.CrossplatformPlatform != null) AddPlatformId(ids, PlatformManager.CrossplatformPlatform.User.PlatformUserId); } catch { }
         try { AddId(ids, GamePrefs.GetString(EnumGamePrefs.PlayerName)); } catch { }
+        try
+        {
+            var clients = ConnectionManager.Instance == null ? null : ConnectionManager.Instance.Clients;
+            if (clients != null)
+            {
+                foreach (var client in clients.List)
+                {
+                    if (client == null || !client.loginDone) continue;
+                    AddPlatformId(ids, client.PlatformId);
+                    AddPlatformId(ids, client.CrossplatformId);
+                    AddId(ids, client.playerName);
+                }
+            }
+        }
+        catch { }
         return ids;
     }
 

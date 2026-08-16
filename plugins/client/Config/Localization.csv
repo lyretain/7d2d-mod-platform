@@ -9,3 +9,5 @@ xuiModPlatformAutoRestartTooltip,UI,XUi OptionsMenu,x,,,Quit and reconnect after
 xuiModPlatformDiagnostics,UI,XUi OptionsMenu,x,,,Send diagnostics,,,,,,,,,,,发送诊断,傳送診斷
 xuiModPlatformDiagnosticsTooltip,UI,XUi OptionsMenu,x,,,Send plugin crash and sync events to the platform.,,,,,,,,,,,向平台发送插件崩溃和同步事件。,向平台傳送插件當機與同步事件。
 xuiModPlatformHelp,UI,XUi OptionsMenu,x,,,Change how the client plugin talks to the Mod Platform. Apply writes client.config.json and takes effect immediately.,,,,,,,,,,,在此修改客户端插件如何连接模组平台。点应用后写入 client.config.json，立即生效。,在此修改用戶端外掛如何連接模組平台。按套用後寫入 client.config.json，立即生效。
+xuiModPlatformRestartTitle,UI,XUi MainMenu,x,,,Restart required,,,,,,,,,,,需要重启游戏,需要重新啟動遊戲
+xuiModPlatformRestartText,UI,XUi MainMenu,x,,,The server pack installed files that only load after a restart. Confirm to close the game; it will reconnect next launch. Cancel to stay and restart later.,,,,,,,,,,,服务器 Pack 已装好，其中含有必须重启才能加载的文件。确定后关闭游戏，下次启动会自动重连。取消则留在游戏里，稍后请自行退出再进。,伺服器 Pack 已裝好，其中含有必須重新啟動才能載入的檔案。確定後關閉遊戲，下次啟動會自動重連。取消則留在遊戲裡，稍後請自行退出再進。
