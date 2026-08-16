@@ -31,7 +31,9 @@ E:\Project\artifacts\plugins\ModPlatformServer
 - `ModInfo.xml`
 - 对应配置文件
 
-安装时把整个目录复制到七日杀 `Mods` 目录，不要只复制单个 DLL。
+`ModInfo.xml` 必须是七日杀 V2 格式（字段直接写在 `<xml>` 下，不能再包一层 `<ModInfo>`）。V 3.x 会拒绝旧格式并忽略整个插件。
+
+安装时把整个目录复制到七日杀 `Mods` 目录，不要只复制单个 DLL。专用服若设置了 `UserDataFolder`，应放到该目录下的 `Mods`，例如 `E:\GamerServer\SAVEDATA\7daystodiedev\Mods\ModPlatformServer`。
 
 客户端示例：
 
@@ -76,17 +78,24 @@ E:\Project\artifacts\plugins
   "ServerId": "srv_replace",
   "ServerToken": "replace",
   "GameVersion": "3.0.1-b4",
-  "RefreshSeconds": 60
+  "RefreshSeconds": 60,
+  "HandshakeTimeoutSeconds": 15,
+  "AutoSync": true,
+  "AutoRestart": false
 }
 ```
 
 服务端令牌由服务器注册 API 返回一次。不要把它提交到 Git，也不要复制到客户端。
 
+插件会按这个顺序查找配置：当前 Mod 目录（`Mod.Path`）、`UserDataFolder/Mods`、游戏安装目录 `Mods`。专用服把插件放在存档 Mods 时，请把 `server.config.json` 放在同一文件夹。
+
 服务端插件会定期：
 
 - 从后台获取当前 ModPack；
-- 更新本地 `current-assignment.json`；
-- 发送心跳；
+- 按 manifest 自动下载、校验 SHA-256 并安装到同级 `Mods`（`AutoSync` 默认开启）；
+- Pack 发布新版本后，下次刷新会增量更新；
+- 更新本地 `current-assignment.json` 并上报 `sync-status`；
+- 含 DLL 或首次安装后要求重启；`AutoRestart=true` 时下载完成后退出进程。
 - 在刷新失败时上报诊断信息。
 
 ## 五、客户端配置

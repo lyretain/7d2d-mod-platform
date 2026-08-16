@@ -63,7 +63,9 @@
   "ServerToken": "...",
   "GameVersion": "3.10.14",
   "RefreshSeconds": 60,
-  "HandshakeTimeoutSeconds": 15
+  "HandshakeTimeoutSeconds": 15,
+  "AutoSync": true,
+  "AutoRestart": false
 }
 ```
 
@@ -71,13 +73,15 @@
 
 ### 4. 同步 Mod 并开服
 
-插件负责握手和拦截未同步玩家。专用服自己的 Mods 目录仍要用更新器或 guardian 装齐：
+服务端插件会按当前 Pack **自动下载并安装** Mod 到同级 `Mods` 目录（与 `ModPlatformServer` 并列）。后台发布新 Release 后，专用服会在下一次刷新（默认 60 秒）再下一遍。
+
+含 DLL 的 Mod 必须重启专用服才会加载。日志出现 `restartRequired=True` 时重启一次。若希望下完自动退出以便外部守护进程拉起，把 `server.config.json` 里的 `AutoRestart` 设为 `true`。
+
+也可以继续用更新器或 guardian 预装：
 
 ```powershell
-node apps/updater/src/cli.js --base-url https://mods.aic.la --pack-id production-pack --mods-dir "C:\7DTDDedicated\Mods"
+node apps/updater/src/cli.js --base-url https://mods.aic.la --server-address "play.example.com:26900" --mods-dir "C:\7DTDDedicated\Mods"
 ```
-
-或使用 `deploy/guardian.config.example.json`，把 `baseUrl` 设为 `https://mods.aic.la`，填入 `serverId`、`serverToken`、`modsDir` 和启动命令。
 
 启动后在服务端日志里应看到：
 

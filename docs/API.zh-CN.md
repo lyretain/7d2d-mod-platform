@@ -149,7 +149,8 @@ Authorization: Bearer <ADMIN_TOKEN>
   "name": "Example Vehicles",
   "version": "1.2.0",
   "artifactSha": "64位小写SHA-256",
-  "gameVersions": ["3.0.1-b4"],
+  "gameVersions": ["3.0"],
+  "gameVersionRange": "major",
   "installRoots": ["ExampleVehicles"],
   "containsDll": true,
   "requiresRestart": true
@@ -176,7 +177,7 @@ Authorization: Bearer <ADMIN_TOKEN>
 }
 ```
 
-如果 Mod 版本声明了兼容游戏版本，而该列表不包含 ModPack 的游戏版本，后台会拒绝创建。
+如果 Mod 版本声明了兼容游戏版本，而 Pack 的游戏版本不在范围内，后台会拒绝创建。`gameVersionRange` 为 `major`（泛版本）时，声明 `3.0` 可打进 `3.10.14` 的 Pack，但不能打进 `4.0`。未勾选时仍按精确匹配。
 
 ## 发布 ModPack
 

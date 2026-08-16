@@ -31,6 +31,10 @@ namespace ModPlatform.Shared
         [DataMember(Name = "id")] public string Id { get; set; }
         [DataMember(Name = "version")] public string Version { get; set; }
         [DataMember(Name = "sha256")] public string Sha256 { get; set; }
+        [DataMember(Name = "size")] public long Size { get; set; }
+        [DataMember(Name = "url")] public string Url { get; set; }
+        [DataMember(Name = "installRoots")] public List<string> InstallRoots { get; set; }
+        [DataMember(Name = "containsDll")] public bool ContainsDll { get; set; }
         [DataMember(Name = "requiresRestart")] public bool RequiresRestart { get; set; }
     }
 

@@ -253,7 +253,8 @@
           <div><label class="field">文件 SHA-256</label><input id="artifactSha" placeholder="上传后自动填写"></div>
         </div>
         <label class="field">游戏版本</label>
-        <input id="gameVersions" placeholder="逗号分隔，例如 3.10.14">
+        <input id="gameVersions" placeholder="逗号分隔，例如 3.0 或 3.10.14">
+        <label class="check"><input id="genericGameVersion" type="checkbox"> 泛版本：从填写的版本起，同一大版本内均兼容（如 3.0 可用于 3.10.14，但不能用于 4.0）</label>
         <label class="field">ZIP 顶层目录</label>
         <input id="installRoots" placeholder="逗号分隔，例如 ExampleVehicles">
         <label class="check"><input id="containsDll" type="checkbox"> 包含客户端 DLL / 需要重启</label>
@@ -597,7 +598,7 @@ function fillPackEntryPicker() {
       options.push({
         value: mod.id + '@' + ver.version,
         title: (mod.name || mod.id) + ' @ ' + ver.version,
-        hint: mod.id + (ver.gameVersions && ver.gameVersions.length ? ' · 游戏 ' + ver.gameVersions.join('/') : '')
+        hint: mod.id + (ver.gameVersions && ver.gameVersions.length ? ' · 游戏 ' + ver.gameVersions.join('/') + (ver.gameVersionRange === 'major' ? ' 泛版本' : '') : '')
       });
     });
   });
@@ -637,7 +638,12 @@ function paint(data) {
       modId.value = r.id;
       modName.value = r.name || '';
       if (r.latestVersion) modVersion.value = r.latestVersion;
-      if (r.versions && r.versions[0]) artifactSha.value = r.versions[0].artifactSha || '';
+      const latest = r.versions && r.versions[0];
+      if (latest) {
+        artifactSha.value = latest.artifactSha || '';
+        gameVersions.value = (latest.gameVersions || []).join(',');
+        genericGameVersion.checked = latest.gameVersionRange === 'major';
+      }
     });
   }
   if (Array.isArray(data.packs)) {
@@ -920,6 +926,7 @@ async function registerMod() {
       version: modVersion.value,
       artifactSha: artifactSha.value,
       gameVersions: gameVersions.value.split(',').map((x) => x.trim()).filter(Boolean),
+      gameVersionRange: genericGameVersion.checked ? 'major' : 'exact',
       installRoots: installRoots.value.split(',').map((x) => x.trim()).filter(Boolean),
       containsDll: containsDll.checked,
       requiresRestart: containsDll.checked
@@ -981,7 +988,9 @@ function pluginConfigFromCreate(created) {
     ServerToken: created.token,
     GameVersion: pack.gameVersion || '3.10.14',
     RefreshSeconds: 60,
-    HandshakeTimeoutSeconds: 15
+    HandshakeTimeoutSeconds: 15,
+    AutoSync: true,
+    AutoRestart: false
   };
 }
 

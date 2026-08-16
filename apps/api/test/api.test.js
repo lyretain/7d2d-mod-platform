@@ -51,6 +51,18 @@ test('publishes and verifies an immutable ModPack manifest', async (t) => {
   assert.equal(verifyManifest(manifest, signing.publicJwk().publicKey), false);
 });
 
+test('major-range mods can join later 3.x packs but not the next major', async (t) => {
+  const { base } = await fixture(t);
+  const admin = { authorization: 'Bearer test-admin-token-1234', 'content-type': 'application/json' };
+  const archive = createStoredZip({ 'ExampleMod/ModInfo.xml': '<xml />' });
+  const artifactSha = sha256(archive);
+  await jsonRequest(`${base}/api/v1/artifacts/${artifactSha}`, { method: 'PUT', headers: { ...admin, 'content-type': 'application/zip' }, body: archive });
+  await jsonRequest(`${base}/api/v1/mods`, { method: 'POST', headers: admin, body: JSON.stringify({ id: 'generic', name: 'Generic', version: '1.0.0', artifactSha, gameVersions: ['3.0'], gameVersionRange: 'major', installRoots: ['ExampleMod'] }) });
+  await jsonRequest(`${base}/api/v1/packs`, { method: 'POST', headers: admin, body: JSON.stringify({ name: 'V3', gameVersion: '3.10.14', entries: [{ modId: 'generic', version: '1.0.0' }] }) });
+  assert.equal((await fetch(`${base}/api/v1/packs`, { method: 'POST', headers: admin, body: JSON.stringify({ name: 'V4', gameVersion: '4.0', entries: [{ modId: 'generic', version: '1.0.0' }] }) })).status, 422);
+  assert.equal((await fetch(`${base}/api/v1/packs`, { method: 'POST', headers: admin, body: JSON.stringify({ name: 'V2', gameVersion: '2.6', entries: [{ modId: 'generic', version: '1.0.0' }] }) })).status, 422);
+});
+
 test('redacts and aggregates diagnostics', async (t) => {
   const { base } = await fixture(t);
   const event = { sessionId: 's1', side: 'client', gameVersion: '2.6', stage: 'startup', exceptionType: 'TypeLoadException', message: 'token=secret-value from 192.168.1.8', stackTrace: 'at Mod.Run() in C:\\Users\\Alice\\x.cs:42', logExcerpt: 'password=hunter2' };
@@ -205,7 +217,9 @@ test('regular users can register a game server and open the user guide', async (
   const created = await jsonRequest(`${base}/api/v1/servers`, { method: 'POST', headers: hostHeaders, body: JSON.stringify({ name: 'Weekend', packId: 'prod-pack', publicAddress: 'play.example.com:26900' }) });
   assert.match(created.serverId, /^srv_/);
   assert.ok(created.token);
-  assert.deepEqual(Object.keys(created.config), ['BaseUrl', 'ServerId', 'ServerToken', 'GameVersion', 'RefreshSeconds', 'HandshakeTimeoutSeconds']);
+  assert.deepEqual(Object.keys(created.config), ['BaseUrl', 'ServerId', 'ServerToken', 'GameVersion', 'RefreshSeconds', 'HandshakeTimeoutSeconds', 'AutoSync', 'AutoRestart']);
+  assert.equal(created.config.AutoSync, true);
+  assert.equal(created.config.AutoRestart, false);
   assert.equal(created.config.BaseUrl, base);
   assert.equal(created.config.ServerId, created.serverId);
   assert.equal(created.config.ServerToken, created.token);

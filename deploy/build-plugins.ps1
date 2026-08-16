@@ -55,9 +55,10 @@ if (Get-Command dotnet -ErrorAction SilentlyContinue) {
   dotnet build "$root\plugins\client\ModPlatform.Client.csproj" -c $Configuration -p:GameManagedDir="$GameManagedDir"
   if ($LASTEXITCODE -ne 0) { throw "Client plugin compilation failed." }
   function LatestPluginDll($searchRoot, $name) {
-    Get-ChildItem $searchRoot -Recurse -Filter $name |
-      Sort-Object { if ($_.DirectoryName -match 'netstandard2\.1') { 0 } else { 1 } }, LastWriteTime -Descending |
-      Select-Object -First 1
+    $matches = @(Get-ChildItem $searchRoot -Recurse -Filter $name)
+    $preferred = @($matches | Where-Object { $_.DirectoryName -match 'netstandard2\.1' } | Sort-Object LastWriteTime -Descending)
+    if ($preferred.Count) { return $preferred[0] }
+    return $matches | Sort-Object LastWriteTime -Descending | Select-Object -First 1
   }
   $sharedDll = LatestPluginDll "$root\plugins\shared\bin\$Configuration" "ModPlatform.Shared.dll"
   $serverDll = LatestPluginDll "$root\plugins\server\bin\$Configuration" "ModPlatform.Server.dll"
@@ -70,13 +71,15 @@ if (Get-Command dotnet -ErrorAction SilentlyContinue) {
   if (!(Test-Path -LiteralPath $csc)) { throw "Neither dotnet SDK nor the Windows C# compiler was found." }
   $build = Join-Path $output ".build"
   New-Item -ItemType Directory -Force -Path $build | Out-Null
-  $common = @('/nologo','/noconfig','/target:library','/nostdlib+',"/reference:$GameManagedDir\mscorlib.dll","/reference:$GameManagedDir\netstandard.dll","/reference:$GameManagedDir\System.dll","/reference:$GameManagedDir\System.Core.dll","/reference:$GameManagedDir\System.Runtime.Serialization.dll","/reference:$GameManagedDir\System.Xml.dll","/reference:$GameManagedDir\System.Net.Http.dll")
+  $common = @('/nologo','/noconfig','/target:library','/nostdlib+',"/reference:$GameManagedDir\mscorlib.dll","/reference:$GameManagedDir\netstandard.dll","/reference:$GameManagedDir\System.dll","/reference:$GameManagedDir\System.Core.dll","/reference:$GameManagedDir\System.Runtime.Serialization.dll","/reference:$GameManagedDir\System.Xml.dll","/reference:$GameManagedDir\System.Net.Http.dll","/reference:$GameManagedDir\System.IO.Compression.dll","/reference:$GameManagedDir\System.IO.Compression.FileSystem.dll")
   $sharedSources = @(
     "$root\plugins\shared\Contracts.cs",
     "$root\plugins\shared\PlatformClient.cs",
     "$root\plugins\shared\PluginIdentity.cs",
     "$root\plugins\shared\Handshake.cs",
-    "$root\plugins\shared\LocalState.cs"
+    "$root\plugins\shared\LocalState.cs",
+    "$root\plugins\shared\PluginPaths.cs",
+    "$root\plugins\shared\PackSync.cs"
   )
   & $csc @common "/out:$build\ModPlatform.Shared.dll" @sharedSources
   if ($LASTEXITCODE -ne 0) { throw "Shared plugin compilation failed." }

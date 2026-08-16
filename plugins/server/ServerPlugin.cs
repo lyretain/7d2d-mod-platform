@@ -14,15 +14,37 @@ public sealed class ModPlatformServerPlugin : IModApi
     static CancellationTokenSource lifetime;
     static HandshakePolicy policy;
     static bool acceptingPlayers;
+    static bool pendingRestart;
+    static string modsDirectory;
     static readonly Dictionary<int, ClientHandshake> clients = new Dictionary<int, ClientHandshake>();
     static readonly object gate = new object();
 
+    static ModPlatformServerPlugin()
+    {
+        try
+        {
+            var mods = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Mods");
+            PackSync.ApplyPending(mods);
+            try { PackSync.ApplyPending(Path.Combine(GameIO.GetUserGameDataDir(), "Mods")); } catch { }
+        }
+        catch { }
+    }
+
     public void InitMod(Mod modInstance)
     {
-        var modDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Mods", "ModPlatformServer");
-        var configFile = Path.Combine(modDirectory, "server.config.json");
-        if (!File.Exists(configFile)) { Log.Error("[ModPlatform] Missing " + configFile); return; }
+        string userMods = null;
+        try { userMods = Path.Combine(GameIO.GetUserGameDataDir(), "Mods", "ModPlatformServer"); } catch { /* dedicated servers without GameIO still work */ }
+        var installMods = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Mods", "ModPlatformServer");
+        var modDirectory = PluginPaths.FindDirectory("server.config.json", modInstance != null ? modInstance.Path : null, userMods, installMods);
+        var configFile = Path.Combine(modDirectory ?? installMods, "server.config.json");
+        if (!File.Exists(configFile))
+        {
+            Log.Error("[ModPlatform] Missing server.config.json. Looked in: " + string.Join(" | ", PluginPaths.Tried("server.config.json", modInstance != null ? modInstance.Path : null, userMods, installMods)));
+            return;
+        }
         using (var stream = File.OpenRead(configFile)) config = (ServerConfig)new DataContractJsonSerializer(typeof(ServerConfig)).ReadObject(stream);
+        modsDirectory = PackSync.ModsDirectory(modDirectory, config.ModsDir);
+        PackSync.ApplyPending(modsDirectory);
         platform = new PlatformClient(config.BaseUrl);
         lifetime = new CancellationTokenSource();
         LoadCachedAssignment(modDirectory);
@@ -179,6 +201,8 @@ public sealed class ModPlatformServerPlugin : IModApi
             try
             {
                 var assignment = await platform.GetAssignmentAsync(config.ServerId, config.ServerToken, token).ConfigureAwait(false);
+                if (config.ShouldSync && assignment != null && assignment.Manifest != null)
+                    await SyncPackAsync(assignment, token).ConfigureAwait(false);
                 ApplyAssignment(assignment, directory);
             }
             catch (Exception error)
@@ -194,6 +218,43 @@ public sealed class ModPlatformServerPlugin : IModApi
         }
     }
 
+    static async Task SyncPackAsync(ServerAssignment assignment, CancellationToken token)
+    {
+        var status = new ServerSyncStatus { Stage = "sync_start", Ok = true, PackId = assignment.PackId, PackVersion = assignment.Manifest == null ? (int?)null : assignment.Manifest.PackVersion };
+        try { await platform.SendSyncStatusAsync(config.ServerId, config.ServerToken, status, token).ConfigureAwait(false); } catch { }
+        try
+        {
+            var result = await PackSync.SyncAsync(modsDirectory, config.BaseUrl, assignment.Manifest, token).ConfigureAwait(false);
+            if (result.Changed) Log.Out("[ModPlatform] Pack sync " + assignment.PackId + " v" + assignment.Manifest.PackVersion + " installed=" + result.Installed + " updated=" + result.Updated + " unchanged=" + result.Unchanged);
+            else Log.Out("[ModPlatform] Pack sync already current " + assignment.PackId + " v" + assignment.Manifest.PackVersion);
+            if (result.RequiresRestart || result.Changed)
+            {
+                pendingRestart = true;
+                Log.Warning("[ModPlatform] " + (result.Message ?? "Restart the dedicated server to load the new pack."));
+            }
+            status = new ServerSyncStatus { Stage = "sync_ok", Ok = true, PackId = assignment.PackId, PackVersion = assignment.Manifest.PackVersion, RequiresRestart = pendingRestart, Message = result.Message };
+            try { await platform.SendSyncStatusAsync(config.ServerId, config.ServerToken, status, token).ConfigureAwait(false); } catch { }
+            if (config.ShouldRestart && pendingRestart) RequestRestart();
+        }
+        catch (Exception error)
+        {
+            Log.Warning("[ModPlatform] Pack sync failed: " + error.Message);
+            status = new ServerSyncStatus { Stage = "sync_failed", Ok = false, PackId = assignment.PackId, PackVersion = assignment.Manifest == null ? (int?)null : assignment.Manifest.PackVersion, Message = error.Message, RequiresRestart = pendingRestart };
+            try { await platform.SendSyncStatusAsync(config.ServerId, config.ServerToken, status, token).ConfigureAwait(false); } catch { }
+            throw;
+        }
+    }
+
+    static void RequestRestart()
+    {
+        Log.Warning("[ModPlatform] AutoRestart is enabled; dedicated server will exit so the new pack can load.");
+        try { UnityEngine.Application.Quit(); }
+        catch
+        {
+            try { Environment.Exit(0); } catch { }
+        }
+    }
+
     static void ApplyAssignment(ServerAssignment assignment, string directory)
     {
         if (assignment == null) return;
@@ -205,9 +266,9 @@ public sealed class ModPlatformServerPlugin : IModApi
         lock (gate)
         {
             policy = assignment.Handshake;
-            acceptingPlayers = assignment.AcceptingPlayers && policy != null && !policy.DistributionPaused && policy.PackVersion != null;
+            acceptingPlayers = assignment.AcceptingPlayers && !pendingRestart && policy != null && !policy.DistributionPaused && policy.PackVersion != null;
         }
-        Log.Out("[ModPlatform] Active pack " + assignment.PackId + " v" + (assignment.Manifest == null ? 0 : assignment.Manifest.PackVersion) + " accepting=" + acceptingPlayers);
+        Log.Out("[ModPlatform] Active pack " + assignment.PackId + " v" + (assignment.Manifest == null ? 0 : assignment.Manifest.PackVersion) + " accepting=" + acceptingPlayers + (pendingRestart ? " restartRequired=True" : ""));
     }
 
     static void LoadCachedAssignment(string directory)
@@ -222,7 +283,7 @@ public sealed class ModPlatformServerPlugin : IModApi
                 lock (gate)
                 {
                     policy = assignment.Handshake;
-                    acceptingPlayers = assignment.AcceptingPlayers && policy != null && !policy.DistributionPaused && policy.PackVersion != null;
+                    acceptingPlayers = assignment.AcceptingPlayers && !pendingRestart && policy != null && !policy.DistributionPaused && policy.PackVersion != null;
                 }
                 Log.Out("[ModPlatform] Loaded cached assignment " + assignment.PackId);
             }
@@ -303,6 +364,12 @@ public sealed class ServerConfig
     [DataMember] public string GameVersion { get; set; }
     [DataMember] public int RefreshSeconds { get; set; }
     [DataMember] public int HandshakeTimeoutSeconds { get; set; }
+    [DataMember] public bool? AutoSync { get; set; }
+    [DataMember] public bool? AutoRestart { get; set; }
+    [DataMember] public string ModsDir { get; set; }
+
+    public bool ShouldSync { get { return AutoSync != false; } }
+    public bool ShouldRestart { get { return AutoRestart == true; } }
 
     public ServerConfig()
     {

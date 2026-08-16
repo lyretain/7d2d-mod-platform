@@ -14,6 +14,7 @@ import { handleP1 } from './p1-routes.js';
 import { consumeRateLimit, inspectRequest, routeLimit, securityHeaders } from './security.js';
 import { notify } from './alerts.js';
 import { pluginServerConfig, recordDownload, requireConfirm } from './catalog.js';
+import { gameVersionMatches } from './game-version.js';
 import { artifactPublicUrl, cloudflareCacheHeaders, manifestPublicUrl, purgeCloudflare } from './cloudflare.js';
 import { can, denyReason, describePrincipal } from './roles.js';
 import { exchangeGithubCode, githubAuthorizeUrl } from './github.js';
@@ -287,6 +288,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
             artifactSha: body.artifactSha,
             artifactSize: artifactInfo.size,
             gameVersions: Array.isArray(body.gameVersions) ? body.gameVersions : [],
+            gameVersionRange: body.gameVersionRange === 'major' || body.genericGameVersion ? 'major' : 'exact',
             installRoots: Array.isArray(body.installRoots) && body.installRoots.length ? body.installRoots : (analysis?.roots || []),
             containsDll: Boolean(body.containsDll || analysis?.containsDll),
             requiresRestart: Boolean(body.requiresRestart || body.containsDll || analysis?.containsDll),
@@ -309,7 +311,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
         for (const entry of body.entries) {
           const version = snapshot.mods[entry.modId]?.versions?.[entry.version];
           if (!version) throw Object.assign(new Error(`Unknown mod version: ${entry.modId}@${entry.version}`), { code: 'VALIDATION' });
-          if (version.gameVersions.length && !version.gameVersions.includes(body.gameVersion)) throw Object.assign(new Error(`${entry.modId}@${entry.version} does not declare compatibility with game ${body.gameVersion}`), { code: 'VALIDATION' });
+          if (version.gameVersions.length && !gameVersionMatches(version.gameVersions, body.gameVersion, version.gameVersionRange)) throw Object.assign(new Error(`${entry.modId}@${entry.version} does not declare compatibility with game ${body.gameVersion}`), { code: 'VALIDATION' });
           if (requireReview) {
             const review = snapshot.reviews?.[version.artifactSha];
             if (!review || review.status !== 'approved' || !review.licenseConfirmed) throw Object.assign(new Error(`${entry.modId}@${entry.version} is not approved for redistribution`), { code: 'VALIDATION' });

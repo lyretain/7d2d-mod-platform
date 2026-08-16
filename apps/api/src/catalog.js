@@ -11,7 +11,7 @@ export function listMods(snapshot, query = '') {
       versionCount: versions.length,
       latestVersion: versions[0]?.version || null,
       containsDll: versions.some((item) => item.containsDll),
-      versions: versions.map((item) => ({ version: item.version, artifactSha: item.artifactSha, artifactSize: item.artifactSize, gameVersions: item.gameVersions, containsDll: item.containsDll, createdAt: item.createdAt }))
+      versions: versions.map((item) => ({ version: item.version, artifactSha: item.artifactSha, artifactSize: item.artifactSize, gameVersions: item.gameVersions, gameVersionRange: item.gameVersionRange || 'exact', containsDll: item.containsDll, createdAt: item.createdAt }))
     };
   }).filter((mod) => !needle || mod.id.includes(needle) || String(mod.name || '').toLocaleLowerCase('en-US').includes(needle));
 }
@@ -56,7 +56,9 @@ export function pluginServerConfig({ baseUrl, serverId, token, gameVersion }) {
     ServerToken: token,
     GameVersion: gameVersion || '3.10.14',
     RefreshSeconds: 60,
-    HandshakeTimeoutSeconds: 15
+    HandshakeTimeoutSeconds: 15,
+    AutoSync: true,
+    AutoRestart: false
   };
 }
 
