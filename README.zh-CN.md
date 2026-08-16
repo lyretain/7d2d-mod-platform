@@ -1,8 +1,8 @@
-# 潮印 Hordepin
+# Hordepin
 
 [English](README.md) · 简体中文 · [MIT 许可证](LICENSE)
 
-**潮印**（英文 **Hordepin**）是一个可部署的单节点平台，用于给七日杀私服的 ModPack 签名、分发，并收集客户端与服务端故障信息。名字取「尸潮」与「印/钉死」：平台公钥 TOFU 钉死，进服握手再把玩家钉在当前 Pack 上。
+**Hordepin** 是一个可部署的单节点平台，用于给七日杀私服的 ModPack 签名、分发，并收集客户端与服务端故障信息。名字取 horde（尸潮）与 pin（钉死）：平台公钥 TOFU 钉死，进服握手再把玩家钉在当前 Pack 上。
 
 插件目录和程序集仍叫 `ModPlatform*`，已安装的服不必改文件夹名。
 
@@ -192,6 +192,8 @@ npm.cmd test
 只有使用 Compose 的 `full` profile 才会拉取 MinIO 镜像。本仓库不内嵌 MinIO 源码。
 
 ## 开源协议与商业化
+
+版权 © 2026 Lyretain。赞助：[AICOCLOUD](https://aicocloud.com/)。
 
 本软件以 [MIT License](LICENSE) 发布。**就本仓库自己的源码而言**，你可以自由使用、修改、托管和出售副本（包括闭源二次开发），只需保留版权与许可声明。
 

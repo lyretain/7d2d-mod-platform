@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>潮印</title>
+  <title>Hordepin</title>
   <style>
     :root {
       --bg: #101114;
@@ -157,6 +157,20 @@
       .row, .three, .stats, .workshop-toolbar { grid-template-columns: 1fr; }
       .workshop-tray { flex-direction: column; align-items: stretch; }
     }
+    .site-footer {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 16px;
+      justify-content: space-between;
+      margin-top: 28px;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .site-footer a { color: var(--accent); }
+    #setup, #gate { flex-direction: column; }
+    #setup .site-footer, #gate .site-footer { width: min(1080px, 100%); margin: 24px auto 0; }
   </style>
 </head>
 <body>
@@ -177,12 +191,16 @@
     <input id="setupPassword2" type="password" autocomplete="new-password" data-i18n-placeholder="setup.phPassword2" placeholder="再输入一次">
     <div class="actions"><button onclick="setupPlatform()" data-i18n="setup.submit">完成初始化</button></div>
   </div>
+  <footer class="site-footer">
+    <span data-i18n="footer.copyright">© 2026 Lyretain</span>
+    <span><span data-i18n="footer.sponsor">赞助</span> <a href="https://aicocloud.com/" target="_blank" rel="noreferrer">AICOCLOUD</a></span>
+  </footer>
 </section>
 <section id="gate">
   <div class="community">
     <div class="hero">
       <div class="lang-switch" data-lang-switch></div>
-      <h1 data-i18n="gate.title">潮印</h1>
+      <h1 data-i18n="gate.title">Hordepin</h1>
       <p data-i18n="gate.lead">面向服主与玩家的验签分发平台。普通用户可直接注册并登记服务器，更新器只安装已签名的 Pack。</p>
       <p><a href="/guide" style="color:var(--accent)" data-i18n="gate.guide">阅读玩家与服主教程</a></p>
       <ul>
@@ -219,9 +237,13 @@
       </div>
     </div>
   </div>
+  <footer class="site-footer">
+    <span data-i18n="footer.copyright">© 2026 Lyretain</span>
+    <span><span data-i18n="footer.sponsor">赞助</span> <a href="https://aicocloud.com/" target="_blank" rel="noreferrer">AICOCLOUD</a></span>
+  </footer>
 </section>
 <aside class="sidebar">
-  <div class="brand"><strong data-i18n="nav.brand">潮印</strong><span data-i18n="nav.sub">七日杀验签分发</span></div>
+  <div class="brand"><strong data-i18n="nav.brand">Hordepin</strong><span data-i18n="nav.sub">七日杀验签分发</span></div>
   <nav>
     <button class="active" data-tab="workshop" onclick="showTab('workshop')" data-i18n="nav.workshop">工坊</button>
     <button data-tab="mods" onclick="showTab('mods')" data-i18n="nav.mods">Mod</button>
@@ -501,6 +523,10 @@
     <summary data-i18n="rawResponse">原始响应</summary>
     <pre id="out" data-i18n="rawEmpty">尚未读取</pre>
   </details>
+  <footer class="site-footer">
+    <span data-i18n="footer.copyright">© 2026 Lyretain</span>
+    <span><span data-i18n="footer.sponsor">赞助</span> <a href="https://aicocloud.com/" target="_blank" rel="noreferrer">AICOCLOUD</a></span>
+  </footer>
 </main>
 
 <div id="workshopDialog" class="dialog" hidden onclick="if (event.target === this) closeWorkshopDialog()">

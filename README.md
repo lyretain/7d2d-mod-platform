@@ -2,7 +2,7 @@
 
 [简体中文文档](README.zh-CN.md) · English · [MIT License](LICENSE)
 
-**Hordepin** (Chinese: **潮印**) is a deployable, dependency-light platform for signing, distributing, and diagnosing 7 Days to Die ModPacks on private servers. The name is *horde* (the game’s signature night) plus *pin* (pinned platform keys and a join handshake that locks clients to the server’s pack).
+**Hordepin** is a deployable, dependency-light platform for signing, distributing, and diagnosing 7 Days to Die ModPacks on private servers. The name is *horde* (the game’s signature night) plus *pin* (pinned platform keys and a join handshake that locks clients to the server’s pack).
 
 Plugin folders and assemblies stay `ModPlatform*` so existing installs keep working.
 
@@ -148,6 +148,8 @@ This repository is original application code. It depends on or was visually info
 MinIO is only pulled if you start the `full` Compose profile. This repo does not vendor the MinIO server.
 
 ## License and commercial use
+
+Copyright © 2026 Lyretain. Sponsored by [AICOCLOUD](https://aicocloud.com/).
 
 This software is released under the [MIT License](LICENSE). For **this repository’s own source code**, that means you may use, modify, host, and sell copies, including closed-source forks, as long as you keep the copyright and permission notice.
 

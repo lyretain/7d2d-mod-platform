@@ -1,6 +1,6 @@
 (function (root) {
   const zh = {
-    docTitle: '潮印',
+    docTitle: 'Hordepin',
     langZh: '中文',
     langEn: 'EN',
     guide: '教程',
@@ -36,7 +36,7 @@
     'setup.already': '平台已经初始化，请返回登录。',
     'setup.done': '社区已初始化',
 
-    'gate.title': '潮印',
+    'gate.title': 'Hordepin',
     'gate.lead': '面向服主与玩家的验签分发平台。普通用户可直接注册并登记服务器，更新器只安装已签名的 Pack。',
     'gate.guide': '阅读玩家与服主教程',
     'gate.f1t': '验签分发',
@@ -64,7 +64,7 @@
     'gate.phRegPassword': '至少10位',
     'gate.phInvite': '社区管理员邀请码，可留空',
 
-    'nav.brand': '潮印',
+    'nav.brand': 'Hordepin',
     'nav.sub': '七日杀验签分发',
     'nav.workshop': 'Mod列表',
     'nav.mods': '我的Mod',
@@ -72,6 +72,9 @@
     'nav.servers': '服务器',
     'nav.ops': '运维管理',
     'nav.account': '账户管理',
+
+    'footer.copyright': '© 2026 Lyretain',
+    'footer.sponsor': '赞助',
 
     'page.account.title': '账户管理',
     'page.account.hint': '邀请新管理员或只读用户',
@@ -454,6 +457,9 @@
     'nav.servers': 'Servers',
     'nav.ops': 'Operations',
     'nav.account': 'Account',
+
+    'footer.copyright': '© 2026 Lyretain',
+    'footer.sponsor': 'Sponsored by',
 
     'page.account.title': 'Account',
     'page.account.hint': 'Invite new admins or read-only users',

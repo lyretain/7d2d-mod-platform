@@ -1,4 +1,4 @@
-# 潮印文档
+# Hordepin 文档
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 

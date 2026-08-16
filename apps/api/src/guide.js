@@ -38,7 +38,7 @@ function renderBlocks(markdown) {
 
 export function renderUserGuide(markdown, lang = 'zh') {
   const isEn = lang === 'en';
-  const title = isEn ? 'Player and host guide · Hordepin' : '玩家与服主教程 · 潮印';
+  const title = isEn ? 'Player and host guide · Hordepin' : '玩家与服主教程 · Hordepin';
   const home = isEn ? 'Back to Hordepin' : '返回平台';
   return `<!doctype html>
 <html lang="${isEn ? 'en' : 'zh-CN'}">
@@ -61,12 +61,18 @@ export function renderUserGuide(markdown, lang = 'zh') {
     pre { overflow: auto; background: #171a20; border: 1px solid #2c313c; border-radius: 10px; padding: 14px 16px; }
     pre code { color: #f3efe6; }
     nav { display: flex; gap: 16px; margin-bottom: 28px; color: #8b909c; font-size: 14px; }
+    footer { display: flex; flex-wrap: wrap; gap: 8px 16px; justify-content: space-between; margin-top: 40px; padding-top: 16px; border-top: 1px solid #2c313c; color: #8b909c; font-size: 13px; }
+    footer a { color: #e8a317; }
   </style>
 </head>
 <body>
   <main>
     <nav><a href="/">${home}</a><a href="/guide">简体中文</a><a href="/guide?lang=en">English</a></nav>
     ${renderBlocks(markdown)}
+    <footer>
+      <span>© 2026 Lyretain</span>
+      <span>${isEn ? 'Sponsored by' : '赞助'} <a href="https://aicocloud.com/" target="_blank" rel="noreferrer">AICOCLOUD</a></span>
+    </footer>
   </main>
 </body>
 </html>`;

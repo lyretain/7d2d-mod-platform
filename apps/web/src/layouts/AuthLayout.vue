@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppFooter from '../components/AppFooter.vue';
 import LangSwitch from '../components/LangSwitch.vue';
 import { i18n, t } from '../i18n';
 
@@ -6,8 +7,8 @@ defineProps<{ title: string; lead?: string }>();
 </script>
 
 <template>
-  <div class="relative min-h-screen bg-white dark:bg-gray-900" :data-lang="i18n.lang">
-    <div class="flex min-h-screen flex-col lg:flex-row">
+  <div class="relative flex min-h-screen flex-col bg-white dark:bg-gray-900" :data-lang="i18n.lang">
+    <div class="flex flex-1 flex-col lg:flex-row">
       <div class="hidden flex-1 flex-col justify-center bg-gray-50 px-10 py-12 dark:bg-white/[0.02] lg:flex">
         <LangSwitch />
         <h1 class="mt-8 text-title-sm font-semibold text-brand-500">{{ t('gate.title') }}</h1>
@@ -28,6 +29,9 @@ defineProps<{ title: string; lead?: string }>();
           <slot />
         </div>
       </div>
+    </div>
+    <div class="px-6 pb-6 lg:px-10">
+      <AppFooter />
     </div>
   </div>
 </template>
