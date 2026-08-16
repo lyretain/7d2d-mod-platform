@@ -1,6 +1,6 @@
 # 七日杀 Mod 分发与诊断平台
 
-[English](README.md) · 简体中文
+[English](README.md) · 简体中文 · [MIT 许可证](LICENSE)
 
 这是一个可部署的单节点 MVP，用于管理、签名、分发七日杀 ModPack，并收集客户端和服务端故障信息。
 
@@ -167,6 +167,40 @@ npm.cmd test
 - 带 DLL/Harmony 的 Mod 通常需要关闭 EAC，并在安装后重启游戏。
 - Docker CLI 已安装，但部署前需要确保 Docker Desktop 后台正在运行。
 - 对外开放前必须配置 HTTPS、限流、恶意文件扫描和正式密钥管理。
+
+## 引用与致谢
+
+本仓库是原创业务代码。下列项目被依赖、编译引用或仅借鉴布局。游戏程序集只在本机编译插件时引用，不会打进 git。
+
+| 项目 | 用途 | 许可 |
+|---|---|---|
+| [七日杀](https://7daystodie.com/)（The Fun Pimps） | 目标游戏；插件编译引用 | 专有，不包含在本仓库 |
+| [Unity](https://unity.com/) | 编译插件所需的引擎程序集 | 专有；`Private=false`，不拷贝进仓库 |
+| [Node.js](https://nodejs.org/) | API、更新器、启动器、守护进程运行时 | MIT |
+| [Vue 3](https://vuejs.org/) / [Vue Router](https://router.vuejs.org/) | 管理后台 SPA | MIT |
+| [Vite](https://vite.dev/) | 前端构建 | MIT |
+| [Tailwind CSS](https://tailwindcss.com/) | 后台样式 | MIT |
+| [lucide-vue-next](https://lucide.dev/) | 侧栏图标 | ISC |
+| [TailAdmin Vue](https://github.com/TailAdmin/vue-tailwind-admin-dashboard)（社区版） | 只借鉴侧栏/顶栏/卡片布局，未拷贝 Pro 演示页和图表库 | 社区版 MIT |
+| [Docker](https://www.docker.com/) / Compose | 可选部署 | Engine 为 Apache-2.0 |
+| [PostgreSQL](https://www.postgresql.org/) / [MinIO](https://min.io/) | 可选生产存储 | PostgreSQL / MinIO 服务端 AGPL-3.0 |
+| [Cloudflare](https://www.cloudflare.com/) | 可选 CDN / R2 | 服务条款 |
+| [GitHub](https://github.com/) | 可选社区管理员 OAuth | 服务条款 |
+
+只有使用 Compose 的 `full` profile 才会拉取 MinIO 镜像。本仓库不内嵌 MinIO 源码。
+
+## 开源协议与商业化
+
+本软件以 [MIT License](LICENSE) 发布。**就本仓库自己的源码而言**，你可以自由使用、修改、托管和出售副本（包括闭源二次开发），只需保留版权与许可声明。
+
+这**不等于**「围绕七日杀做生意一定合法」。还要单独看这些边界：
+
+1. **本仓库代码（MIT）** — 自己部署、卖技术支持、卖托管、甚至把这份代码闭源改装后再卖，许可证都允许。
+2. **七日杀本体** — 游戏、DLL、美术和商标归 The Fun Pimps。不要分发 `Assembly-CSharp.dll` 等游戏文件。若要收费（卖 Mod、卖服、做公共市场），先读他们的 EULA / Allocation 条款。
+3. **他人制作的 Mod** — 每个 ZIP 都需要作者的再分发授权。后台「确认许可证」只是运营开关，不能代替授权。转售别人的 Mod 通常要有明确的商业授权。
+4. **上表依赖** — Vue、Vite、Tailwind、Lucide、TailAdmin 社区版都是宽松许可。不要拷贝 TailAdmin Pro 资源。若自建 MinIO，遵守 MinIO 自己的协议。
+
+以上不是法律意见。若计划向玩家收费或大规模分发第三方 Mod，应请律师核对 Fun Pimps 条款和与 Mod 作者的合同。
 
 ## 进一步阅读
 

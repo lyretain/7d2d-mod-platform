@@ -1,6 +1,6 @@
 # 7DTD Mod Platform MVP
 
-[简体中文文档](README.zh-CN.md) · English
+[简体中文文档](README.zh-CN.md) · English · [MIT License](LICENSE)
 
 A deployable, dependency-light MVP for managing, signing, distributing and diagnosing 7 Days to Die ModPacks.
 
@@ -123,3 +123,37 @@ The tests cover signed release publication, tamper rejection, diagnostic redacti
 ## Production status
 
 This is a working single-node MVP, not yet a public multi-tenant Mod marketplace. Before public deployment, complete the production checklist in `docs/SECURITY.md`, especially HTTPS, KMS-backed signing, rate limiting, malware scanning, signed updater packaging and a target-game integration test.
+
+## Credits
+
+This repository is original application code. It depends on or was visually informed by the following projects. Game assemblies are referenced at compile time only and are not redistributed.
+
+| Project | Role | License |
+|---|---|---|
+| [7 Days to Die](https://7daystodie.com/) (The Fun Pimps) | Target game; plugin compile references | Proprietary. Not included in this repo. |
+| [Unity](https://unity.com/) | Game engine assemblies used to compile plugins | Proprietary. `Private=false`; not copied into git. |
+| [Node.js](https://nodejs.org/) | API, updater, launcher, guardian runtime | MIT |
+| [Vue 3](https://vuejs.org/) / [Vue Router](https://router.vuejs.org/) | Admin SPA | MIT |
+| [Vite](https://vite.dev/) | Frontend build | MIT |
+| [Tailwind CSS](https://tailwindcss.com/) | Admin styles | MIT |
+| [lucide-vue-next](https://lucide.dev/) | Sidebar icons | ISC |
+| [TailAdmin Vue](https://github.com/TailAdmin/vue-tailwind-admin-dashboard) (community) | Layout and visual cues only; no Pro pages or chart libraries | MIT (community edition) |
+| [Docker](https://www.docker.com/) / Compose | Optional deploy | Apache-2.0 (Engine) |
+| [PostgreSQL](https://www.postgresql.org/) / [MinIO](https://min.io/) | Optional production store | PostgreSQL / AGPL-3.0 (MinIO server) |
+| [Cloudflare](https://www.cloudflare.com/) | Optional CDN / R2 | Service terms |
+| [GitHub](https://github.com/) | Optional OAuth for community admins | Service terms |
+
+MinIO is only pulled if you start the `full` Compose profile. This repo does not vendor the MinIO server.
+
+## License and commercial use
+
+This software is released under the [MIT License](LICENSE). For **this repository’s own source code**, that means you may use, modify, host, and sell copies, including closed-source forks, as long as you keep the copyright and permission notice.
+
+That does **not** automatically make a 7DTD-related business legal. Separate rules still apply:
+
+1. **This codebase (MIT)** — hosting the API, selling support, or charging for your own deployment of this software is allowed by the license.
+2. **7 Days to Die** — the game, its DLLs, art, and trademarks belong to The Fun Pimps. Do not ship `Assembly-CSharp.dll` or other game files. Read their EULA and allocation terms before charging for anything that depends on the game (paid mods, paid servers, or a public marketplace).
+3. **Third-party Mods** — each ZIP needs a redistribution right from its author. The admin “license confirmed” checkbox is an operational control, not a substitute for those rights. Selling other people’s Mods usually requires an explicit commercial grant.
+4. **Dependencies above** — Vue, Vite, Tailwind, Lucide, and TailAdmin community are permissive. Do not copy TailAdmin Pro assets. If you run MinIO, follow MinIO’s own license.
+
+This is not legal advice. If you plan to charge players or redistribute Mods at scale, get a lawyer to review the Fun Pimps terms and your Mod author contracts.
