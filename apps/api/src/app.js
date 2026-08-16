@@ -14,10 +14,10 @@ import { ingestDiagnostic, shouldBlockInstalls } from './compatibility.js';
 import { handleP1 } from './p1-routes.js';
 import { consumeRateLimit, inspectRequest, routeLimit, securityHeaders } from './security.js';
 import { notify } from './alerts.js';
-import { expandPackEntries, listModOverlays, normalizeContentSlots, normalizeDependsOn, pluginServerConfig, recordDownload, requireConfirm } from './catalog.js';
+import { expandPackEntries, listModContents, migrateSlotContents, normalizeContentSlots, normalizeDependsOn, normalizeEntryContents, overlaysForPackEntry, pluginServerConfig, purgeContentRefs, recordDownload, requireConfirm } from './catalog.js';
 import { gameVersionMatches } from './game-version.js';
 import { artifactPublicUrl, cloudflareCacheHeaders, manifestPublicUrl, purgeCloudflare } from './cloudflare.js';
-import { can, denyReason, describePrincipal } from './roles.js';
+import { can, canViewAdult, denyReason, describePrincipal } from './roles.js';
 import { exchangeGithubCode, githubAuthorizeUrl } from './github.js';
 import { renderUserGuide } from './guide.js';
 import { claimHandshake, normalizePlayerIds, sanitizeHello, storeHandshake } from './handshakes.js';
@@ -153,7 +153,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
       if (limit && !await consumeRateLimit(store, { key: `${limit.key}:${inspection.ip}`, limit: limit.limit, windowMs: limit.windowMs })) {
         return problem(res, 429, 'RATE_LIMITED', 'Too many requests');
       }
-      if (await handleP1(req, res, { pathname, store, auth, signing, objects: objects || { localDir: objectDir, ready: async () => ({ ok: true, driver: 'local' }), listLocal: async () => [], remove: async () => {} }, metrics: metricsApi, config })) return;
+      if (await handleP1(req, res, { pathname, store, auth, signing, objects: objects || { localDir: objectDir, ready: async () => ({ ok: true, driver: 'local' }), listLocal: async () => [], remove: async () => {} }, metrics: metricsApi, config, requireReview })) return;
       if (req.method === 'GET' && pathname === '/admin-i18n.js') {
         const body = readFileSync(new URL('./admin-i18n.js', import.meta.url));
         res.writeHead(200, { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'no-cache', 'x-content-type-options': 'nosniff' });
@@ -216,6 +216,14 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
         const user = auth.principal(req);
         if (!user) return problem(res, 401, 'UNAUTHORIZED', 'Login required');
         return json(res, 200, { user: describePrincipal(user) });
+      }
+
+      if (req.method === 'POST' && pathname === '/api/v1/auth/adult-confirm') {
+        const user = requireUser(req, res);
+        if (!user) return;
+        if (user.bootstrap) return json(res, 200, { user: describePrincipal(user) });
+        const body = await readJson(req, 32 * 1024);
+        return json(res, 200, { user: await auth.confirmAdult(user.id, body) });
       }
 
       if (req.method === 'POST' && pathname === '/api/v1/auth/activate') {
@@ -282,7 +290,10 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
         state.diagnostics = state.diagnostics.slice(-20);
         state.audit = (state.audit || []).slice(-30);
         for (const server of Object.values(state.servers)) delete server.tokenHash;
-        for (const user of Object.values(state.users)) delete user.passwordHash;
+        for (const user of Object.values(state.users)) {
+          delete user.passwordHash;
+          delete user.adultBirthYear;
+        }
         for (const invite of Object.values(state.invites)) delete invite.codeHash;
         state.sessions = { activeCount: Object.values(state.sessions).filter((session) => Date.parse(session.expiresAt) > Date.now()).length };
         delete state.handshakes;
@@ -314,7 +325,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
 
       const artifactUploadMatch = pathname.match(/^\/api\/v1\/artifacts\/([a-f0-9]{64})\/uploads$/);
       if (req.method === 'POST' && artifactUploadMatch) {
-        if (!requirePerm(req, res, 'catalog.write')) return;
+        if (!requirePerm(req, res, 'content.submit')) return;
         const expected = artifactUploadMatch[1];
         if (store.snapshot().bannedHashes?.[expected]) return problem(res, 409, 'HASH_BANNED', 'This artifact hash is banned');
         const body = await readJson(req, 32 * 1024);
@@ -329,14 +340,14 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
 
       const artifactStatusMatch = pathname.match(/^\/api\/v1\/artifacts\/([a-f0-9]{64})\/uploads\/([^/]+)$/);
       if (req.method === 'GET' && artifactStatusMatch) {
-        if (!requirePerm(req, res, 'catalog.write')) return;
+        if (!requirePerm(req, res, 'content.submit')) return;
         const session = await chunkUploads.get(artifactStatusMatch[2], artifactStatusMatch[1]);
         return json(res, 200, await chunkUploads.sessionView(session));
       }
 
       const artifactChunkMatch = pathname.match(/^\/api\/v1\/artifacts\/([a-f0-9]{64})\/uploads\/([^/]+)\/(\d+)$/);
       if (req.method === 'PUT' && artifactChunkMatch) {
-        if (!requirePerm(req, res, 'catalog.write')) return;
+        if (!requirePerm(req, res, 'content.submit')) return;
         const expected = artifactChunkMatch[1];
         const session = await chunkUploads.get(artifactChunkMatch[2], expected);
         const index = Number(artifactChunkMatch[3]);
@@ -353,7 +364,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
 
       const artifactCompleteMatch = pathname.match(/^\/api\/v1\/artifacts\/([a-f0-9]{64})\/uploads\/([^/]+)\/complete$/);
       if (req.method === 'POST' && artifactCompleteMatch) {
-        if (!requirePerm(req, res, 'catalog.write')) return;
+        if (!requirePerm(req, res, 'content.submit')) return;
         const expected = artifactCompleteMatch[1];
         if (store.snapshot().bannedHashes?.[expected]) return problem(res, 409, 'HASH_BANNED', 'This artifact hash is banned');
         const session = await chunkUploads.get(artifactCompleteMatch[2], expected);
@@ -365,7 +376,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
 
       const artifactMatch = pathname.match(/^\/api\/v1\/artifacts\/([a-f0-9]{64})$/);
       if (req.method === 'PUT' && artifactMatch) {
-        if (!requirePerm(req, res, 'catalog.write')) return;
+        if (!requirePerm(req, res, 'content.submit')) return;
         const expected = artifactMatch[1];
         await mkdir(objectDir, { recursive: true });
         const target = path.join(objectDir, expected);
@@ -437,11 +448,25 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
           } else if (!Array.isArray(mod.contentSlots)) {
             mod.contentSlots = [];
           }
-          if (!mod.slotContents || typeof mod.slotContents !== 'object') mod.slotContents = {};
+          if (body.r18 !== undefined) mod.r18 = Boolean(body.r18);
+          else if (mod.r18 == null) mod.r18 = false;
           draft.mods[body.id] = mod;
           return mod;
         });
         return json(res, 201, result);
+      }
+
+      const modPatchMatch = pathname.match(/^\/api\/v1\/mods\/([^/]+)$/);
+      if (req.method === 'PATCH' && modPatchMatch) {
+        if (!requirePerm(req, res, 'catalog.write')) return;
+        const body = await readJson(req, 32 * 1024);
+        const result = await store.mutate((draft) => {
+          const mod = draft.mods[modPatchMatch[1]];
+          if (!mod) throw Object.assign(new Error('Mod was not found'), { code: 'NOT_FOUND' });
+          if (body.r18 !== undefined) mod.r18 = Boolean(body.r18);
+          return { id: mod.id, name: mod.name, r18: Boolean(mod.r18), contentSlots: mod.contentSlots || [] };
+        });
+        return json(res, 200, result);
       }
 
       const slotListMatch = pathname.match(/^\/api\/v1\/mods\/([^/]+)\/slots$/);
@@ -450,55 +475,142 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
         const body = await readJson(req);
         const slots = normalizeContentSlots(body.slots || body.contentSlots);
         const result = await store.mutate((draft) => {
+          migrateSlotContents(draft);
           const mod = draft.mods[slotListMatch[1]];
           if (!mod) throw Object.assign(new Error('Mod was not found'), { code: 'NOT_FOUND' });
           const keep = new Set(slots.map((item) => item.id));
           mod.contentSlots = slots;
-          mod.slotContents = Object.fromEntries(Object.entries(mod.slotContents || {}).filter(([id]) => keep.has(id)));
-          return { id: mod.id, contentSlots: mod.contentSlots, slotContents: mod.slotContents };
+          for (const [contentId, item] of Object.entries(draft.contents || {})) {
+            if (item.modId === mod.id && !keep.has(item.slotId)) delete draft.contents[contentId];
+          }
+          purgeContentRefs(draft, (item) => item.modId === mod.id && !keep.has(item.slotId));
+          return { id: mod.id, contentSlots: mod.contentSlots };
         });
         return json(res, 200, result);
       }
 
-      const slotItemMatch = pathname.match(/^\/api\/v1\/mods\/([^/]+)\/slots\/([^/]+)$/);
-      if (slotItemMatch && (req.method === 'POST' || req.method === 'DELETE')) {
-        if (!requirePerm(req, res, 'catalog.write')) return;
-        const modId = slotItemMatch[1];
-        const slotId = slotItemMatch[2];
-        if (req.method === 'DELETE') {
-          const result = await store.mutate((draft) => {
-            const mod = draft.mods[modId];
-            if (!mod) throw Object.assign(new Error('Mod was not found'), { code: 'NOT_FOUND' });
-            mod.contentSlots = (mod.contentSlots || []).filter((item) => item.id !== slotId);
-            if (mod.slotContents) delete mod.slotContents[slotId];
-            return { id: mod.id, contentSlots: mod.contentSlots, slotContents: mod.slotContents || {} };
-          });
-          return json(res, 200, result);
-        }
+      const slotContentsMatch = pathname.match(/^\/api\/v1\/mods\/([^/]+)\/slots\/([^/]+)\/contents$/);
+      if (req.method === 'POST' && slotContentsMatch) {
+        if (!requirePerm(req, res, 'content.submit')) return;
+        const modId = slotContentsMatch[1];
+        const slotId = slotContentsMatch[2];
         const body = await readJson(req);
-        let artifactSize = 0;
-        if (body.artifactSha) {
-          if (!/^[a-f0-9]{64}$/.test(body.artifactSha)) throw Object.assign(new Error('Invalid SHA-256'), { code: 'VALIDATION' });
-          artifactSize = (await stat(path.join(objectDir, body.artifactSha))).size;
-        }
+        requireFields(body, ['artifactSha', 'name']);
+        if (!/^[a-f0-9]{64}$/.test(body.artifactSha)) throw Object.assign(new Error('Invalid SHA-256'), { code: 'VALIDATION' });
+        const name = String(body.name || '').trim().slice(0, 80);
+        if (!name) throw Object.assign(new Error('Content name is required'), { code: 'VALIDATION' });
+        const description = String(body.description || '').trim().slice(0, 500);
+        const artifactSize = (await stat(path.join(objectDir, body.artifactSha))).size;
+        const user = auth.principal(req);
         const result = await store.mutate((draft) => {
+          migrateSlotContents(draft);
           const mod = draft.mods[modId];
           if (!mod) throw Object.assign(new Error('Mod was not found'), { code: 'NOT_FOUND' });
+          if (!(mod.contentSlots || []).length) throw Object.assign(new Error('This mod has no content slots'), { code: 'VALIDATION' });
           const slot = (mod.contentSlots || []).find((item) => item.id === slotId);
           if (!slot) throw Object.assign(new Error(`Unknown content slot: ${slotId}`), { code: 'VALIDATION' });
-          if (!body.artifactSha) {
-            if (mod.slotContents) delete mod.slotContents[slotId];
-            return { id: mod.id, slot, slotContents: mod.slotContents || {} };
-          }
           const review = draft.reviews?.[body.artifactSha];
           if (draft.bannedHashes?.[body.artifactSha]) throw Object.assign(new Error('Artifact hash is banned'), { code: 'VALIDATION' });
           if (requireReview && (!review || review.status !== 'approved' || !review.licenseConfirmed)) {
             throw Object.assign(new Error('Artifact must be reviewed and have a confirmed redistribution license'), { code: 'VALIDATION' });
           }
-          const size = artifactSize || review?.size || 0;
-          mod.slotContents = mod.slotContents || {};
-          mod.slotContents[slotId] = { sha256: body.artifactSha, size, fileName: review?.fileName || null, createdAt: now() };
-          return { id: mod.id, slot, content: mod.slotContents[slotId] };
+          const contentId = id('cnt');
+          const value = {
+            id: contentId,
+            modId,
+            slotId,
+            name,
+            description,
+            artifactSha: body.artifactSha,
+            size: artifactSize || review?.size || 0,
+            fileName: review?.fileName || null,
+            uploadedBy: user?.id || null,
+            createdAt: now(),
+            r18: Boolean(body.r18)
+          };
+          draft.contents = draft.contents || {};
+          draft.contents[contentId] = value;
+          return value;
+        });
+        return json(res, 201, result);
+      }
+
+      const slotItemMatch = pathname.match(/^\/api\/v1\/mods\/([^/]+)\/slots\/([^/]+)$/);
+      if (req.method === 'DELETE' && slotItemMatch) {
+        if (!requirePerm(req, res, 'catalog.write')) return;
+        const modId = slotItemMatch[1];
+        const slotId = slotItemMatch[2];
+        const result = await store.mutate((draft) => {
+          migrateSlotContents(draft);
+          const mod = draft.mods[modId];
+          if (!mod) throw Object.assign(new Error('Mod was not found'), { code: 'NOT_FOUND' });
+          mod.contentSlots = (mod.contentSlots || []).filter((item) => item.id !== slotId);
+          for (const [contentId, item] of Object.entries(draft.contents || {})) {
+            if (item.modId === modId && item.slotId === slotId) delete draft.contents[contentId];
+          }
+          purgeContentRefs(draft, (item) => item.modId === modId && item.slotId === slotId);
+          return { id: mod.id, contentSlots: mod.contentSlots };
+        });
+        return json(res, 200, result);
+      }
+
+      const modContentsMatch = pathname.match(/^\/api\/v1\/mods\/([^/]+)\/contents$/);
+      if (req.method === 'GET' && modContentsMatch) {
+        if (!requireUser(req, res)) return;
+        const snapshot = store.snapshot();
+        migrateSlotContents(snapshot);
+        const mod = snapshot.mods[modContentsMatch[1]];
+        if (!mod) return problem(res, 404, 'MOD_NOT_FOUND', 'Mod was not found');
+        const user = auth.principal(req);
+        const includePending = Boolean(can(user, 'catalog.write'));
+        const url = new URL(req.url, publicBaseUrl);
+        return json(res, 200, {
+          modId: mod.id,
+          contents: listModContents(snapshot, mod.id, {
+            slotId: url.searchParams.get('slot') || '',
+            includePending,
+            requireReview,
+            viewerId: user?.id,
+            adultVerified: canViewAdult(user, { staff: includePending })
+          })
+        });
+      }
+
+      const contentItemMatch = pathname.match(/^\/api\/v1\/contents\/([^/]+)$/);
+      if (contentItemMatch && (req.method === 'PATCH' || req.method === 'DELETE')) {
+        const user = auth.principal(req);
+        if (!user) return problem(res, 401, 'UNAUTHORIZED', 'Login required');
+        const contentId = contentItemMatch[1];
+        if (req.method === 'DELETE') {
+          const result = await store.mutate((draft) => {
+            migrateSlotContents(draft);
+            const item = draft.contents?.[contentId];
+            if (!item) throw Object.assign(new Error('Content was not found'), { code: 'NOT_FOUND' });
+            if (item.uploadedBy !== user.id && !can(user, 'catalog.write')) {
+              throw Object.assign(new Error('Insufficient role'), { code: 'FORBIDDEN' });
+            }
+            delete draft.contents[contentId];
+            purgeContentRefs(draft, (_item, id) => id === contentId);
+            return { deleted: true, id: contentId };
+          });
+          return json(res, 200, result);
+        }
+        const body = await readJson(req, 32 * 1024);
+        const result = await store.mutate((draft) => {
+          migrateSlotContents(draft);
+          const item = draft.contents?.[contentId];
+          if (!item) throw Object.assign(new Error('Content was not found'), { code: 'NOT_FOUND' });
+          if (item.uploadedBy !== user.id && !can(user, 'catalog.write')) {
+            throw Object.assign(new Error('Insufficient role'), { code: 'FORBIDDEN' });
+          }
+          if (body.name !== undefined) {
+            const name = String(body.name || '').trim().slice(0, 80);
+            if (!name) throw Object.assign(new Error('Content name is required'), { code: 'VALIDATION' });
+            item.name = name;
+          }
+          if (body.description !== undefined) item.description = String(body.description || '').trim().slice(0, 500);
+          if (body.r18 !== undefined) item.r18 = Boolean(body.r18);
+          return item;
         });
         return json(res, 200, result);
       }
@@ -518,13 +630,10 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
           if (requireReview) {
             const review = snapshot.reviews?.[version.artifactSha];
             if (!review || review.status !== 'approved' || !review.licenseConfirmed) throw Object.assign(new Error(`${entry.modId}@${entry.version} is not approved for redistribution`), { code: 'VALIDATION' });
-            for (const overlay of listModOverlays(snapshot.mods[entry.modId])) {
-              const overlayReview = snapshot.reviews?.[overlay.sha256];
-              if (!overlayReview || overlayReview.status !== 'approved' || !overlayReview.licenseConfirmed) {
-                throw Object.assign(new Error(`${entry.modId} content slot ${overlay.id} is not approved for redistribution`), { code: 'VALIDATION' });
-              }
-            }
           }
+          const contents = normalizeEntryContents(snapshot, entry, requireReview);
+          if (contents) entry.contents = contents;
+          else delete entry.contents;
         }
         const pack = await store.mutate((draft) => {
           const existing = draft.packs[packId];
@@ -551,10 +660,8 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
           issuedAt: now(),
           mods: expandPackEntries(snapshot, pack.entries, pack.gameVersion).map((entry) => {
             const version = snapshot.mods[entry.modId].versions[entry.version];
-            const overlays = listModOverlays(snapshot.mods[entry.modId]).map((overlay) => ({
-              ...overlay,
-              url: artifactPublicUrl(overlay.sha256, config, artifactBase)
-            }));
+            normalizeEntryContents(snapshot, entry, requireReview);
+            const overlays = overlaysForPackEntry(snapshot, entry, (sha) => artifactPublicUrl(sha, config, artifactBase));
             return {
               id: entry.modId,
               version: entry.version,
@@ -965,6 +1072,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
       if (error.code === 'RATE_LIMITED') return problem(res, 429, error.code, error.message);
       if (error.code === 'CONFLICT') return problem(res, 409, error.code, error.message);
       if (error.code === 'FORBIDDEN') return problem(res, 403, error.code, error.message);
+      if (error.code === 'UNDERAGE') return problem(res, 403, error.code, error.message);
       if (error.code === 'INVALID_INVITE') return problem(res, 422, error.code, error.message);
       if (error.code === 'INVALID_JSON' || error.code === 'VALIDATION') return problem(res, 422, error.code, error.message, error.details);
       console.error(error);

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { api } from '../api/client';
 import UiModal from '../components/UiModal.vue';
 import { i18n, localeTag, t } from '../i18n';
@@ -7,8 +8,11 @@ import { fail, ok } from '../lib/feedback';
 import { prettyBytes } from '../lib/format';
 import { catalog, loadMods, loadPacks, packOptionLabel, type ModRow } from '../stores/catalog';
 import { can } from '../stores/session';
+import { ensureAdult, isAdultMod, isAdultVerified } from '../stores/adult';
 import { showToast } from '../stores/toast';
+import R18Badge from '../components/R18Badge.vue';
 
+const router = useRouter();
 const query = ref('');
 const game = ref('');
 const dll = ref('');
@@ -21,10 +25,16 @@ const packName = ref('');
 const packGame = ref('');
 const packId = ref('');
 const publish = ref(true);
+const r18Filter = ref('all');
 let timer: ReturnType<typeof setTimeout> | undefined;
 
 const sorted = computed(() => {
-  const rows = mods.value.slice().sort((a, b) => {
+  const rows = mods.value.filter((mod) => {
+    const adult = isAdultMod(mod);
+    if (r18Filter.value === 'hide' && adult) return false;
+    if (r18Filter.value === 'only' && !adult) return false;
+    return true;
+  }).slice().sort((a, b) => {
     if (sort.value === 'downloads') return (b.downloads || 0) - (a.downloads || 0);
     if (sort.value === 'updated') return String(b.updatedAt || '').localeCompare(String(a.updatedAt || ''));
     return String(a.name || a.id).localeCompare(String(b.name || b.id), localeTag());
@@ -50,7 +60,7 @@ function addToCart(modId: string) {
   });
 }
 
-function toggle(modId: string) {
+async function toggle(modId: string) {
   const existing = cart.value.findIndex((item) => item.modId === modId);
   if (existing >= 0) {
     cart.value.splice(existing, 1);
@@ -58,7 +68,19 @@ function toggle(modId: string) {
   }
   const mod = mods.value.concat(catalog.mods).find((item) => item.id === modId);
   if (!mod || !mod.latestVersion) return showToast(t('ws.noVersion'), 'warn');
+  if (isAdultMod(mod) && !isAdultVerified()) {
+    if (!await ensureAdult()) return;
+    await load({ silent: true });
+  }
   addToCart(modId);
+}
+
+async function openDetails(mod: ModRow) {
+  if (isAdultMod(mod) && !isAdultVerified()) {
+    if (!await ensureAdult()) return;
+    await load({ silent: true });
+  }
+  await router.push(`/workshop/${encodeURIComponent(mod.id)}`);
 }
 
 function clearCart() {
@@ -84,6 +106,13 @@ async function load(opts?: { silent?: boolean }) {
   }
 }
 
+function cartHasSlots() {
+  return cart.value.some((item) => {
+    const mod = mods.value.concat(catalog.mods).find((row) => row.id === item.modId);
+    return Boolean(mod?.contentSlots?.length);
+  });
+}
+
 function openDialog(mode: 'create' | 'add') {
   if (!cart.value.length) return showToast(t('ws.needPick'), 'warn');
   if (!can('pack.publish')) return showToast(t('ws.needAdmin'), 'warn');
@@ -91,7 +120,7 @@ function openDialog(mode: 'create' | 'add') {
   if (mode === 'create') {
     if (!packName.value) packName.value = cart.value.map((item) => item.name).slice(0, 2).join(' + ');
     if (!packGame.value) packGame.value = game.value || cart.value[0].gameVersions[0] || '';
-    publish.value = true;
+    publish.value = !cartHasSlots();
   } else {
     publish.value = false;
   }
@@ -113,13 +142,17 @@ async function submitDialog() {
       const current = catalog.packs.find((item) => item.id === packId.value);
       if (!current) throw new Error(t('ws.needPack'));
       const merged = new Map((current.entries || []).map((entry) => [entry.modId, entry]));
-      entries.forEach((entry) => merged.set(entry.modId, entry));
+      entries.forEach((entry) => {
+        const prev = merged.get(entry.modId);
+        merged.set(entry.modId, { ...entry, contents: prev?.contents });
+      });
       pack = await api<{ id: string; name?: string; gameVersion?: string }>('/api/v1/packs', {
         method: 'POST',
         body: JSON.stringify({ id: current.id, name: current.name, gameVersion: current.gameVersion, entries: [...merged.values()] })
       });
     }
-    if (publish.value) {
+    const goPick = cartHasSlots();
+    if (publish.value && !goPick) {
       const release = await api(`/api/v1/packs/${encodeURIComponent(pack.id)}/releases`, {
         method: 'POST',
         body: JSON.stringify({ reason: dialogMode.value === 'create' ? 'workshop.create' : 'workshop.add' })
@@ -131,6 +164,7 @@ async function submitDialog() {
     dialogOpen.value = false;
     clearCart();
     await loadPacks({ silent: true });
+    if (goPick) await router.push(`/packs/${encodeURIComponent(pack.id)}/contents`);
   } catch (error) {
     fail(error);
   }
@@ -168,6 +202,14 @@ onMounted(async () => {
           <option value="updated">{{ t('ws.sortUpdated') }}</option>
         </select>
       </div>
+      <div class="w-36">
+        <label class="field">{{ t('r18.filter') }}</label>
+        <select v-model="r18Filter" class="input">
+          <option value="all">{{ t('ws.all') }}</option>
+          <option value="hide">{{ t('r18.hide') }}</option>
+          <option value="only">{{ t('r18.only') }}</option>
+        </select>
+      </div>
       <button type="button" class="btn-secondary" @click="load()">{{ t('refresh') }}</button>
     </div>
     <p class="text-sm text-gray-500">{{ sorted.length ? t('ws.found', { n: sorted.length }) : t('ws.none') }}</p>
@@ -179,16 +221,21 @@ onMounted(async () => {
         </div>
         <h3 class="text-base font-medium text-gray-800 dark:text-white/90">{{ mod.name || mod.id }}</h3>
         <p class="mb-2 text-theme-xs text-gray-500">{{ mod.author || t('ws.unknownAuthor') }} · v{{ mod.latestVersion || '—' }} · {{ prettyBytes(mod.artifactSize || 0) }}</p>
-        <p class="mb-3 line-clamp-3 flex-1 text-sm text-gray-600 dark:text-gray-300">{{ mod.description || t('ws.noDesc') }}</p>
+        <p class="mb-3 line-clamp-3 flex-1 text-sm text-gray-600 dark:text-gray-300">{{ mod.redacted ? t('r18.hidden') : (mod.description || t('ws.noDesc')) }}</p>
         <div class="mb-3 flex flex-wrap gap-1.5">
           <span class="rounded-full bg-gray-100 px-2 py-0.5 text-theme-xs text-gray-500 dark:bg-white/5">{{ (mod.gameVersions || []).join(' / ') || t('ws.noGame') }}</span>
+          <R18Badge v-if="isAdultMod(mod)" />
           <span v-if="mod.containsDll" class="rounded-full bg-brand-500/15 px-2 py-0.5 text-theme-xs text-brand-500">{{ t('ws.hasDll') }}</span>
           <span v-if="mod.dependsOn?.length" class="rounded-full bg-gray-100 px-2 py-0.5 text-theme-xs text-gray-500 dark:bg-white/5">{{ t('ws.needs', { mods: mod.dependsOn.join(', ') }) }}</span>
           <span v-if="mod.downloads" class="rounded-full bg-gray-100 px-2 py-0.5 text-theme-xs text-gray-500 dark:bg-white/5">{{ t('ws.downloads', { n: mod.downloads }) }}</span>
+          <span v-if="mod.contentSlots?.length" class="rounded-full bg-gray-100 px-2 py-0.5 text-theme-xs text-gray-500 dark:bg-white/5">{{ t('ws.slotCount', { n: Object.values(mod.contentCounts || {}).reduce((sum, n) => sum + n, 0) }) }}</span>
         </div>
-        <button type="button" class="mt-auto" :class="picked(mod.id) ? 'btn-secondary' : 'btn-ok'" @click="toggle(mod.id)">
-          {{ picked(mod.id) ? t('ws.remove') : t('ws.add') }}
-        </button>
+        <div class="mt-auto flex flex-wrap gap-2">
+          <router-link v-if="mod.contentSlots?.length" class="btn-secondary" :to="`/workshop/${encodeURIComponent(mod.id)}`" @click.prevent="openDetails(mod)">{{ t('ws.details') }}</router-link>
+          <button type="button" :class="picked(mod.id) ? 'btn-secondary' : 'btn-ok'" @click="toggle(mod.id)">
+            {{ picked(mod.id) ? t('ws.remove') : t('ws.add') }}
+          </button>
+        </div>
       </article>
     </div>
     <div class="sticky bottom-4 z-20 flex flex-col gap-3 rounded-2xl border border-brand-500/40 bg-white/95 p-4 shadow-theme-lg backdrop-blur dark:bg-gray-900/95 sm:flex-row sm:items-center sm:justify-between">
@@ -228,8 +275,8 @@ onMounted(async () => {
         </select>
       </div>
       <label class="mb-4 flex items-center gap-2 text-sm text-gray-500">
-        <input v-model="publish" type="checkbox">
-        <span>{{ t('ws.dlgPublish') }}</span>
+        <input v-model="publish" type="checkbox" :disabled="cartHasSlots()">
+        <span>{{ cartHasSlots() ? t('content.pickHint') : t('ws.dlgPublish') }}</span>
       </label>
       <div class="flex gap-2">
         <button type="button" class="btn-secondary flex-1" @click="dialogOpen = false">{{ t('cancel') }}</button>

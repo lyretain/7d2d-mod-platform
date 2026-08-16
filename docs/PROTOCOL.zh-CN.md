@@ -13,7 +13,7 @@
 1. 服主登记公开 `host:port` 并绑定 ModPack。
 2. 启动器调用 `GET /api/v1/public/servers/resolve?address=host:port`。
 3. 启动器再取 `GET /api/v1/public/packs/{packId}/latest`。
-4. 更新器验签，下载缺失制品，并安装已声明的顶层目录。Mod 还可以带 `overlays`：额外 ZIP 解压到安装目录的子文件夹（例如 `Z_CustomAvatars/Avatars`）。overlay 的 SHA-256 会计入手指纹。
+4. 更新器验签，下载缺失制品，并安装已声明的顶层目录。Mod 还可以带 `overlays`：额外 ZIP 解压到安装目录的子文件夹（例如 `Z_CustomAvatars/Avatars`）。同一 `path` 可以有多条 overlay；该子目录只清空一次，随后合并解压（后解压覆盖同名文件）。overlay 的 SHA-256 会计入手指纹。
 5. 含 DLL 的 Release 会设 `requiresRestart`，必须装完再开游戏。
 
 便携启动器在同步 Pack 前还会检查 `GET /api/v1/public/launcher/latest?platform=win32`。响应是一份 Ed25519 签名对象（`kind: launcher`），含 `version`、`sha256`、`size` 和制品 URL。启动器钉死与 ModPack 相同的平台公钥，校验 ZIP 哈希，按现有 ZIP 安全规则解压，再替换便携目录。验签失败即失败关闭。缺少 Release 或网络错误不阻止进服。`ModPlatformLauncher.exe` 的 Authenticode 签名与这份包签名是两件事。

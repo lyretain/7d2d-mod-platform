@@ -56,7 +56,7 @@ export function createAuthService({ store, bootstrapToken, allowBootstrapAfterSe
     if (!session || Date.parse(session.expiresAt) <= Date.now()) return null;
     const user = snapshot.users[session.userId];
     if (!user || user.disabledAt) return null;
-    return { id: user.id, username: user.username, role: normalizeRole(user.role), bootstrap: false, sessionHash: tokenHash(token), githubId: user.githubId || null, githubLogin: user.githubLogin || null };
+    return { id: user.id, username: user.username, role: normalizeRole(user.role), bootstrap: false, sessionHash: tokenHash(token), githubId: user.githubId || null, githubLogin: user.githubLogin || null, adultVerifiedAt: user.adultVerifiedAt || null };
   }
 
   async function allowLogin(req, username) {
@@ -342,6 +342,22 @@ export function createAuthService({ store, bootstrapToken, allowBootstrapAfterSe
     return { secret, otpauth: `otpauth://totp/7DTD:${userId}?secret=${secret}&issuer=7DTD`, recoveryCodes: codes };
   }
 
+  async function confirmAdult(userId, { birthYear, confirmed }) {
+    if (!confirmed) throw Object.assign(new Error('Adult confirmation is required'), { code: 'VALIDATION' });
+    const year = Number(birthYear);
+    const currentYear = new Date().getUTCFullYear();
+    if (!Number.isInteger(year) || year < 1900 || year > currentYear) throw Object.assign(new Error('Enter a valid birth year'), { code: 'VALIDATION' });
+    if (currentYear - year < 18) throw Object.assign(new Error('You must be 18 or older'), { code: 'UNDERAGE' });
+    const user = await store.mutate((draft) => {
+      const item = draft.users[userId];
+      if (!item) throw Object.assign(new Error('User was not found'), { code: 'NOT_FOUND' });
+      item.adultVerifiedAt = now();
+      item.adultBirthYear = year;
+      return item;
+    });
+    return describePrincipal({ ...user, role: normalizeRole(user.role) });
+  }
+
   async function confirmTotp(userId, code) {
     const user = store.snapshot().users[userId];
     if (!user?.totpSecret || !verifyTotp(user.totpSecret, code)) throw Object.assign(new Error('Invalid TOTP code'), { code: 'INVALID_CREDENTIALS' });
@@ -353,6 +369,6 @@ export function createAuthService({ store, bootstrapToken, allowBootstrapAfterSe
     principal, createInvite, register, setupFirstAdmin, activateDeveloper, bindGithub, createGithubState, consumeGithubState, login, logout, revokeInvite, listInvites,
     completeTotp, listUsers, setUserDisabled, setUserRole, changePassword,
     createPasswordReset, consumePasswordReset, listSessions, revokeSession, revokeUserSessions,
-    enableTotp, confirmTotp
+    enableTotp, confirmTotp, confirmAdult
   };
 }

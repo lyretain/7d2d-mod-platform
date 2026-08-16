@@ -1,15 +1,15 @@
 import { analyzeZipFile, scanFile } from './analyze.js';
-import { filterAudit, issueConfirm, listMods, listPacks, listServers, packDetail, platformStats } from './catalog.js';
+import { filterAudit, issueConfirm, listModContents, listMods, listPacks, listServers, packDetail, platformStats } from './catalog.js';
 import { artifactPublicUrl, purgeCloudflare } from './cloudflare.js';
 import { compatibilityMatrix, pruneDiagnostics, shouldBlockInstalls } from './compatibility.js';
 import { notify } from './alerts.js';
 import { referencedHashes } from './objects.js';
 import { recordAudit } from './protocol.js';
 import { json, now, problem, readJson, requireFields } from './util.js';
-import { can, denyReason } from './roles.js';
+import { can, canViewAdult, denyReason } from './roles.js';
 
 export async function handleP1(req, res, ctx) {
-  const { pathname, store, auth, signing, objects, metrics, config } = ctx;
+  const { pathname, store, auth, signing, objects, metrics, config, requireReview = false } = ctx;
   const principal = () => auth.principal(req);
   const requirePerm = (permission) => {
     const user = principal();
@@ -225,14 +225,26 @@ export async function handleP1(req, res, ctx) {
   if (req.method === 'GET' && pathname === '/api/v1/mods') {
     if (!requireUser()) return true;
     const url = new URL(req.url, 'http://localhost');
-    return json(res, 200, { mods: listMods(store.snapshot(), url.searchParams.get('q'), { gameVersion: url.searchParams.get('gameVersion'), dll: url.searchParams.get('dll') }) }), true;
+    const user = principal();
+    return json(res, 200, { mods: listMods(store.snapshot(), url.searchParams.get('q'), { gameVersion: url.searchParams.get('gameVersion'), dll: url.searchParams.get('dll'), requireReview, adultVerified: canViewAdult(user) }) }), true;
   }
   const modMatch = pathname.match(/^\/api\/v1\/mods\/([^/]+)$/);
   if (req.method === 'GET' && modMatch) {
     if (!requireUser()) return true;
-    const mods = listMods(store.snapshot()).filter((item) => item.id === modMatch[1]);
+    const snapshot = store.snapshot();
+    const user = principal();
+    const adultVerified = canViewAdult(user);
+    const mods = listMods(snapshot, '', { requireReview, adultVerified }).filter((item) => item.id === modMatch[1]);
     if (!mods[0]) return problem(res, 404, 'MOD_NOT_FOUND', 'Mod was not found'), true;
-    return json(res, 200, mods[0]), true;
+    return json(res, 200, {
+      ...mods[0],
+      contents: listModContents(snapshot, mods[0].id, {
+        includePending: Boolean(can(user, 'catalog.write')),
+        requireReview,
+        viewerId: user?.id,
+        adultVerified: canViewAdult(user, { staff: can(user, 'catalog.write') })
+      })
+    }), true;
   }
   if (req.method === 'GET' && pathname === '/api/v1/packs') {
     if (!requireUser()) return true;

@@ -1,9 +1,10 @@
 import { PgPool } from './postgres.js';
 import { EMPTY } from './store.js';
+import { migrateSlotContents } from './catalog.js';
 
 function hydrateState(value) {
   const parsed = typeof value === 'string' ? JSON.parse(value) : value;
-  return {
+  const state = {
     ...structuredClone(EMPTY),
     ...parsed,
     settings: { ...structuredClone(EMPTY.settings), ...(parsed.settings || {}) },
@@ -18,9 +19,12 @@ function hydrateState(value) {
     confirmations: parsed.confirmations || {},
     handshakes: parsed.handshakes || {},
     launcher: { channels: {}, ...(parsed.launcher || {}) },
+    contents: parsed.contents || {},
     audit: Array.isArray(parsed.audit) ? parsed.audit : [],
     schemaVersion: 3
   };
+  migrateSlotContents(state);
+  return state;
 }
 
 export const MIGRATIONS = [

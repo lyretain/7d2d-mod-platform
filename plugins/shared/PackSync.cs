@@ -212,6 +212,7 @@ namespace ModPlatform.Shared
         static async Task ApplyOverlaysAsync(ManifestMod mod, List<string> roots, string cacheDir, string stageDir, string baseUrl, CancellationToken token)
         {
             if (mod.Overlays == null) return;
+            var cleared = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var overlay in mod.Overlays)
             {
                 if (overlay == null || string.IsNullOrEmpty(overlay.Sha256) || string.IsNullOrEmpty(overlay.Path)) continue;
@@ -227,7 +228,7 @@ namespace ModPlatform.Shared
                 foreach (var root in roots)
                 {
                     var dest = Path.Combine(stageDir, root, overlay.Path);
-                    if (Directory.Exists(dest)) Directory.Delete(dest, true);
+                    if (cleared.Add(dest) && Directory.Exists(dest)) Directory.Delete(dest, true);
                     ExtractOverlay(overlayFile, dest, overlay.Path, roots);
                 }
             }

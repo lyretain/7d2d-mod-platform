@@ -29,7 +29,8 @@ const form = ref({
   license: false,
   dependsOn: [] as string[],
   slots: [] as string[],
-  extraSlot: ''
+  extraSlot: '',
+  r18: false
 });
 const suggestedSlots = ref<Array<{ id: string; path: string; label?: string }>>([]);
 const reviewHint = ref('');
@@ -111,7 +112,8 @@ async function registerMod() {
         containsDll: form.value.containsDll,
         requiresRestart: form.value.containsDll,
         dependsOn: form.value.dependsOn,
-        contentSlots: selectedSlots.value
+        contentSlots: selectedSlots.value,
+        r18: form.value.r18
       })
     });
     ok(result, t('mod.registered'));
@@ -138,6 +140,7 @@ function pick(row: Record<string, unknown>, index: number) {
   }
   form.value.slots = (mod.contentSlots || []).map((item) => item.path);
   suggestedSlots.value = mod.contentSlots || [];
+  form.value.r18 = Boolean(mod.r18);
 }
 
 function addExtraSlot() {
@@ -208,6 +211,7 @@ onMounted(() => {
           <input v-model="form.extraSlot" class="input" :placeholder="t('mod.slotPath')">
           <button type="button" class="btn-secondary shrink-0" @click="addExtraSlot">{{ t('mod.slotAdd') }}</button>
         </div>
+        <label class="flex items-center gap-2 text-sm text-gray-500"><input v-model="form.r18" type="checkbox"><span>{{ t('r18.declareMod') }}</span></label>
         <label class="flex items-center gap-2 text-sm text-gray-500"><input v-model="form.license" type="checkbox"><span>{{ t('mod.license') }}</span></label>
         <p class="text-theme-xs text-gray-500">{{ reviewHint }}</p>
         <div class="flex flex-wrap gap-2">

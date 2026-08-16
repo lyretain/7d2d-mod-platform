@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { api } from '../api/client';
 import UiCard from '../components/UiCard.vue';
 import UiTable from '../components/UiTable.vue';
@@ -7,6 +8,7 @@ import { i18n, t } from '../i18n';
 import { confirmAction, fail, ok } from '../lib/feedback';
 import { catalog, loadMods, loadPacks, packOptionLabel, type PackRow } from '../stores/catalog';
 
+const router = useRouter();
 const packId = ref('');
 const packName = ref('');
 const packGame = ref('');
@@ -40,9 +42,13 @@ const toggleLabel = computed(() => {
 });
 
 function entries() {
+  const existing = catalog.packs.find((item) => item.id === packId.value);
   return selectedEntries.value.map((value) => {
     const at = value.lastIndexOf('@');
-    return { modId: value.slice(0, at), version: value.slice(at + 1), required: true };
+    const modId = value.slice(0, at);
+    const version = value.slice(at + 1);
+    const prev = existing?.entries?.find((entry) => entry.modId === modId);
+    return { modId, version, required: true, ...(prev?.contents ? { contents: prev.contents } : {}) };
   }).filter((entry) => entry.modId && entry.version);
 }
 
@@ -172,6 +178,7 @@ onUnmounted(() => document.removeEventListener('click', closeMenu));
       <input v-model="releaseReason" class="input" :placeholder="t('pack.phReason')">
       <div class="flex flex-wrap gap-2">
         <button type="button" class="btn-primary" @click="publishPack">{{ t('pack.publish') }}</button>
+        <button v-if="packId" type="button" class="btn-secondary" @click="router.push(`/packs/${encodeURIComponent(packId)}/contents`)">{{ t('pack.contentsLink') }}</button>
         <button type="button" class="btn-secondary" @click="newPack">{{ t('pack.new') }}</button>
         <button type="button" class="btn-secondary" @click="loadPacks()">{{ t('pack.refresh') }}</button>
       </div>

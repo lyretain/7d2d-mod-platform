@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { api, hashAndUploadZip, type UploadProgress } from '../api/client';
 import UiCard from '../components/UiCard.vue';
@@ -8,26 +8,38 @@ import { i18n, t } from '../i18n';
 import { fail, ok } from '../lib/feedback';
 import { prettyBytes } from '../lib/format';
 import { can } from '../stores/session';
-import type { ModRow } from '../stores/catalog';
+import type { ContentItem, ModRow } from '../stores/catalog';
+import R18Badge from '../components/R18Badge.vue';
 
 type Slot = { id: string; path: string; label?: string };
-type SlotContent = { sha256?: string; size?: number; fileName?: string };
 
 const route = useRoute();
 const router = useRouter();
 const mod = ref<ModRow | null>(null);
+const contents = ref<ContentItem[]>([]);
 const newPath = ref('');
 const newLabel = ref('');
 const license = ref(false);
 const busy = ref('');
 const progress = ref({ active: false, percent: 0, label: '' });
+const upload = reactive({ slotId: '', name: '', description: '', r18: false });
 
 const slots = computed(() => mod.value?.contentSlots || []);
-const contents = computed(() => (mod.value?.slotContents || {}) as Record<string, SlotContent>);
+
+function itemsFor(slotId: string) {
+  return contents.value.filter((item) => item.slotId === slotId);
+}
 
 async function load() {
   try {
-    mod.value = await api<ModRow>(`/api/v1/mods/${encodeURIComponent(String(route.params.id))}`);
+    const id = String(route.params.id);
+    const [detail, listed] = await Promise.all([
+      api<ModRow>(`/api/v1/mods/${encodeURIComponent(id)}`),
+      api<{ contents: ContentItem[] }>(`/api/v1/mods/${encodeURIComponent(id)}/contents`)
+    ]);
+    mod.value = detail;
+    contents.value = listed.contents || detail.contents || [];
+    if (!upload.slotId && slots.value[0]) upload.slotId = slots.value[0].id;
   } catch (error) {
     fail(error);
   }
@@ -38,11 +50,9 @@ async function saveSlots(next: Slot[], messageKey = 'mod.slotSaved') {
     method: 'PUT',
     body: JSON.stringify({ slots: next })
   });
-  if (mod.value) {
-    mod.value.contentSlots = result.contentSlots || next;
-    mod.value.slotContents = result.slotContents || mod.value.slotContents;
-  }
+  if (mod.value) mod.value.contentSlots = result.contentSlots || next;
   ok(result, t(messageKey));
+  await load();
 }
 
 async function addSlot() {
@@ -61,11 +71,19 @@ async function addSlot() {
 async function removeSlot(slotId: string) {
   try {
     const result = await api(`/api/v1/mods/${encodeURIComponent(String(route.params.id))}/slots/${encodeURIComponent(slotId)}`, { method: 'DELETE' });
-    if (mod.value) {
-      mod.value.contentSlots = result.contentSlots || [];
-      mod.value.slotContents = result.slotContents || {};
-    }
+    if (mod.value) mod.value.contentSlots = result.contentSlots || [];
     ok(result, t('mod.slotRemoved'));
+    await load();
+  } catch (error) {
+    fail(error);
+  }
+}
+
+async function removeContent(contentId: string) {
+  try {
+    const result = await api(`/api/v1/contents/${encodeURIComponent(contentId)}`, { method: 'DELETE' });
+    ok(result, t('content.deleted'));
+    await load();
   } catch (error) {
     fail(error);
   }
@@ -78,27 +96,30 @@ function trackProgress(event: UploadProgress) {
   else progress.value = { active: true, percent: 100, label: t('mod.analyzing') };
 }
 
-async function attach(slot: Slot, file: File | null, clear = false) {
+async function submitContent(file: File | null) {
   try {
-    if (!clear && !license.value) throw new Error(t('mod.needLicense'));
-    busy.value = slot.id;
-    let artifactSha = '';
-    if (!clear) {
-      if (!file) throw new Error(t('mod.needZip'));
-      trackProgress({ phase: 'hash', loaded: 0, total: file.size || 1 });
-      const uploaded = await hashAndUploadZip(file, trackProgress);
-      if (can('review.approve')) {
-        await api(`/api/v1/reviews/${uploaded.hash}`, { method: 'POST', body: JSON.stringify({ status: 'approved', licenseConfirmed: true }) });
-      }
-      artifactSha = uploaded.hash;
+    if (!license.value) throw new Error(t('mod.needLicense'));
+    if (!file) throw new Error(t('mod.needZip'));
+    const slotId = upload.slotId || slots.value[0]?.id;
+    if (!slotId) throw new Error(t('mod.slotsEmpty'));
+    const name = upload.name.trim() || file.name.replace(/\.zip$/i, '');
+    if (!name) throw new Error(t('content.needName'));
+    busy.value = slotId;
+    trackProgress({ phase: 'hash', loaded: 0, total: file.size || 1 });
+    const uploaded = await hashAndUploadZip(file, trackProgress);
+    if (can('review.approve')) {
+      await api(`/api/v1/reviews/${uploaded.hash}`, { method: 'POST', body: JSON.stringify({ status: 'approved', licenseConfirmed: true }) });
     }
-    const result = await api(`/api/v1/mods/${encodeURIComponent(String(route.params.id))}/slots/${encodeURIComponent(slot.id)}`, {
+    const created = await api(`/api/v1/mods/${encodeURIComponent(String(route.params.id))}/slots/${encodeURIComponent(slotId)}/contents`, {
       method: 'POST',
-      body: JSON.stringify({ artifactSha: artifactSha || undefined })
+      body: JSON.stringify({ artifactSha: uploaded.hash, name, description: upload.description.trim(), r18: upload.r18 })
     });
-    await load();
+    upload.name = '';
+    upload.description = '';
+    upload.r18 = false;
     progress.value = { active: false, percent: 100, label: '' };
-    ok(result, t(clear ? 'mod.slotCleared' : 'mod.slotAttached'));
+    ok(created, t('content.uploaded'));
+    await load();
   } catch (error) {
     progress.value.active = false;
     fail(error);
@@ -128,20 +149,41 @@ onMounted(load);
     </UiCard>
     <p v-if="!slots.length" class="text-sm text-gray-500">{{ t('mod.slotsEmpty') }}</p>
     <UiCard v-for="slot in slots" :key="slot.id" :title="slot.label || slot.path" :desc="slot.path">
-      <p class="mb-3 text-theme-xs text-gray-500">
-        <template v-if="contents[slot.id]?.sha256">{{ t('mod.slotCurrent', { name: contents[slot.id].fileName || contents[slot.id].sha256?.slice(0, 10) + '…', size: prettyBytes(contents[slot.id].size || 0) }) }}</template>
-        <template v-else>{{ t('mod.slotNone') }}</template>
-      </p>
+      <p v-if="!itemsFor(slot.id).length" class="mb-3 text-sm text-gray-500">{{ t('content.empty') }}</p>
+      <div v-for="item in itemsFor(slot.id)" :key="item.id" class="mb-2 flex items-start justify-between gap-3 rounded-lg border border-gray-200 p-3 dark:border-gray-800">
+        <div class="min-w-0">
+          <strong class="block text-sm text-gray-800 dark:text-white/90">
+            {{ item.name || item.id }}
+            <R18Badge v-if="item.r18" class="ml-1 align-middle" />
+          </strong>
+          <p class="text-theme-xs text-gray-500">{{ item.description || prettyBytes(item.size || 0) }}{{ item.approved === false ? ` · ${t('content.pending')}` : '' }}</p>
+        </div>
+        <button type="button" class="btn-secondary shrink-0" @click="removeContent(item.id)">{{ t('content.delete') }}</button>
+      </div>
+      <button type="button" class="btn-secondary mt-2" @click="removeSlot(slot.id)">{{ t('mod.slotDelete') }}</button>
+    </UiCard>
+    <UiCard v-if="slots.length" :title="t('ws.uploadModel')" :desc="t('ws.uniqueHint')">
+      <div class="grid gap-3 sm:grid-cols-2">
+        <div>
+          <label class="field">{{ t('mod.slots') }}</label>
+          <select v-model="upload.slotId" class="input">
+            <option v-for="slot in slots" :key="slot.id" :value="slot.id">{{ slot.label || slot.path }}</option>
+          </select>
+        </div>
+        <div>
+          <label class="field">{{ t('content.name') }}</label>
+          <input v-model="upload.name" class="input" :placeholder="t('ws.phModelName')">
+        </div>
+      </div>
+      <label class="field">{{ t('content.desc') }}</label>
+      <textarea v-model="upload.description" class="input min-h-20" :placeholder="t('ws.phModelDesc')"></textarea>
+      <label class="mb-3 mt-3 flex items-center gap-2 text-sm text-gray-500"><input v-model="upload.r18" type="checkbox"><span>{{ t('r18.declare') }}</span></label>
       <label class="mb-3 flex items-center gap-2 text-sm text-gray-500"><input v-model="license" type="checkbox"><span>{{ t('mod.license') }}</span></label>
       <label class="drop-zone mb-3">
-        <input type="file" accept=".zip" :disabled="Boolean(busy)" @change="attach(slot, ($event.target as HTMLInputElement).files?.[0] || null)">
-        <span>{{ t('mod.slotUpload') }}{{ busy === slot.id ? ' …' : '' }}</span>
+        <input type="file" accept=".zip" :disabled="Boolean(busy)" @change="submitContent(($event.target as HTMLInputElement).files?.[0] || null)">
+        <span>{{ t('mod.slotUpload') }}{{ busy ? ' …' : '' }}</span>
       </label>
-      <UiProgress v-if="busy === slot.id" class="mb-3" :active="progress.active" :value="progress.percent" :label="progress.label" />
-      <div class="flex flex-wrap gap-2">
-        <button type="button" class="btn-secondary" @click="attach(slot, null, true)">{{ t('mod.slotClear') }}</button>
-        <button type="button" class="btn-secondary" @click="removeSlot(slot.id)">{{ t('mod.slotDelete') }}</button>
-      </div>
+      <UiProgress :active="progress.active" :value="progress.percent" :label="progress.label" />
     </UiCard>
   </div>
 </template>

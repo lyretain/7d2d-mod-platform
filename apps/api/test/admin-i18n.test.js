@@ -35,6 +35,8 @@ test('admin i18n interpolates and switches language', () => {
   assert.equal(en.t('logout'), 'Sign out');
   assert.equal(zh.t('ws.found', { n: 3 }), '找到 3 个 Mod');
   assert.equal(en.t('ws.found', { n: 3 }), 'Found 3 mods');
+  assert.equal(zh.t('r18.badge'), 'R18');
+  assert.equal(en.t('r18.title'), 'Age check');
   assert.equal(zh.currentLang(), 'zh');
   assert.equal(en.currentLang(), 'en');
 });

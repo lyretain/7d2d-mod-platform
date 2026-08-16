@@ -13,7 +13,7 @@ Artifacts are immutable and addressed by lowercase SHA-256. A client must verify
 1. A server administrator registers a public `host:port` and binds a ModPack.
 2. A launcher calls `GET /api/v1/public/servers/resolve?address=host:port`.
 3. The launcher retrieves `GET /api/v1/public/packs/{packId}/latest`.
-4. The updater verifies the signature, downloads missing artifacts and installs declared top-level roots. A mod may also list `overlays`: extra ZIPs extracted into a subdirectory of an install root (for example `Z_CustomAvatars/Avatars`). Overlay SHA-256 values are part of the handshake fingerprint.
+4. The updater verifies the signature, downloads missing artifacts and installs declared top-level roots. A mod may also list `overlays`: extra ZIPs extracted into a subdirectory of an install root (for example `Z_CustomAvatars/Avatars`). Several overlays may share the same `path`; that subdirectory is cleared once, then each ZIP is merge-extracted (later files overwrite). Overlay SHA-256 values are part of the handshake fingerprint.
 5. DLL-containing releases set `requiresRestart`; the game must start after installation.
 
 The portable launcher also checks `GET /api/v1/public/launcher/latest?platform=win32` before pack sync. The response is an Ed25519-signed object (`kind: launcher`) with `version`, `sha256`, `size` and an artifact URL. The launcher pins the same platform public key used for ModPacks, verifies the ZIP hash, extracts with the existing ZIP safety rules, then replaces the portable folder. Signature failures fail closed. A missing release or a network error does not block joining a server. Authenticode signing of `ModPlatformLauncher.exe` is separate from this package signature.

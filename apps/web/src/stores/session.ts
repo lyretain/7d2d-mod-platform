@@ -8,6 +8,7 @@ export type User = {
   role: string;
   permissions?: string[];
   githubBound?: boolean;
+  adultVerified?: boolean;
 };
 
 export const session = reactive({

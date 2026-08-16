@@ -286,12 +286,17 @@ export async function syncPack({ baseUrl, packId, modsDir, explicitPublicKey, pr
         desiredRoots.set(root, owner);
       }
       await extractZipFile(cacheFile, stageDir);
+      const clearedOverlays = new Set();
       for (const overlay of mod.overlays || []) {
         const overlayFile = path.join(cacheDir, `${overlay.sha256}.zip`);
         for (const root of mod.installRoots) {
           const dest = path.join(stageDir, root, overlay.path);
-          await rm(dest, { recursive: true, force: true });
+          if (!clearedOverlays.has(dest)) {
+            await rm(dest, { recursive: true, force: true });
+            clearedOverlays.add(dest);
+          }
           await extractZipFile(overlayFile, dest, {
+            overwrite: true,
             mapName: (name) => remapOverlayEntry(name, overlay.path, mod.installRoots)
           });
         }

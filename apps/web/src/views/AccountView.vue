@@ -4,7 +4,8 @@ import { api } from '../api/client';
 import UiCard from '../components/UiCard.vue';
 import { i18n, t } from '../i18n';
 import { fail, ok, setRaw } from '../lib/feedback';
-import { refreshSession } from '../stores/session';
+import { refreshSession, session } from '../stores/session';
+import { ensureAdult, isAdultVerified } from '../stores/adult';
 import { showToast } from '../stores/toast';
 
 const activateCode = ref('');
@@ -82,6 +83,10 @@ onMounted(() => {
 
 <template>
   <div class="space-y-6" :data-lang="i18n.lang">
+    <UiCard :title="t('r18.accountTitle')" :desc="t('r18.accountHint')">
+      <p class="mb-3 text-sm text-gray-600 dark:text-gray-300">{{ isAdultVerified() ? t('r18.verified') : t('r18.notVerified') }}</p>
+      <button v-if="!session.user?.adultVerified" type="button" class="btn-primary" @click="ensureAdult()">{{ t('r18.enter') }}</button>
+    </UiCard>
     <UiCard :title="t('account.title')" :desc="t('account.hint')">
       <div class="flex flex-wrap gap-2">
         <button type="button" class="btn-secondary" @click="bindGithub">{{ t('account.bindGithub') }}</button>

@@ -3,6 +3,22 @@ import { api } from '../api/client';
 import { t } from '../i18n';
 import { fail, ok } from '../lib/feedback';
 
+export type ContentItem = {
+  id: string;
+  modId: string;
+  slotId: string;
+  name?: string;
+  description?: string;
+  artifactSha?: string;
+  size?: number;
+  fileName?: string;
+  uploadedBy?: string | null;
+  createdAt?: string;
+  approved?: boolean;
+  r18?: boolean;
+  redacted?: boolean;
+};
+
 export type ModRow = {
   id: string;
   name?: string;
@@ -17,7 +33,11 @@ export type ModRow = {
   gameVersions?: string[];
   dependsOn?: string[];
   contentSlots?: Array<{ id: string; path: string; label?: string }>;
-  slotContents?: Record<string, { sha256?: string; size?: number; fileName?: string }>;
+  contentCounts?: Record<string, number>;
+  contents?: ContentItem[];
+  r18?: boolean;
+  r18ContentCount?: number;
+  redacted?: boolean;
   versions?: Array<{
     version: string;
     artifactSha?: string;
@@ -34,7 +54,7 @@ export type PackRow = {
   entryCount?: number;
   packVersion?: number;
   latestReleaseId?: string;
-  entries?: Array<{ modId: string; version: string; required?: boolean }>;
+  entries?: Array<{ modId: string; version: string; required?: boolean; contents?: Record<string, string[]> }>;
 };
 
 export const catalog = reactive({

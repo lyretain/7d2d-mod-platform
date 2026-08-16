@@ -192,7 +192,7 @@ export async function extractZipFile(filePath, destination, options = {}) {
       const content = entry.method === 0 ? compressed : inflateRawSync(compressed, { maxOutputLength: entry.size });
       if (content.length !== entry.size || crc32(content) !== entry.expectedCrc) throw new Error(`ZIP integrity check failed: ${entry.name}`);
       await mkdir(path.dirname(target), { recursive: true });
-      await writeFile(target, content, { flag: 'wx' });
+      await writeFile(target, content, { flag: options.overwrite ? 'w' : 'wx' });
     }
   } finally {
     await handle.close();

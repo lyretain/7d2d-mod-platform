@@ -45,9 +45,11 @@ test('installs content overlays into a managed subdirectory', async (t) => {
   const signing = new SigningService({ dataDir: root });
   await signing.init();
   const framework = createStoredZip({ 'Z_CustomAvatars/ModInfo.xml': '<xml />', 'Z_CustomAvatars/CustomAvatars.dll': 'dll' });
-  const avatars = createStoredZip({ 'Avatars/hero.avatar3d': 'model-bytes' });
+  const hero = createStoredZip({ 'Avatars/hero.avatar3d': 'hero-bytes' });
+  const villain = createStoredZip({ 'Avatars/villain.avatar3d': 'villain-bytes' });
   const frameworkSha = sha256(framework);
-  const avatarSha = sha256(avatars);
+  const heroSha = sha256(hero);
+  const villainSha = sha256(villain);
   let manifest;
   const server = createServer((req, res) => {
     if (req.url.includes('/public/packs/')) {
@@ -57,9 +59,12 @@ test('installs content overlays into a managed subdirectory', async (t) => {
     } else if (req.url.includes(frameworkSha)) {
       res.writeHead(200, { 'content-type': 'application/zip', 'content-length': framework.length });
       res.end(framework);
-    } else if (req.url.includes(avatarSha)) {
-      res.writeHead(200, { 'content-type': 'application/zip', 'content-length': avatars.length });
-      res.end(avatars);
+    } else if (req.url.includes(heroSha)) {
+      res.writeHead(200, { 'content-type': 'application/zip', 'content-length': hero.length });
+      res.end(hero);
+    } else if (req.url.includes(villainSha)) {
+      res.writeHead(200, { 'content-type': 'application/zip', 'content-length': villain.length });
+      res.end(villain);
     } else {
       res.writeHead(404); res.end();
     }
@@ -81,10 +86,14 @@ test('installs content overlays into a managed subdirectory', async (t) => {
       size: framework.length,
       sha256: frameworkSha,
       url: `${baseUrl}/api/v1/public/artifacts/${frameworkSha}`,
-      overlays: [{ id: 'avatars', path: 'Avatars', sha256: avatarSha, size: avatars.length, url: `${baseUrl}/api/v1/public/artifacts/${avatarSha}` }]
+      overlays: [
+        { id: 'cnt_hero', path: 'Avatars', sha256: heroSha, size: hero.length, url: `${baseUrl}/api/v1/public/artifacts/${heroSha}` },
+        { id: 'cnt_villain', path: 'Avatars', sha256: villainSha, size: villain.length, url: `${baseUrl}/api/v1/public/artifacts/${villainSha}` }
+      ]
     }]
   });
   const result = await syncPack({ baseUrl, packId: 'avatar-pack', modsDir, explicitPublicKey: signing.publicJwk().publicKey });
-  assert.equal(await readFile(path.join(modsDir, 'Z_CustomAvatars', 'Avatars', 'hero.avatar3d'), 'utf8'), 'model-bytes');
-  assert.equal(result.state.managedRoots.Z_CustomAvatars.overlays[0].sha256, avatarSha);
+  assert.equal(await readFile(path.join(modsDir, 'Z_CustomAvatars', 'Avatars', 'hero.avatar3d'), 'utf8'), 'hero-bytes');
+  assert.equal(await readFile(path.join(modsDir, 'Z_CustomAvatars', 'Avatars', 'villain.avatar3d'), 'utf8'), 'villain-bytes');
+  assert.equal(result.state.managedRoots.Z_CustomAvatars.overlays.length, 2);
 });

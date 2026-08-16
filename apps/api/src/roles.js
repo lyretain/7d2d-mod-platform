@@ -14,6 +14,7 @@ const PERMISSIONS = {
   'invite.developer': ['superadmin', 'community'],
   'review.approve': ['superadmin', 'community'],
   'catalog.write': ['superadmin', 'community', 'developer'],
+  'content.submit': ['superadmin', 'community', 'developer', 'user'],
   'pack.publish': ['superadmin', 'community'],
   'distribution.pause': ['superadmin', 'community'],
   'server.create': ['superadmin', 'community', 'developer', 'user'],
@@ -42,6 +43,7 @@ export function describePrincipal(user) {
     bootstrap: Boolean(user.bootstrap),
     githubBound,
     githubLogin: user.githubLogin || null,
+    adultVerified: Boolean(user.bootstrap || user.adultVerifiedAt),
     permissions: Object.keys(PERMISSIONS).filter((perm) => can({ ...user, role }, perm))
   };
 }
@@ -62,6 +64,13 @@ export function denyReason(user, permission) {
   if (!allowed.includes(role)) return 'Insufficient role';
   if (role === 'community' && GITHUB_REQUIRED.has(permission) && !user.githubId && !user.bootstrap) return 'GitHub binding required';
   return null;
+}
+
+export function canViewAdult(user, { staff = false } = {}) {
+  if (!user) return false;
+  if (user.bootstrap || user.adultVerifiedAt) return true;
+  if (staff && can(user, 'catalog.write')) return true;
+  return false;
 }
 
 export function canInviteRole(actor, role) {

@@ -1,5 +1,6 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { migrateSlotContents } from './catalog.js';
 
 export const EMPTY = {
   schemaVersion: 3,
@@ -24,7 +25,8 @@ export const EMPTY = {
   stats: { downloads: 0, bytes: 0, artifacts: {}, gameVersions: {} },
   confirmations: {},
   handshakes: {},
-  launcher: { channels: {} }
+  launcher: { channels: {} },
+  contents: {}
 };
 
 export class JsonStore {
@@ -54,8 +56,10 @@ export class JsonStore {
         confirmations: loaded.confirmations || {},
         handshakes: loaded.handshakes || {},
         launcher: { channels: {}, ...(loaded.launcher || {}) },
+        contents: loaded.contents || {},
         schemaVersion: 3
       };
+      migrateSlotContents(this.data);
     } catch (error) {
       if (error.code !== 'ENOENT') throw error;
       await this.persist();

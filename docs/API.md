@@ -28,7 +28,8 @@ Session routes use the login Bearer token instead. Server-token routes use the o
 | POST | `/api/v1/auth/login` | Public | Sign in; 2FA returns `requiresTotp` |
 | POST | `/api/v1/auth/login/totp` | Public | Finish sign-in with TOTP or a recovery code |
 | POST | `/api/v1/auth/logout` | Signed-in | Revoke this session |
-| GET | `/api/v1/auth/me` | Signed-in | Current account |
+| GET | `/api/v1/auth/me` | Signed-in | Current account (`adultVerified` after age check) |
+| POST | `/api/v1/auth/adult-confirm` | Signed-in | Confirm age with `{ birthYear, confirmed: true }` before browsing R18 |
 | GET | `/api/v1/users` | Admin | User list |
 | PATCH | `/api/v1/users/{id}` | Admin | Disable/enable or change role |
 | POST | `/api/v1/users/{id}/reset` | Admin | Issue a password-reset token |
@@ -60,12 +61,18 @@ Session routes use the login Bearer token instead. Server-token routes use the o
 | POST | `/api/v1/invites` | Admin | Create an invite |
 | GET | `/api/v1/invites` | Admin | Invite metadata |
 | DELETE | `/api/v1/invites/{id}` | Admin | Revoke an invite |
-| PUT | `/api/v1/artifacts/{sha256}` | Admin | Upload a small immutable Mod ZIP in one request |
-| POST | `/api/v1/artifacts/{sha256}/uploads` | Admin | Start or reuse a chunked upload session |
-| GET | `/api/v1/artifacts/{sha256}/uploads/{uploadId}` | Admin | List received chunks (resume) |
-| PUT | `/api/v1/artifacts/{sha256}/uploads/{uploadId}/{index}` | Admin | Upload one chunk |
-| POST | `/api/v1/artifacts/{sha256}/uploads/{uploadId}/complete` | Admin | Assemble chunks and store the artifact |
-| POST | `/api/v1/mods` | Admin | Register a Mod version |
+| PUT | `/api/v1/artifacts/{sha256}` | Signed-in | Upload a small immutable ZIP in one request |
+| POST | `/api/v1/artifacts/{sha256}/uploads` | Signed-in | Start or reuse a chunked upload session |
+| GET | `/api/v1/artifacts/{sha256}/uploads/{uploadId}` | Signed-in | List received chunks (resume) |
+| PUT | `/api/v1/artifacts/{sha256}/uploads/{uploadId}/{index}` | Signed-in | Upload one chunk |
+| POST | `/api/v1/artifacts/{sha256}/uploads/{uploadId}/complete` | Signed-in | Assemble chunks and store the artifact |
+| POST | `/api/v1/mods` | Admin | Register a Mod version (`r18` marks the whole mod) |
+| PATCH | `/api/v1/mods/{id}` | Developer | Update catalog flags such as `r18` |
+| PUT | `/api/v1/mods/{id}/slots` | Developer | Replace content-slot definitions |
+| GET | `/api/v1/mods/{id}/contents` | Signed-in | Content market for a mod; `?slot=` filters |
+| POST | `/api/v1/mods/{id}/slots/{slotId}/contents` | Signed-in | Submit a named model ZIP (`name`, `description`, `artifactSha`, optional `r18`) |
+| PATCH | `/api/v1/contents/{id}` | Author or developer | Rename, edit description, or set `r18` |
+| DELETE | `/api/v1/contents/{id}` | Author or developer | Remove a content entry |
 | POST | `/api/v1/packs` | Admin | Create or update a ModPack draft |
 | POST | `/api/v1/packs/{id}/releases` | Admin | Publish a signed release |
 | POST | `/api/v1/servers` | Signed-in | Register a game server; regular users must set a public address |
@@ -142,6 +149,8 @@ Sign in:
 
 Success returns a Bearer session token and expiry. If TOTP is on, the response is `{ "requiresTotp": true, "ticket": "..." }`; then call `/api/v1/auth/login/totp`. Only the SHA-256 of the session token is stored. Sessions last 7 days by default and are deleted on logout.
 
+Mods and content entries may set `r18: true`. Workshop lists include `r18`, `r18ContentCount`, and `redacted`. Until the signed-in user posts `/api/v1/auth/adult-confirm` with a birth year that is 18+ and `confirmed: true`, R18 names and descriptions are omitted. A birth year under 18 returns `403 UNDERAGE`. Bootstrap tokens and already-verified accounts skip the gate. `GET /api/v1/admin/state` strips `adultBirthYear`.
+
 With `REQUIRE_REVIEW=true` (or `NODE_ENV=production`), uploaded ZIPs are analyzed and enter review. DLL or high-risk files start as `pending`. Publish requires `licenseConfirmed=true`.
 
 ## Upload a Mod file
@@ -184,7 +193,8 @@ The API hashes the assembled file. A URL hash that does not match never enters t
   "installRoots": ["ExampleVehicles"],
   "containsDll": true,
   "requiresRestart": true,
-  "dependsOn": ["harmony"]
+  "dependsOn": ["harmony"],
+  "r18": false
 }
 ```
 
@@ -192,14 +202,19 @@ The API hashes the assembled file. A URL hash that does not match never enters t
 
 `dependsOn` is a list of registered Mod IDs. Creating or publishing a Pack expands those prerequisites (including transitive ones) into `entries` so the updater downloads them automatically. Prerequisites are listed before the mods that need them.
 
-`contentSlots` is an optional list of subfolders on the install root, for example `Avatars` and `Dances` on `Z_CustomAvatars`. The API also suggests slots from ZIP child folders and the ModInfo description. After register:
+`contentSlots` is an optional list of subfolders on the install root, for example `Avatars` and `Dances` on `Z_CustomAvatars`. The API also suggests slots from ZIP child folders and the ModInfo description. Content is a reusable catalog per mod, not one ZIP per slot:
 
 ```http
 PUT /api/v1/mods/z-custom-avatars/slots
-POST /api/v1/mods/z-custom-avatars/slots/avatars
+GET /api/v1/mods/z-custom-avatars/contents?slot=avatars
+POST /api/v1/mods/z-custom-avatars/slots/avatars/contents
+PATCH /api/v1/contents/{id}
+DELETE /api/v1/contents/{id}
 ```
 
-`PUT` replaces slot definitions. `POST` attaches a previously uploaded artifact SHA-256 to that slot (omit `artifactSha` to clear it). Publishing a Pack writes those artifacts as `overlays` on the manifest. The updater extracts each overlay into `installRoot/slotPath` without replacing the whole framework folder.
+`PUT` replaces slot definitions. `POST .../contents` adds one named model (`name`, optional `description`, `artifactSha`, optional `r18`). Any signed-in role with `content.submit` may submit; production still requires review and a redistribution license. `GET /mods/{id}` includes `contentSlots`, approved `contents` (pending visible to staff/authors), `contentCounts`, `r18`, and `r18ContentCount`. Unverified viewers receive `redacted: true` with names and descriptions removed.
+
+Pack `entries[]` may include `contents: { [slotId]: contentId[] }`. Unchecked slots install the framework only. Publishing writes each checked item as a manifest overlay: `id` is the content id, `path` is the slot directory. Several overlays may share the same `path`; the updater clears that subdirectory once, then merge-extracts each ZIP (later files overwrite). Use unique file names or subfolders inside each model ZIP. Legacy `slotContents` migrates to unnamed content entries and is not auto-selected into existing pack drafts.
 
 ## Create a ModPack
 
@@ -213,7 +228,10 @@ Omit `id` to get `pack_<uuid>`. An existing `id` updates that draft.
     {
       "modId": "example-vehicles",
       "version": "1.2.0",
-      "required": true
+      "required": true,
+      "contents": {
+        "avatars": ["cnt_..."]
+      }
     }
   ]
 }

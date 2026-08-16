@@ -126,7 +126,8 @@
     .raw { margin-top: 16px; border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; background: var(--card); color: var(--muted); }
     .raw summary { cursor: pointer; font-weight: 600; }
     .raw pre { max-height: 360px; }
-    .workshop-toolbar { display: grid; grid-template-columns: 1.6fr .8fr .7fr .7fr auto; gap: 10px; align-items: end; margin-bottom: 4px; }
+    .workshop-toolbar { display: grid; grid-template-columns: 1.6fr .8fr .7fr .7fr .7fr auto; gap: 10px; align-items: end; margin-bottom: 4px; }
+    .tag.r18 { background: rgba(244, 63, 94, .18); color: #fb7185; }
     .workshop-toolbar .field { margin-top: 0; }
     .workshop-toolbar input, .workshop-toolbar select, .workshop-toolbar button { margin: 0; }
     .workshop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
@@ -318,6 +319,14 @@
               <option value="updated" data-i18n="ws.sortUpdated">最近更新</option>
             </select>
           </div>
+          <div>
+            <label class="field" data-i18n="r18.filter">R18</label>
+            <select id="workshopR18" onchange="renderWorkshop()">
+              <option value="all" data-i18n="ws.all">全部</option>
+              <option value="hide" data-i18n="r18.hide">隐藏 R18</option>
+              <option value="only" data-i18n="r18.only">仅 R18</option>
+            </select>
+          </div>
           <div class="actions" style="min-width:110px"><button class="secondary" onclick="loadWorkshop()" data-i18n="refresh">刷新</button></div>
         </div>
         <p class="hint" id="workshopCount" data-i18n="ws.countIdle">登录后自动加载已登记 Mod</p>
@@ -379,6 +388,7 @@
           <div><input id="extraSlot" data-i18n-placeholder="mod.slotPath" placeholder="子目录名"></div>
           <div><button type="button" class="secondary" onclick="addExtraSlot()" data-i18n="mod.slotAdd">添加槽位</button></div>
         </div>
+        <label class="check"><input id="modR18" type="checkbox"> <span data-i18n="r18.declareMod">声明该 Mod 含 R18 内容</span></label>
         <label class="check"><input id="licenseConfirm" type="checkbox"> <span data-i18n="mod.license">我确认拥有再分发许可，并已审核该 ZIP</span></label>
         <p class="hint" id="reviewHint" data-i18n="mod.reviewHint">生产环境必须先确认许可证。含 DLL 的文件默认待审核。</p>
         <div class="actions">
@@ -766,12 +776,42 @@ function canPublishPack() {
   return Boolean(window.__me && (window.__me.permissions || []).includes('pack.publish'));
 }
 
+function isAdultMod(mod) {
+  return Boolean(mod && (mod.r18 || (mod.r18ContentCount || 0) > 0));
+}
+
+function isAdultVerified() {
+  return Boolean(window.__me && window.__me.adultVerified);
+}
+
+async function ensureAdult() {
+  if (isAdultVerified()) return true;
+  const year = window.prompt(t('r18.birthYear'), '1990');
+  if (!year) return false;
+  if (!window.confirm(t('r18.confirmAge'))) return false;
+  try {
+    const result = await request('/api/v1/auth/adult-confirm', { method: 'POST', headers: headers(), body: JSON.stringify({ birthYear: Number(year), confirmed: true }) });
+    if (result.user) window.__me = result.user;
+    toast(t('r18.verified'), 'ok');
+    return true;
+  } catch (e) {
+    toast(friendlyError(e.message), 'err');
+    return false;
+  }
+}
+
 function renderWorkshop() {
   const grid = document.getElementById('workshopGrid');
   const count = document.getElementById('workshopCount');
   if (!grid) return;
   const sort = (workshopSort && workshopSort.value) || 'name';
-  const rows = workshopMods.slice().sort((a, b) => {
+  const r18Filter = (document.getElementById('workshopR18') && document.getElementById('workshopR18').value) || 'all';
+  const rows = workshopMods.filter((mod) => {
+    const adult = isAdultMod(mod);
+    if (r18Filter === 'hide' && adult) return false;
+    if (r18Filter === 'only' && !adult) return false;
+    return true;
+  }).slice().sort((a, b) => {
     if (sort === 'downloads') return (b.downloads || 0) - (a.downloads || 0);
     if (sort === 'updated') return String(b.updatedAt || '').localeCompare(String(a.updatedAt || ''));
     return String(a.name || a.id).localeCompare(String(b.name || b.id), localeTag());
@@ -783,7 +823,7 @@ function renderWorkshop() {
   }
   grid.innerHTML = rows.map((mod) => {
     const picked = workshopCart.some((item) => item.modId === mod.id);
-    const desc = mod.description || t('ws.noDesc');
+    const desc = mod.redacted ? t('r18.hidden') : (mod.description || t('ws.noDesc'));
     const games = (mod.gameVersions || []).join(' / ') || t('ws.noGame');
     return '<article class="mod-card' + (picked ? ' picked' : '') + '">'
       + '<div class="cover">' + esc((mod.name || mod.id).slice(0, 2).toUpperCase()) + '</div>'
@@ -791,6 +831,7 @@ function renderWorkshop() {
       + '<p class="meta">' + esc(mod.author || t('ws.unknownAuthor')) + ' · v' + esc(mod.latestVersion || '—') + ' · ' + esc(prettyBytes(mod.artifactSize)) + '</p>'
       + '<p class="desc">' + esc(desc) + '</p>'
       + '<div class="tags"><span class="tag">' + esc(games) + '</span>'
+      + (isAdultMod(mod) ? '<span class="tag r18">' + esc(t('r18.badge')) + '</span>' : '')
       + (mod.containsDll ? '<span class="tag dll">' + esc(t('ws.hasDll')) + '</span>' : '')
       + (mod.dependsOn && mod.dependsOn.length ? '<span class="tag">' + esc(t('ws.needs', { mods: mod.dependsOn.join(', ') })) + '</span>' : '')
       + (mod.downloads ? '<span class="tag">' + esc(t('ws.downloads', { n: mod.downloads })) + '</span>' : '')
@@ -820,12 +861,16 @@ function addWorkshopMod(modId) {
   workshopCart.push({ modId: mod.id, version: mod.latestVersion, name: mod.name || mod.id, gameVersions: mod.gameVersions || [] });
 }
 
-function toggleWorkshopMod(modId) {
+async function toggleWorkshopMod(modId) {
   const existing = workshopCart.findIndex((item) => item.modId === modId);
   if (existing >= 0) workshopCart.splice(existing, 1);
   else {
     const mod = workshopMods.concat(catalogMods).find((item) => item.id === modId);
     if (!mod || !mod.latestVersion) return toast(t('ws.noVersion'), 'warn');
+    if (isAdultMod(mod) && !isAdultVerified()) {
+      if (!await ensureAdult()) return;
+      await loadWorkshop({ silent: true });
+    }
     addWorkshopMod(modId);
   }
   renderWorkshop();
@@ -988,19 +1033,35 @@ function renderModContent(mod) {
     return;
   }
   const slots = mod.contentSlots || [];
-  const contents = mod.slotContents || {};
   if (!slots.length) {
     panel.innerHTML = '<p class="hint">' + esc(t('mod.slotsEmpty')) + '</p>';
     return;
   }
+  panel.innerHTML = '<p class="hint">' + esc(t('ws.uniqueHint')) + '</p>';
+  loadModContents(mod, slots, panel);
+}
+
+async function loadModContents(mod, slots, panel) {
+  let items = [];
+  try {
+    const data = await request('/api/v1/mods/' + encodeURIComponent(mod.id) + '/contents', { headers: headers() });
+    items = data.contents || [];
+  } catch (e) {
+    items = [];
+  }
+  if (contentMod !== mod) return;
   panel.innerHTML = slots.map((slot) => {
-    const current = contents[slot.id] || {};
-    const status = current.sha256 ? t('mod.slotCurrent', { name: current.fileName || (current.sha256 || '').slice(0, 10) + '…', size: prettyBytes(current.size || 0) }) : t('mod.slotNone');
-    return '<div class="depends-box"><strong>' + esc(slot.label || slot.path) + '</strong> <span class="hint">' + esc(slot.path) + '</span><p class="hint">' + esc(status) + '</p>'
+    const rows = items.filter((item) => item.slotId === slot.id);
+    const list = rows.length
+      ? rows.map((item) => '<p class="hint">' + esc(item.redacted ? t('r18.hiddenName') : (item.name || item.id)) + (item.r18 ? ' · ' + esc(t('r18.badge')) : '') + ' · ' + esc(item.redacted ? t('r18.hidden') : prettyBytes(item.size || 0)) + ' <button type="button" class="secondary" onclick=\'deleteModContent(' + JSON.stringify(item.id) + ')\'>' + esc(t('content.delete')) + '</button></p>').join('')
+      : '<p class="hint">' + esc(t('content.empty')) + '</p>';
+    return '<div class="depends-box"><strong>' + esc(slot.label || slot.path) + '</strong> <span class="hint">' + esc(slot.path) + '</span>'
+      + list
+      + '<input type="text" id="contentName-' + esc(slot.id) + '" placeholder="' + esc(t('ws.phModelName')) + '">'
+      + '<label class="check"><input type="checkbox" id="contentR18-' + esc(slot.id) + '"> <span>' + esc(t('r18.declare')) + '</span></label>'
       + '<input type="file" accept=".zip" onchange=\'uploadSlotContent(' + JSON.stringify(mod.id) + ',' + JSON.stringify(slot.id) + ', this.files && this.files[0])\'>'
       + '<div class="progress" id="slotProgress-' + esc(slot.id) + '"><div class="progress-label"><span></span><span>0%</span></div><div class="progress-track"><div class="progress-bar"></div></div></div>'
-      + '<div class="actions"><button type="button" class="secondary" onclick=\'clearSlotContent(' + JSON.stringify(mod.id) + ',' + JSON.stringify(slot.id) + ')\'>' + esc(t('mod.slotClear')) + '</button>'
-      + '<button type="button" class="secondary" onclick=\'deleteContentSlot(' + JSON.stringify(mod.id) + ',' + JSON.stringify(slot.id) + ')\'>' + esc(t('mod.slotDelete')) + '</button></div></div>';
+      + '<div class="actions"><button type="button" class="secondary" onclick=\'deleteContentSlot(' + JSON.stringify(mod.id) + ',' + JSON.stringify(slot.id) + ')\'>' + esc(t('mod.slotDelete')) + '</button></div></div>';
   }).join('');
 }
 
@@ -1014,7 +1075,8 @@ async function uploadSlotContent(modId, slotId, file) {
     if (perms.has('review.approve')) {
       await request('/api/v1/reviews/' + uploaded.hash, { method: 'POST', headers: headers(), body: JSON.stringify({ status: 'approved', licenseConfirmed: true }) });
     }
-    show(await request('/api/v1/mods/' + encodeURIComponent(modId) + '/slots/' + encodeURIComponent(slotId), { method: 'POST', headers: headers(), body: JSON.stringify({ artifactSha: uploaded.hash }) }), { message: t('mod.slotAttached') });
+    const r18Box = document.getElementById('contentR18-' + slotId);
+    show(await request('/api/v1/mods/' + encodeURIComponent(modId) + '/slots/' + encodeURIComponent(slotId) + '/contents', { method: 'POST', headers: headers(), body: JSON.stringify({ artifactSha: uploaded.hash, name: ((document.getElementById('contentName-' + slotId) || {}).value || file.name.replace(/\.zip$/i, '')).trim(), r18: Boolean(r18Box && r18Box.checked) }) }), { message: t('content.uploaded') });
     setUploadProgress(progressRoot);
     await loadMods({ silent: true });
   } catch (e) {
@@ -1023,9 +1085,9 @@ async function uploadSlotContent(modId, slotId, file) {
   }
 }
 
-async function clearSlotContent(modId, slotId) {
+async function deleteModContent(contentId) {
   try {
-    show(await request('/api/v1/mods/' + encodeURIComponent(modId) + '/slots/' + encodeURIComponent(slotId), { method: 'POST', headers: headers(), body: '{}' }), { message: t('mod.slotCleared') });
+    show(await request('/api/v1/contents/' + encodeURIComponent(contentId), { method: 'DELETE', headers: headers() }), { message: t('content.deleted') });
     await loadMods({ silent: true });
   } catch (e) { show(e.message); }
 }
@@ -1134,6 +1196,7 @@ function paint(data) {
       } else fillDependsOn([]);
       suggestedSlots = r.contentSlots || [];
       fillContentSlots((r.contentSlots || []).map((item) => item.path));
+      if (document.getElementById('modR18')) document.getElementById('modR18').checked = Boolean(r.r18);
       renderModContent(r);
     });
     fillDependsOn(selectedDependsOn());
@@ -1204,6 +1267,9 @@ function toast(text, kind) {
 function friendlyError(message) {
   if (/Artifact must be reviewed and have a confirmed redistribution license/i.test(message)) return t('mod.errLicense');
   if (/is not approved for redistribution/i.test(message)) return t('mod.errRedistrib');
+  if (/You must be 18 or older/i.test(message)) return t('r18.underage');
+  if (/Enter a valid birth year/i.test(message)) return t('r18.badYear');
+  if (/Adult confirmation is required/i.test(message)) return t('r18.needConfirm');
   return message;
 }
 
@@ -1582,7 +1648,8 @@ async function registerMod() {
       containsDll: containsDll.checked,
       requiresRestart: containsDll.checked,
       dependsOn: selectedDependsOn(),
-      contentSlots: selectedContentSlots()
+      contentSlots: selectedContentSlots(),
+      r18: Boolean(document.getElementById('modR18') && document.getElementById('modR18').checked)
     };
     show(await request('/api/v1/mods', { method: 'POST', headers: headers(), body: JSON.stringify(body) }), { message: t('mod.registered') });
     await loadMods({ silent: true });

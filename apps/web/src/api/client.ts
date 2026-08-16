@@ -195,6 +195,9 @@ export async function hashAndUploadZip(file: File, onProgress?: (progress: Uploa
 export function friendlyError(message: string) {
   if (/Artifact must be reviewed and have a confirmed redistribution license/i.test(message)) return tSafe('mod.errLicense', message);
   if (/is not approved for redistribution/i.test(message)) return tSafe('mod.errRedistrib', message);
+  if (/You must be 18 or older/i.test(message)) return tSafe('r18.underage', message);
+  if (/Enter a valid birth year/i.test(message)) return tSafe('r18.badYear', message);
+  if (/Adult confirmation is required/i.test(message)) return tSafe('r18.needConfirm', message);
   return message;
 }
 

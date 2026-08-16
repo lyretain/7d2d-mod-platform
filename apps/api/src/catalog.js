@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { activeRelease, releaseDiff } from './protocol.js';
 import { gameVersionMatches } from './game-version.js';
 import { serverAddresses } from './servers.js';
-import { isSafeId } from './util.js';
+import { id, isSafeId } from './util.js';
 
 const SLOT_SKIP = new Set(['config', 'xui', 'xui_ingame', 'localization', 'bin', 'harmony', 'uiatlases', 'resources', 'dancestates', 'modelstates']);
 const SLOT_HINT_DIR = /^(avatars|dances|models|skins|outfits|emotes|motions|content|assets)$/i;
@@ -69,13 +69,137 @@ export function suggestContentSlots({ files = [], roots = [], description = '' }
   return normalizeContentSlots(suggested);
 }
 
-export function listModOverlays(mod) {
-  const contents = mod?.slotContents || {};
-  return (mod?.contentSlots || []).map((slot) => {
-    const content = contents[slot.id];
-    if (!content?.sha256) return null;
-    return { id: slot.id, path: slot.path, sha256: content.sha256, size: Number(content.size) || 0 };
-  }).filter(Boolean);
+export function contentApproved(snapshot, content, requireReview = false) {
+  if (!content?.artifactSha) return false;
+  if (snapshot.bannedHashes?.[content.artifactSha]) return false;
+  if (!requireReview) return true;
+  const review = snapshot.reviews?.[content.artifactSha];
+  return review?.status === 'approved' && review.licenseConfirmed === true;
+}
+
+export function migrateSlotContents(draft) {
+  draft.contents = draft.contents || {};
+  for (const mod of Object.values(draft.mods || {})) {
+    const legacy = mod.slotContents || {};
+    for (const [slotId, item] of Object.entries(legacy)) {
+      if (!item?.sha256) continue;
+      const exists = Object.values(draft.contents).some((row) => row.modId === mod.id && row.slotId === slotId && row.artifactSha === item.sha256);
+      if (exists) continue;
+      const contentId = id('cnt');
+      draft.contents[contentId] = {
+        id: contentId,
+        modId: mod.id,
+        slotId,
+        name: item.fileName || slotId,
+        description: '',
+        artifactSha: item.sha256,
+        size: Number(item.size) || 0,
+        fileName: item.fileName || null,
+        uploadedBy: null,
+        createdAt: item.createdAt || new Date().toISOString(),
+        r18: false
+      };
+    }
+    delete mod.slotContents;
+  }
+  return draft;
+}
+
+export function listModContents(snapshot, modId, { slotId = '', includePending = false, requireReview = false, viewerId = '', adultVerified = false } = {}) {
+  const wantedSlot = String(slotId || '').trim();
+  return Object.values(snapshot.contents || {})
+    .filter((item) => item.modId === modId)
+    .filter((item) => !wantedSlot || item.slotId === wantedSlot)
+    .filter((item) => {
+      if (includePending) return true;
+      if (viewerId && item.uploadedBy === viewerId) return true;
+      return contentApproved(snapshot, item, requireReview);
+    })
+    .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
+    .map((item) => {
+      const row = { ...item, r18: Boolean(item.r18), approved: contentApproved(snapshot, item, requireReview) };
+      const reveal = Boolean(adultVerified) || (viewerId && item.uploadedBy === viewerId);
+      if (row.r18 && !reveal) return { ...row, name: null, description: null, fileName: null, redacted: true };
+      return row;
+    });
+}
+
+export function purgeContentRefs(draft, predicate) {
+  for (const pack of Object.values(draft.packs || {})) {
+    for (const entry of pack.entries || []) {
+      if (!entry.contents) continue;
+      for (const [slotId, ids] of Object.entries(entry.contents)) {
+        entry.contents[slotId] = (ids || []).filter((contentId) => {
+          const item = draft.contents?.[contentId];
+          return item && !predicate(item, contentId);
+        });
+        if (!entry.contents[slotId].length) delete entry.contents[slotId];
+      }
+      if (!Object.keys(entry.contents).length) delete entry.contents;
+    }
+  }
+}
+
+export function r18ContentCount(snapshot, modId) {
+  return Object.values(snapshot.contents || {}).filter((item) => item.modId === modId && item.r18).length;
+}
+
+export function contentCounts(snapshot, modId, requireReview = false) {
+  const counts = {};
+  for (const item of listModContents(snapshot, modId, { requireReview, adultVerified: true })) {
+    counts[item.slotId] = (counts[item.slotId] || 0) + 1;
+  }
+  return counts;
+}
+
+export function normalizeEntryContents(snapshot, entry, requireReview = false) {
+  const mod = snapshot.mods?.[entry?.modId];
+  if (!mod) throw Object.assign(new Error(`Unknown mod: ${entry?.modId}`), { code: 'VALIDATION' });
+  const slots = new Map((mod.contentSlots || []).map((slot) => [slot.id, slot]));
+  const raw = entry.contents && typeof entry.contents === 'object' && !Array.isArray(entry.contents) ? entry.contents : {};
+  const out = {};
+  for (const [slotId, ids] of Object.entries(raw)) {
+    if (!slots.has(slotId)) throw Object.assign(new Error(`Unknown content slot: ${slotId}`), { code: 'VALIDATION' });
+    const unique = [];
+    const seen = new Set();
+    for (const contentId of Array.isArray(ids) ? ids : []) {
+      if (!isSafeId(contentId) || seen.has(contentId)) continue;
+      const content = snapshot.contents?.[contentId];
+      if (!content || content.modId !== entry.modId || content.slotId !== slotId) {
+        throw Object.assign(new Error(`Unknown content ${contentId} for ${entry.modId}/${slotId}`), { code: 'VALIDATION' });
+      }
+      if (!contentApproved(snapshot, content, requireReview)) {
+        throw Object.assign(new Error(`${entry.modId} content ${contentId} is not approved for redistribution`), { code: 'VALIDATION' });
+      }
+      seen.add(contentId);
+      unique.push(contentId);
+    }
+    if (unique.length) out[slotId] = unique;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+export function overlaysForPackEntry(snapshot, entry, publicUrl) {
+  const mod = snapshot.mods?.[entry.modId];
+  const slots = new Map((mod?.contentSlots || []).map((slot) => [slot.id, slot]));
+  const overlays = [];
+  for (const [slotId, ids] of Object.entries(entry.contents || {})) {
+    const slot = slots.get(slotId);
+    if (!slot) continue;
+    for (const contentId of ids || []) {
+      const content = snapshot.contents?.[contentId];
+      if (!content?.artifactSha) continue;
+      overlays.push({
+        id: content.id,
+        path: slot.path,
+        sha256: content.artifactSha,
+        size: Number(content.size) || 0,
+        name: content.name || content.fileName || content.id,
+        url: typeof publicUrl === 'function' ? publicUrl(content.artifactSha) : undefined
+      });
+    }
+  }
+  return overlays;
 }
 
 export function pickCompatibleVersion(mod, gameVersion) {
@@ -89,6 +213,10 @@ export function expandPackEntries(snapshot, entries, gameVersion) {
   const ordered = [];
   const seen = new Set();
   const visiting = new Set();
+  const contentsByMod = new Map();
+  for (const entry of entries || []) {
+    if (entry?.modId && entry.contents) contentsByMod.set(entry.modId, entry.contents);
+  }
 
   function ensure(modId, preferredVersion, required) {
     if (seen.has(modId)) return;
@@ -103,7 +231,8 @@ export function expandPackEntries(snapshot, entries, gameVersion) {
     for (const depId of version.dependsOn || []) ensure(depId, null, true);
     visiting.delete(modId);
     seen.add(modId);
-    ordered.push({ modId, version: version.version, required: required !== false });
+    const contents = contentsByMod.get(modId);
+    ordered.push({ modId, version: version.version, required: required !== false, ...(contents ? { contents } : {}) });
   }
 
   for (const entry of entries || []) {
@@ -132,7 +261,7 @@ export function listMods(snapshot, query = '', options = {}) {
     const info = modInfoFrom(snapshot, latest);
     const gameVersions = [...new Set(versions.flatMap((item) => item.gameVersions || []))];
     const downloads = versions.reduce((sum, item) => sum + Number(snapshot.stats?.artifacts?.[item.artifactSha] || 0), 0);
-    return {
+    const row = {
       id: mod.id,
       name: mod.name,
       versionCount: versions.length,
@@ -146,9 +275,16 @@ export function listMods(snapshot, query = '', options = {}) {
       updatedAt: latest?.createdAt || null,
       dependsOn: latest?.dependsOn || [],
       contentSlots: mod.contentSlots || [],
-      slotContents: mod.slotContents || {},
+      contentCounts: contentCounts(snapshot, mod.id, Boolean(options.requireReview)),
+      r18: Boolean(mod.r18),
+      r18ContentCount: r18ContentCount(snapshot, mod.id),
       versions: versions.map((item) => ({ version: item.version, artifactSha: item.artifactSha, artifactSize: item.artifactSize, gameVersions: item.gameVersions, gameVersionRange: item.gameVersionRange || 'exact', containsDll: item.containsDll, dependsOn: item.dependsOn || [], createdAt: item.createdAt }))
     };
+    if (!options.adultVerified && (row.r18 || row.r18ContentCount > 0)) {
+      row.description = null;
+      row.redacted = true;
+    }
+    return row;
   }).filter((mod) => {
     if (wantedGame && !(mod.versions || []).some((item) => gameVersionMatches(item.gameVersions, wantedGame, item.gameVersionRange))) return false;
     if (dll === 'yes' && !mod.containsDll) return false;

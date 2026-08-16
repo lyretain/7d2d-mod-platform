@@ -12,9 +12,11 @@ const router = createRouter({
       children: [
         { path: '', redirect: '/workshop' },
         { path: 'workshop', component: () => import('../views/WorkshopView.vue'), meta: { titleKey: 'page.workshop.title', hintKey: 'page.workshop.hint' } },
+        { path: 'workshop/:id', component: () => import('../views/WorkshopModView.vue'), meta: { titleKey: 'page.workshopMod.title', hintKey: 'page.workshopMod.hint' } },
         { path: 'mods', component: () => import('../views/ModsView.vue'), meta: { titleKey: 'page.mods.title', hintKey: 'page.mods.hint', perm: 'catalog.write' } },
         { path: 'mods/:id', component: () => import('../views/ModContentView.vue'), meta: { titleKey: 'page.modContent.title', hintKey: 'page.modContent.hint', perm: 'catalog.write' } },
         { path: 'packs', component: () => import('../views/PacksView.vue'), meta: { titleKey: 'page.packs.title', hintKey: 'page.packs.hint' } },
+        { path: 'packs/:id/contents', component: () => import('../views/PackContentsView.vue'), meta: { titleKey: 'page.packContents.title', hintKey: 'page.packContents.hint', perm: 'pack.publish' } },
         { path: 'servers', component: () => import('../views/ServersView.vue'), meta: { titleKey: 'page.servers.title', hintKey: 'page.servers.hint' } },
         { path: 'ops', component: () => import('../views/OpsView.vue'), meta: { titleKey: 'page.ops.title', hintKey: 'page.ops.hint', perm: 'ops.read' } },
         { path: 'account', component: () => import('../views/AccountView.vue'), meta: { titleKey: 'page.account.title', hintKey: 'page.account.hint' } }

@@ -26,7 +26,8 @@ Authorization: Bearer <ADMIN_TOKEN>
 | POST | `/api/v1/auth/login` | 公开 | 登录；启用 2FA 时返回 `requiresTotp` |
 | POST | `/api/v1/auth/login/totp` | 公开 | 用 TOTP 或恢复码完成登录 |
 | POST | `/api/v1/auth/logout` | 登录用户 | 注销当前会话 |
-| GET | `/api/v1/auth/me` | 登录用户 | 获取当前账户 |
+| GET | `/api/v1/auth/me` | 登录用户 | 获取当前账户（含 `adultVerified`） |
+| POST | `/api/v1/auth/adult-confirm` | 登录用户 | 提交 `{ birthYear, confirmed: true }` 完成年龄认证后才能浏览 R18 |
 | GET | `/api/v1/users` | 管理员 | 用户列表 |
 | PATCH | `/api/v1/users/{id}` | 管理员 | 禁用/启用或改角色 |
 | POST | `/api/v1/users/{id}/reset` | 管理员 | 签发密码重置令牌 |
@@ -58,12 +59,18 @@ Authorization: Bearer <ADMIN_TOKEN>
 | POST | `/api/v1/invites` | 管理员 | 创建邀请码 |
 | GET | `/api/v1/invites` | 管理员 | 查看邀请码状态 |
 | DELETE | `/api/v1/invites/{id}` | 管理员 | 吊销邀请码 |
-| PUT | `/api/v1/artifacts/{sha256}` | 管理员 | 整包上传不可变 Mod ZIP（小于约 8MiB） |
-| POST | `/api/v1/artifacts/{sha256}/uploads` | 管理员 | 开始或复用切片上传会话 |
-| GET | `/api/v1/artifacts/{sha256}/uploads/{uploadId}` | 管理员 | 查询已收到的切片（断点续传） |
-| PUT | `/api/v1/artifacts/{sha256}/uploads/{uploadId}/{index}` | 管理员 | 上传一个切片 |
-| POST | `/api/v1/artifacts/{sha256}/uploads/{uploadId}/complete` | 管理员 | 合并切片并入库 |
-| POST | `/api/v1/mods` | 管理员 | 注册 Mod 版本 |
+| PUT | `/api/v1/artifacts/{sha256}` | 登录用户 | 整包上传不可变 ZIP（小于约 8MiB） |
+| POST | `/api/v1/artifacts/{sha256}/uploads` | 登录用户 | 开始或复用切片上传会话 |
+| GET | `/api/v1/artifacts/{sha256}/uploads/{uploadId}` | 登录用户 | 查询已收到的切片（断点续传） |
+| PUT | `/api/v1/artifacts/{sha256}/uploads/{uploadId}/{index}` | 登录用户 | 上传一个切片 |
+| POST | `/api/v1/artifacts/{sha256}/uploads/{uploadId}/complete` | 登录用户 | 合并切片并入库 |
+| POST | `/api/v1/mods` | 管理员 | 注册 Mod 版本（`r18` 标记整个 Mod） |
+| PATCH | `/api/v1/mods/{id}` | 开发者 | 更新目录标记，例如 `r18` |
+| PUT | `/api/v1/mods/{id}/slots` | 开发者 | 替换内容槽定义 |
+| GET | `/api/v1/mods/{id}/contents` | 登录用户 | 该 Mod 的内容市场，可用 `?slot=` 过滤 |
+| POST | `/api/v1/mods/{id}/slots/{slotId}/contents` | 登录用户 | 提交一个命名模型 ZIP（`name`、`description`、`artifactSha`、可选 `r18`） |
+| PATCH | `/api/v1/contents/{id}` | 作者或开发者 | 改名称、简介或 `r18` |
+| DELETE | `/api/v1/contents/{id}` | 作者或开发者 | 删除一条内容 |
 | POST | `/api/v1/packs` | 管理员 | 创建或更新 ModPack 草稿 |
 | POST | `/api/v1/packs/{id}/releases` | 管理员 | 发布签名版本 |
 | POST | `/api/v1/servers` | 登录用户 | 登记游戏服务器；普通用户必须填写公开地址 |
@@ -140,6 +147,8 @@ Authorization: Bearer <ADMIN_TOKEN>
 
 成功后返回 Bearer 会话令牌和过期时间。若账户已启用 TOTP，响应为 `{ "requiresTotp": true, "ticket": "..." }`，再调用 `/api/v1/auth/login/totp`。数据库只保存会话令牌的 SHA-256。默认会话有效期为 7 天，退出登录后立即删除。
 
+Mod 与内容条目可设 `r18: true`。工坊列表带 `r18`、`r18ContentCount` 和 `redacted`。登录用户需先 `POST /api/v1/auth/adult-confirm`（出生年份满 18 且 `confirmed: true`），否则 R18 的名称和简介会被省略。未满 18 岁返回 `403 UNDERAGE`。引导令牌和已认证账户可直接查看。`GET /api/v1/admin/state` 会去掉 `adultBirthYear`。
+
 生产环境 `REQUIRE_REVIEW=true`（或 `NODE_ENV=production`）时，上传 ZIP 会自动分析并进入审核。含 DLL 或高风险规则的文件默认为 `pending`；发布前必须 `licenseConfirmed=true`。
 
 ## 上传 Mod 文件
@@ -182,7 +191,8 @@ POST /api/v1/artifacts/<sha256>/uploads/<uploadId>/complete
   "installRoots": ["ExampleVehicles"],
   "containsDll": true,
   "requiresRestart": true,
-  "dependsOn": ["harmony"]
+  "dependsOn": ["harmony"],
+  "r18": false
 }
 ```
 
@@ -190,14 +200,19 @@ POST /api/v1/artifacts/<sha256>/uploads/<uploadId>/complete
 
 `dependsOn` 是已登记的前置 Mod ID 列表。创建或发布 Pack 时会自动展开这些前置（含传递依赖）写入 `entries`，更新器会一起下载。前置排在依赖它们的 Mod 前面。
 
-`contentSlots` 是安装目录下的可选子目录，例如 `Z_CustomAvatars` 上的 `Avatars`、`Dances`。上传 ZIP 后也会根据子目录和 ModInfo 介绍给出建议。登记之后：
+`contentSlots` 是安装目录下的可选子目录，例如 `Z_CustomAvatars` 上的 `Avatars`、`Dances`。上传 ZIP 后也会根据子目录和 ModInfo 介绍给出建议。内容是面向该 Mod 的可复用目录，不再是「每槽一份 ZIP」：
 
 ```http
 PUT /api/v1/mods/z-custom-avatars/slots
-POST /api/v1/mods/z-custom-avatars/slots/avatars
+GET /api/v1/mods/z-custom-avatars/contents?slot=avatars
+POST /api/v1/mods/z-custom-avatars/slots/avatars/contents
+PATCH /api/v1/contents/{id}
+DELETE /api/v1/contents/{id}
 ```
 
-`PUT` 替换槽位定义。`POST` 把已上传制品的 SHA-256 绑到该槽位（不传 `artifactSha` 则清空）。发布 Pack 时这些制品会写入 manifest 的 `overlays`。更新器把每个 overlay 解压到 `installRoot/slotPath`，不会整夹替换框架。
+`PUT` 替换槽位定义。`POST .../contents` 新增一条命名模型（`name`、可选 `description`、`artifactSha`、可选 `r18`）。拥有 `content.submit` 的登录角色均可提交；生产环境仍需审核和再分发许可。`GET /mods/{id}` 带 `contentSlots`、已通过审核的 `contents`（管理端/作者可见 pending）、`contentCounts`、`r18` 和 `r18ContentCount`。未完成年龄认证的浏览者会得到 `redacted: true`，名称和简介被去掉。
+
+Pack 的 `entries[]` 可带 `contents: { [slotId]: contentId[] }`。未勾选的槽只装框架。发布时每个勾选项写成 manifest overlay：`id` 为内容 id，`path` 为槽位目录。同一 `path` 可有多条 overlay；更新器对该子目录只清空一次，再合并解压（后解压覆盖同名文件）。模型 ZIP 内请使用唯一文件名或子文件夹。旧的 `slotContents` 会迁成无名称内容，**不会**自动勾进已有 Pack 草稿。
 
 ## 创建 ModPack
 
@@ -211,7 +226,10 @@ POST /api/v1/mods/z-custom-avatars/slots/avatars
     {
       "modId": "example-vehicles",
       "version": "1.2.0",
-      "required": true
+      "required": true,
+      "contents": {
+        "avatars": ["cnt_..."]
+      }
     }
   ]
 }

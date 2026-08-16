@@ -87,22 +87,38 @@ test('content slots attach overlays that publish into the release', async (t) =>
   const { base } = await fixture(t);
   const admin = { authorization: 'Bearer test-admin-token-1234', 'content-type': 'application/json' };
   const framework = createStoredZip({ 'Z_CustomAvatars/ModInfo.xml': '<xml><Name value="CustomAvatars" /><Description value="Custom Avatars" /></xml>' });
-  const avatars = createStoredZip({ 'Avatars/hero.avatar3d': 'model' });
+  const hero = createStoredZip({ 'Avatars/hero.avatar3d': 'hero' });
+  const villain = createStoredZip({ 'Avatars/villain.avatar3d': 'villain' });
   const frameworkSha = sha256(framework);
-  const avatarSha = sha256(avatars);
+  const heroSha = sha256(hero);
+  const villainSha = sha256(villain);
   await jsonRequest(`${base}/api/v1/artifacts/${frameworkSha}`, { method: 'PUT', headers: { ...admin, 'content-type': 'application/zip' }, body: framework });
-  await jsonRequest(`${base}/api/v1/artifacts/${avatarSha}`, { method: 'PUT', headers: { ...admin, 'content-type': 'application/zip' }, body: avatars });
+  await jsonRequest(`${base}/api/v1/artifacts/${heroSha}`, { method: 'PUT', headers: { ...admin, 'content-type': 'application/zip' }, body: hero });
+  await jsonRequest(`${base}/api/v1/artifacts/${villainSha}`, { method: 'PUT', headers: { ...admin, 'content-type': 'application/zip' }, body: villain });
   const created = await jsonRequest(`${base}/api/v1/mods`, { method: 'POST', headers: admin, body: JSON.stringify({ id: 'z-custom-avatars', name: 'Custom Avatars', version: '2.5.2.14', artifactSha: frameworkSha, gameVersions: ['3.10.14'], installRoots: ['Z_CustomAvatars'], contentSlots: [{ path: 'Avatars' }, { path: 'Dances' }] }) });
   assert.deepEqual(created.contentSlots.map((item) => item.path), ['Avatars', 'Dances']);
-  await jsonRequest(`${base}/api/v1/mods/z-custom-avatars/slots/avatars`, { method: 'POST', headers: admin, body: JSON.stringify({ artifactSha: avatarSha }) });
+  const first = await jsonRequest(`${base}/api/v1/mods/z-custom-avatars/slots/avatars/contents`, { method: 'POST', headers: admin, body: JSON.stringify({ artifactSha: heroSha, name: 'Hero', description: 'Main avatar' }) });
+  const second = await jsonRequest(`${base}/api/v1/mods/z-custom-avatars/slots/avatars/contents`, { method: 'POST', headers: admin, body: JSON.stringify({ artifactSha: villainSha, name: 'Villain' }) });
+  assert.equal(first.name, 'Hero');
+  assert.equal(second.slotId, 'avatars');
   const listed = await jsonRequest(`${base}/api/v1/mods/z-custom-avatars`, { headers: { authorization: admin.authorization } });
-  assert.equal(listed.slotContents.avatars.sha256, avatarSha);
-  await jsonRequest(`${base}/api/v1/packs`, { method: 'POST', headers: admin, body: JSON.stringify({ id: 'avatar-pack', name: 'Avatars', gameVersion: '3.10.14', entries: [{ modId: 'z-custom-avatars', version: '2.5.2.14' }] }) });
+  assert.equal(listed.contentCounts.avatars, 2);
+  assert.equal(listed.contents.length, 2);
+  const market = await jsonRequest(`${base}/api/v1/mods/z-custom-avatars/contents?slot=avatars`, { headers: { authorization: admin.authorization } });
+  assert.equal(market.contents.length, 2);
+  await jsonRequest(`${base}/api/v1/packs`, { method: 'POST', headers: admin, body: JSON.stringify({ id: 'avatar-pack', name: 'Avatars', gameVersion: '3.10.14', entries: [{ modId: 'z-custom-avatars', version: '2.5.2.14', contents: { avatars: [first.id] } }] }) });
   await jsonRequest(`${base}/api/v1/packs/avatar-pack/releases`, { method: 'POST', headers: admin, body: '{}' });
   const latest = await jsonRequest(`${base}/api/v1/public/packs/avatar-pack/latest`);
+  assert.equal(latest.mods[0].overlays.length, 1);
+  assert.equal(latest.mods[0].overlays[0].id, first.id);
   assert.equal(latest.mods[0].overlays[0].path, 'Avatars');
-  assert.equal(latest.mods[0].overlays[0].sha256, avatarSha);
-  assert.match(latest.mods[0].overlays[0].url, new RegExp(avatarSha));
+  assert.equal(latest.mods[0].overlays[0].sha256, heroSha);
+  assert.equal(latest.mods[0].overlays[0].name, 'Hero');
+  assert.match(latest.mods[0].overlays[0].url, new RegExp(heroSha));
+  await jsonRequest(`${base}/api/v1/packs`, { method: 'POST', headers: admin, body: JSON.stringify({ id: 'framework-only', name: 'Framework', gameVersion: '3.10.14', entries: [{ modId: 'z-custom-avatars', version: '2.5.2.14' }] }) });
+  await jsonRequest(`${base}/api/v1/packs/framework-only/releases`, { method: 'POST', headers: admin, body: '{}' });
+  const bare = await jsonRequest(`${base}/api/v1/public/packs/framework-only/latest`);
+  assert.equal(bare.mods[0].overlays, undefined);
 });
 
 test('redacts and aggregates diagnostics', async (t) => {
@@ -388,5 +404,71 @@ test('workshop list searches description and filters by game version', async (t)
 
   const dlls = await jsonRequest(`${base}/api/v1/mods?dll=yes`, { headers: { authorization: admin.authorization } });
   assert.deepEqual(dlls.mods.map((item) => item.id), ['gunmod']);
+});
+
+test('R18 mods and contents stay redacted until adult confirmation', async (t) => {
+  const { base } = await fixture(t);
+  const admin = { authorization: 'Bearer test-admin-token-1234', 'content-type': 'application/json' };
+  const zip = createStoredZip({ 'AdultMod/ModInfo.xml': '<xml><Name value="AdultMod" /><Description value="secret adult lore" /></xml>' });
+  const model = createStoredZip({ 'Avatars/nsfw.avatar3d': 'nsfw' });
+  const zipSha = sha256(zip);
+  const modelSha = sha256(model);
+  await jsonRequest(`${base}/api/v1/artifacts/${zipSha}`, { method: 'PUT', headers: { ...admin, 'content-type': 'application/zip' }, body: zip });
+  await jsonRequest(`${base}/api/v1/artifacts/${modelSha}`, { method: 'PUT', headers: { ...admin, 'content-type': 'application/zip' }, body: model });
+  await jsonRequest(`${base}/api/v1/mods`, { method: 'POST', headers: admin, body: JSON.stringify({ id: 'adult-mod', name: 'Adult Mod', version: '1.0.0', artifactSha: zipSha, gameVersions: ['3.10.14'], installRoots: ['AdultMod'], contentSlots: [{ path: 'Avatars' }], r18: true }) });
+  const content = await jsonRequest(`${base}/api/v1/mods/adult-mod/slots/avatars/contents`, { method: 'POST', headers: admin, body: JSON.stringify({ artifactSha: modelSha, name: 'NSFW Model', description: 'hidden skin', r18: true }) });
+  assert.equal(content.r18, true);
+
+  const listedAdmin = await jsonRequest(`${base}/api/v1/mods`, { headers: { authorization: admin.authorization } });
+  const adminRow = listedAdmin.mods.find((item) => item.id === 'adult-mod');
+  assert.equal(adminRow.r18, true);
+  assert.equal(adminRow.r18ContentCount, 1);
+  assert.match(adminRow.description, /secret adult lore/);
+
+  await jsonRequest(`${base}/api/v1/auth/register`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'ViewerR18', password: 'regular user password' }) });
+  const login = await jsonRequest(`${base}/api/v1/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'viewerr18', password: 'regular user password' }) });
+  const headers = { authorization: `Bearer ${login.token}`, 'content-type': 'application/json' };
+  assert.equal(login.user.adultVerified, false);
+
+  const listed = await jsonRequest(`${base}/api/v1/mods`, { headers });
+  const row = listed.mods.find((item) => item.id === 'adult-mod');
+  assert.equal(row.r18, true);
+  assert.equal(row.redacted, true);
+  assert.equal(row.description, null);
+
+  const detail = await jsonRequest(`${base}/api/v1/mods/adult-mod`, { headers });
+  assert.equal(detail.redacted, true);
+  const hidden = detail.contents.find((item) => item.id === content.id);
+  assert.equal(hidden.r18, true);
+  assert.equal(hidden.redacted, true);
+  assert.equal(hidden.name, null);
+  assert.equal(hidden.description, null);
+
+  const underage = await fetch(`${base}/api/v1/auth/adult-confirm`, { method: 'POST', headers, body: JSON.stringify({ birthYear: new Date().getUTCFullYear() - 10, confirmed: true }) });
+  assert.equal(underage.status, 403);
+  assert.equal((await underage.json()).error.code, 'UNDERAGE');
+
+  const confirmed = await jsonRequest(`${base}/api/v1/auth/adult-confirm`, { method: 'POST', headers, body: JSON.stringify({ birthYear: 1990, confirmed: true }) });
+  assert.equal(confirmed.user.adultVerified, true);
+  assert.equal(confirmed.user.adultBirthYear, undefined);
+
+  const revealed = await jsonRequest(`${base}/api/v1/mods`, { headers });
+  const open = revealed.mods.find((item) => item.id === 'adult-mod');
+  assert.match(open.description, /secret adult lore/);
+  assert.ok(!open.redacted);
+
+  const openDetail = await jsonRequest(`${base}/api/v1/mods/adult-mod`, { headers });
+  const visible = openDetail.contents.find((item) => item.id === content.id);
+  assert.equal(visible.name, 'NSFW Model');
+  assert.equal(visible.description, 'hidden skin');
+  assert.ok(!visible.redacted);
+
+  const me = await jsonRequest(`${base}/api/v1/auth/me`, { headers });
+  assert.equal(me.user.adultVerified, true);
+
+  const state = await jsonRequest(`${base}/api/v1/admin/state`, { headers });
+  const stored = Object.values(state.users).find((item) => item.username === 'ViewerR18');
+  assert.ok(stored.adultVerifiedAt);
+  assert.equal(stored.adultBirthYear, undefined);
 });
 
