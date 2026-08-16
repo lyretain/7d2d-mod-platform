@@ -28,13 +28,12 @@ PowerShell:
 
 ```powershell
 npm --prefix apps/web install
-npm run build:web
 $env:ADMIN_TOKEN = "replace-with-at-least-16-random-characters"
 $env:PUBLIC_BASE_URL = "http://localhost:8080"
-node apps/api/src/server.js
+npm run start:ui
 ```
 
-Open `http://localhost:8080` for the Vue console (or `/legacy` for the embedded page). Without `apps/web/dist` the API still falls back to `admin.html`.
+`start:ui` builds the Vue app, starts the API, and opens `http://127.0.0.1:8080`. The API serves `apps/web/dist` itself, so a separate Vite process is not required. `npm start` does the same once `dist` already exists. `/legacy` keeps the embedded page.
 
 Frontend-only development (Vite proxies `/api` to port 8080):
 

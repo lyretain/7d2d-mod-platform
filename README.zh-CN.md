@@ -43,20 +43,19 @@ data/                     单节点元数据、签名密钥和 Mod 文件
 
 ## 快速启动后台
 
-需要 Node.js 22 或更高版本。生产或本机完整后台先构建 Vue，再启动 API：
+需要 Node.js 22 或更高版本。不必再单独开 Vite：先装一次前端依赖，然后一条命令构建 Vue、启动 API 并打开浏览器。
 
 ```powershell
 cd A:\GameMod\7d2d-mod-platform
 npm --prefix apps/web install
-npm run build:web
 $env:ADMIN_TOKEN = "替换为至少16位的随机管理令牌"
 $env:PUBLIC_BASE_URL = "http://localhost:8080"
-node apps/api/src/server.js
+npm run start:ui
 ```
 
-启动后访问：`http://localhost:8080`（Vue 后台）。应急旧页：`/legacy`。没有 `apps/web/dist` 时 API 仍回退内嵌 `admin.html`。
+`start:ui` 会执行 `build:web`，API 在 `http://127.0.0.1:8080` 直接托管 `apps/web/dist`。已有 `dist` 时也可只跑 `npm start`，打开同一地址即为 Vue 后台。应急旧页：`/legacy`。
 
-只改前端时用 Vite（`/api` 代理到 8080）：
+只改前端、需要热更新时才用 Vite（`/api` 代理到 8080）：
 
 ```powershell
 npm run dev

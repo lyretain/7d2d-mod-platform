@@ -27,6 +27,18 @@
 
 要求：Node.js 22 或更高版本。
 
+本机一条命令（构建 Vue、启动 API、打开浏览器；不跑 Vite）：
+
+```powershell
+cd A:\GameMod\7d2d-mod-platform
+npm --prefix apps/web install
+$env:ADMIN_TOKEN = "使用密码管理器生成的长随机令牌"
+$env:PUBLIC_BASE_URL = "http://localhost:8080"
+npm run start:ui
+```
+
+生产裸机（不自动开浏览器）：
+
 ```powershell
 cd A:\GameMod\7d2d-mod-platform
 npm --prefix apps/web install

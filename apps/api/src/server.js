@@ -1,5 +1,8 @@
+import { execFile } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { createServer } from 'node:http';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createApp } from './app.js';
 import { loadConfig } from './config.js';
 import { createLogger } from './logger.js';
@@ -62,8 +65,28 @@ const server = createServer(wrapHandler(app, {
 }));
 server.requestTimeout = 10 * 60 * 1000;
 server.headersTimeout = 30_000;
+const spaIndex = path.resolve(fileURLToPath(new URL('../../web/dist/index.html', import.meta.url)));
+const localUi = `http://127.0.0.1:${config.port}`;
+
+function openBrowser(url) {
+  const command = process.platform === 'win32' ? 'cmd' : process.platform === 'darwin' ? 'open' : 'xdg-open';
+  const args = process.platform === 'win32' ? ['/c', 'start', '', url] : [url];
+  execFile(command, args, { windowsHide: true }, (error) => {
+    if (error) logger.error('open-browser', { error: error.message, url });
+  });
+}
+
 server.listen(config.port, config.host, () => {
-  logger.info('listening', { url: config.publicBaseUrl, host: config.host, port: config.port });
+  const vueUi = existsSync(spaIndex);
+  logger.info('listening', {
+    url: config.publicBaseUrl,
+    host: config.host,
+    port: config.port,
+    webUi: vueUi ? 'vue' : 'legacy',
+    open: localUi
+  });
+  if (!vueUi) logger.info('web-ui-fallback', { hint: 'run npm run build:web to serve the Vue console at /' });
+  if (process.env.OPEN_BROWSER === '1') openBrowser(localUi);
 });
 
 process.on('uncaughtException', (error) => {

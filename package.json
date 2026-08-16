@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "node apps/api/src/server.js",
+    "start:ui": "node apps/api/src/start-ui.js",
     "dev": "node --watch apps/api/src/server.js",
     "dev:web": "npm --prefix apps/web run dev",
     "build:web": "npm --prefix apps/web run build",
