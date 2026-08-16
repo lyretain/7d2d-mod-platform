@@ -141,9 +141,9 @@
       </article>
       <article class="card third">
         <h2>邀请管理</h2>
-        <p class="hint">首次部署可用 ADMIN_TOKEN 创建第一张邀请码。</p>
+        <p class="hint">还没有管理员时，填写 ADMIN_TOKEN 创建第一张邀请码。已经注册过管理员后，必须先登录，ADMIN_TOKEN 会失效。</p>
         <label class="field">ADMIN_TOKEN（仅首次部署）</label>
-        <input id="bootstrapToken" type="password" placeholder="首次部署可在此填写 ADMIN_TOKEN">
+        <input id="bootstrapToken" type="password" placeholder="仅在还没有管理员账户时使用">
         <div class="three">
           <div><label class="field">角色</label><select id="inviteRole"><option value="admin">管理员</option><option value="viewer">只读用户</option></select></div>
           <div><label class="field">可用次数</label><input id="inviteUses" type="number" min="1" max="100" value="1"></div>
@@ -345,8 +345,9 @@ function showTab(name) {
   if (name === 'ops') loadStats({ silent: true });
 }
 
-const savedToken = () => localStorage.getItem('modPlatformToken') || bootstrapToken.value;
+const savedToken = () => localStorage.getItem('modPlatformToken') || bootstrapToken.value.trim();
 const headers = () => ({ authorization: 'Bearer ' + savedToken(), 'content-type': 'application/json' });
+const inviteHeaders = () => ({ authorization: 'Bearer ' + (bootstrapToken.value.trim() || savedToken()), 'content-type': 'application/json' });
 
 async function request(url, options = {}) {
   const r = await fetch(url, options);
@@ -540,12 +541,20 @@ async function register() {
 
 async function createInvite() {
   try {
-    const r = await request('/api/v1/invites', { method: 'POST', headers: headers(), body: JSON.stringify({ role: inviteRole.value, maxUses: Number(inviteUses.value), expiresInHours: Number(inviteHours.value) }) });
+    if (!bootstrapToken.value.trim() && !localStorage.getItem('modPlatformToken')) {
+      throw new Error('请先用管理员账户登录。若还没有账户，先填写 ADMIN_TOKEN。');
+    }
+    const r = await request('/api/v1/invites', { method: 'POST', headers: inviteHeaders(), body: JSON.stringify({ role: inviteRole.value, maxUses: Number(inviteUses.value), expiresInHours: Number(inviteHours.value) }) });
     inviteResult.textContent = '邀请码（只显示一次）：\n' + r.code + '\n\n' + JSON.stringify(r.invite, null, 2);
     show('邀请码已创建，请立即复制');
   } catch (e) {
-    inviteResult.textContent = e.message;
-    show(e.message);
+    const text = e.message === 'Login required'
+      ? '登录已失效，或 ADMIN_TOKEN 在首个管理员注册后已停用。请用管理员账户登录。'
+      : e.message === 'Administrator role required'
+        ? '当前账户不是管理员，无法创建邀请码。'
+        : e.message;
+    inviteResult.textContent = text;
+    show(text);
   }
 }
 

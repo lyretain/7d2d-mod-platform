@@ -48,7 +48,9 @@ export function createAuthService({ store, bootstrapToken, allowBootstrapAfterSe
     const token = bearer(req);
     if (!token) return null;
     const snapshot = store.snapshot();
-    if (!bootstrapDisabled && bootstrapToken && token === bootstrapToken && (allowBootstrapAfterSetup || Object.keys(snapshot.users).length === 0)) return { id: 'bootstrap', username: 'bootstrap', role: 'admin', bootstrap: true };
+    const noUsers = Object.keys(snapshot.users).length === 0;
+    const bootstrapAllowed = noUsers || (allowBootstrapAfterSetup && !bootstrapDisabled);
+    if (bootstrapToken && token === bootstrapToken && bootstrapAllowed) return { id: 'bootstrap', username: 'bootstrap', role: 'admin', bootstrap: true };
     const session = snapshot.sessions[tokenHash(token)];
     if (!session || Date.parse(session.expiresAt) <= Date.now()) return null;
     const user = snapshot.users[session.userId];

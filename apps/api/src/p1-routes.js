@@ -11,7 +11,12 @@ export async function handleP1(req, res, ctx) {
   const { pathname, store, auth, signing, objects, metrics, config } = ctx;
   const principal = () => auth.principal(req);
   const requireAdmin = () => {
-    if (principal()?.role === 'admin') return true;
+    const user = principal();
+    if (!user) {
+      problem(res, 401, 'UNAUTHORIZED', 'Login required');
+      return false;
+    }
+    if (user.role === 'admin') return true;
     problem(res, 403, 'FORBIDDEN', 'Administrator role required');
     return false;
   };

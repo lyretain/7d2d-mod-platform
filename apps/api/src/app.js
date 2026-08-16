@@ -126,7 +126,8 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
 
       if (req.method === 'POST' && pathname === '/api/v1/invites') {
         const principal = auth.principal(req);
-        if (!principal || principal.role !== 'admin') return problem(res, 403, 'FORBIDDEN', 'Administrator role required');
+        if (!principal) return problem(res, 401, 'UNAUTHORIZED', 'Login required');
+        if (principal.role !== 'admin') return problem(res, 403, 'FORBIDDEN', 'Administrator role required');
         const body = await readJson(req, 32 * 1024);
         const result = await auth.createInvite({ ...body, createdBy: principal.id });
         metricsApi.observe('invites');

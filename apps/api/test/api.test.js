@@ -11,7 +11,7 @@ import { sha256 } from '../src/util.js';
 import { verifyManifest } from '../../updater/src/verify.js';
 import { createStoredZip } from '../../updater/test/zip-helper.js';
 
-async function fixture(t) {
+async function fixture(t, extra = {}) {
   const dataDir = await mkdtemp(path.join(os.tmpdir(), 'mod-platform-api-'));
   const store = new JsonStore(path.join(dataDir, 'state', 'database.json'));
   const signing = new SigningService({ dataDir });
@@ -21,7 +21,7 @@ async function fixture(t) {
   const address = server.address();
   const base = `http://127.0.0.1:${address.port}`;
   server.removeAllListeners('request');
-  server.on('request', createApp({ store, signing, dataDir, adminToken: 'test-admin-token-1234', publicBaseUrl: base }));
+  server.on('request', createApp({ store, signing, dataDir, adminToken: 'test-admin-token-1234', publicBaseUrl: base, ...extra }));
   t.after(() => new Promise((resolve) => server.close(resolve)));
   return { base, signing, store };
 }
@@ -99,6 +99,15 @@ test('requires a one-use invitation for registration and supports login sessions
   await jsonRequest(`${base}/api/v1/auth/logout`, { method: 'POST', headers: { ...sessionHeaders, 'content-type': 'application/json' }, body: '{}' });
   const afterLogout = await fetch(`${base}/api/v1/auth/me`, { headers: sessionHeaders });
   assert.equal(afterLogout.status, 401);
+});
+
+test('production bootstrap token can create the first invite then retires', async (t) => {
+  const { base } = await fixture(t, { bootstrapDisabled: true, allowBootstrapAdmin: false });
+  const bootstrap = { authorization: 'Bearer test-admin-token-1234', 'content-type': 'application/json' };
+  assert.equal((await fetch(`${base}/api/v1/invites`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ role: 'admin' }) })).status, 401);
+  const invitation = await jsonRequest(`${base}/api/v1/invites`, { method: 'POST', headers: bootstrap, body: JSON.stringify({ role: 'admin', maxUses: 1, expiresInHours: 24 }) });
+  await jsonRequest(`${base}/api/v1/auth/register`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'ProdAdmin', password: 'correct horse battery staple', inviteCode: invitation.code }) });
+  assert.equal((await fetch(`${base}/api/v1/invites`, { method: 'POST', headers: bootstrap, body: JSON.stringify({ role: 'admin' }) })).status, 401);
 });
 
 test('can list, revoke, roll back releases and pause distribution', async (t) => {
