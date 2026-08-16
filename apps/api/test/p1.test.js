@@ -14,7 +14,7 @@ import { JsonStore } from '../src/store.js';
 import { totp } from '../src/totp.js';
 import { sha256 } from '../src/util.js';
 import { verifyManifest } from '../../updater/src/verify.js';
-import { createStoredZip } from '../../updater/test/zip-helper.js';
+import { createDeflatedZip, createStoredZip } from '../../updater/test/zip-helper.js';
 
 async function fixture(t, extra = {}) {
   const dataDir = await mkdtemp(path.join(os.tmpdir(), 'mod-platform-p1-'));
@@ -48,6 +48,17 @@ test('analyzes ZIP structure, ModInfo and DLL rules', () => {
   assert.equal(analysis.modInfo.name, 'Example');
   assert.ok(analysis.findings.some((item) => item.rule === 'native-inject'));
   assert.ok(analysis.sbom.components.length >= 1);
+});
+
+test('analyzes deflated DLLs larger than 64 KiB without throwing', () => {
+  const archive = createDeflatedZip({
+    'ExampleMod/ModInfo.xml': '<ModInfo><Name value="Example" /><Version value="1.0.0" /></ModInfo>',
+    'ExampleMod/Harmony/Example.dll': `MZ VirtualAlloc ${'A'.repeat(80_000)}`
+  });
+  const analysis = analyzeZipBuffer(archive, 'example.zip');
+  assert.equal(analysis.containsDll, true);
+  assert.equal(analysis.containsHarmony, true);
+  assert.ok(analysis.findings.some((item) => item.rule === 'native-inject'));
 });
 
 test('rejects expired or unknown-key manifests', async () => {
@@ -101,6 +112,24 @@ test('account lifecycle, 2FA and health endpoints', async (t) => {
   const users = await jsonRequest(`${base}/api/v1/users`, { headers: { authorization: `Bearer ${completed.token}` } });
   assert.equal(users.users[0].totpEnabled, true);
   await jsonRequest(`${base}/api/v1/users/${users.users[0].id}`, { method: 'PATCH', headers: { authorization: `Bearer ${completed.token}`, 'content-type': 'application/json' }, body: JSON.stringify({ disabled: true }) });
+});
+
+test('upload accepts a deflated ZIP whose DLL exceeds 64 KiB', async (t) => {
+  const { base } = await fixture(t);
+  const archive = createDeflatedZip({
+    'ExampleMod/ModInfo.xml': '<ModInfo><Name value="Example" /><Version value="1.0.0" /></ModInfo>',
+    'ExampleMod/Harmony/Example.dll': `MZ VirtualAlloc ${'A'.repeat(80_000)}`
+  });
+  const artifactSha = sha256(archive);
+  const uploaded = await jsonRequest(`${base}/api/v1/artifacts/${artifactSha}`, {
+    method: 'PUT',
+    headers: { authorization: 'Bearer test-admin-token-1234', 'content-type': 'application/zip' },
+    body: archive
+  });
+  assert.equal(uploaded.sha256, artifactSha);
+  assert.equal(uploaded.review.status, 'pending');
+  assert.equal(uploaded.review.analysis.containsDll, true);
+  assert.ok(uploaded.review.analysis.findings.some((item) => item.rule === 'native-inject'));
 });
 
 test('review, license gate, hash ban and public key ring', async (t) => {

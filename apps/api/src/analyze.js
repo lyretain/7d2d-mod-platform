@@ -2,6 +2,9 @@ import { readFile } from 'node:fs/promises';
 import { inflateRawSync } from 'node:zlib';
 import { listZip } from '../../updater/src/zip.js';
 
+const SCAN_BYTES = 64 * 1024;
+const INFLATE_HARD_CAP = 32 * 1024 * 1024;
+
 const DLL_RULES = [
   { id: 'process-spawn', pattern: /cmd\.exe|powershell|wscript|cscript/i, severity: 'high' },
   { id: 'native-inject', pattern: /VirtualAlloc|WriteProcessMemory|CreateRemoteThread/i, severity: 'high' },
@@ -30,13 +33,30 @@ function assemblyName(fileName, bytes) {
   return match ? match[1] : fileName.replace(/\.dll$/i, '');
 }
 
-function entryBytes(buffer, entry, max = 64 * 1024) {
-  const nameLength = buffer.readUInt16LE(entry.localOffset + 26);
-  const extraLength = buffer.readUInt16LE(entry.localOffset + 28);
-  const start = entry.localOffset + 30 + nameLength + extraLength;
-  const raw = buffer.subarray(start, start + entry.compressedSize);
-  if (entry.method === 0) return raw.subarray(0, Math.min(raw.length, max));
-  return inflateRawSync(raw, { maxOutputLength: Math.min(entry.size, max) });
+function inflateEntryPrefix(compressed, uncompressedSize, max) {
+  const known = Number(uncompressedSize) > 0 ? uncompressedSize : 0;
+  const limit = Math.min(known > 0 ? known : INFLATE_HARD_CAP, INFLATE_HARD_CAP);
+  try {
+    const inflated = inflateRawSync(compressed, { maxOutputLength: Math.max(limit, max) });
+    return inflated.subarray(0, Math.min(inflated.length, max));
+  } catch {
+    return Buffer.alloc(0);
+  }
+}
+
+function entryBytes(buffer, entry, max = SCAN_BYTES) {
+  try {
+    if (!Number.isInteger(entry.localOffset) || entry.localOffset + 30 > buffer.length) return Buffer.alloc(0);
+    const nameLength = buffer.readUInt16LE(entry.localOffset + 26);
+    const extraLength = buffer.readUInt16LE(entry.localOffset + 28);
+    const start = entry.localOffset + 30 + nameLength + extraLength;
+    if (start < 0 || start > buffer.length) return Buffer.alloc(0);
+    const raw = buffer.subarray(start, Math.min(buffer.length, start + (entry.compressedSize || 0)));
+    if (entry.method === 0) return Buffer.from(raw.subarray(0, Math.min(raw.length, max)));
+    return inflateEntryPrefix(raw, entry.size, max);
+  } catch {
+    return Buffer.alloc(0);
+  }
 }
 
 export function analyzeZipBuffer(buffer, fileName = 'upload.zip') {
@@ -89,7 +109,12 @@ export function analyzeZipBuffer(buffer, fileName = 'upload.zip') {
 }
 
 export async function analyzeZipFile(file, fileName) {
-  return analyzeZipBuffer(await readFile(file), fileName);
+  try {
+    return analyzeZipBuffer(await readFile(file), fileName);
+  } catch (error) {
+    if (!error.code) error.code = 'VALIDATION';
+    throw error;
+  }
 }
 
 export async function scanFile(file) {
