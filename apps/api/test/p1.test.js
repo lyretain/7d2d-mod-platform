@@ -131,6 +131,8 @@ test('S3 SigV4 string and CSRF same-origin policy', () => {
   });
   assert.match(authorization, /^AWS4-HMAC-SHA256 Credential=AKIA\/20260816\/us-east-1\/s3\/aws4_request/);
   assert.equal(inspectRequest({ method: 'POST', url: '/api/v1/auth/login', headers: { host: 'mods.example', origin: 'https://mods.example' } }).blocked, false);
+  assert.equal(inspectRequest({ method: 'POST', url: '/api/v1/auth/login', headers: { host: '127.0.0.1:8850', origin: 'https://mods.aic.la', 'x-forwarded-host': 'mods.aic.la' } }).blocked, false);
+  assert.equal(inspectRequest({ method: 'POST', url: '/api/v1/setup', headers: { host: '127.0.0.1:8850', origin: 'https://mods.aic.la' } }, { publicBaseUrl: 'https://mods.aic.la' }).blocked, false);
   assert.equal(inspectRequest({ method: 'POST', url: '/api/v1/auth/login', headers: { host: 'mods.example', origin: 'https://evil.example' } }).blocked, true);
   const csp = securityHeaders({ headers: {}, url: '/' })['content-security-policy'];
   assert.match(csp, /script-src[^;]*'self'/);

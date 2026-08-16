@@ -80,7 +80,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
     const originalWriteHead = res.writeHead.bind(res);
     res.writeHead = (status, headers = {}) => originalWriteHead(status, { ...securityHeaders(req, { forceHttps: config.forceHttps, adminHost: config.adminHost }), ...headers });
     try {
-      const inspection = inspectRequest(req, { trustedProxy: config.trustedProxy });
+      const inspection = inspectRequest(req, { trustedProxy: config.trustedProxy, publicBaseUrl });
       if (inspection.blocked) return problem(res, 403, inspection.reason, 'Request blocked by security policy');
       if (config.adminHost && req.headers.host && req.headers.host.split(':')[0] !== config.adminHost && (pathname === '/' || pathname.startsWith('/api/v1/admin') || pathname.startsWith('/api/v1/users'))) {
         return problem(res, 404, 'NOT_FOUND', 'Route not found');

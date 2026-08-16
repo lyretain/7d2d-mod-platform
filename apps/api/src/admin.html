@@ -603,7 +603,7 @@ async function refreshMe() {
 async function setupPlatform() {
   try {
     if (setupPassword.value !== setupPassword2.value) throw new Error('两次输入的密码不一致');
-    await request('/api/v1/setup', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token: setupToken.value, username: setupUser.value, password: setupPassword.value }) });
+    await request('/api/v1/setup', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + setupToken.value }, body: JSON.stringify({ token: setupToken.value, username: setupUser.value, password: setupPassword.value }) });
     const r = await request('/api/v1/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: setupUser.value, password: setupPassword.value }) });
     localStorage.setItem('modPlatformToken', r.token);
     setupToken.value = '';

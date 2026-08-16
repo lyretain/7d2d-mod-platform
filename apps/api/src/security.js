@@ -26,7 +26,17 @@ export function securityHeaders(req, { forceHttps = false, adminHost = '' } = {}
   return headers;
 }
 
-export function inspectRequest(req, { trustedProxy = false } = {}) {
+function hostnameOf(value) {
+  const raw = String(value || '').split(',')[0].trim();
+  if (!raw) return '';
+  try {
+    return new URL(raw.includes('://') ? raw : `http://${raw}`).hostname.toLocaleLowerCase('en-US');
+  } catch {
+    return raw.split(':')[0].toLocaleLowerCase('en-US');
+  }
+}
+
+export function inspectRequest(req, { trustedProxy = false, publicBaseUrl = '' } = {}) {
   const path = req.url || '/';
   if (BLOCKED_PATH.test(path) || BLOCKED_UA.test(String(req.headers['user-agent'] || ''))) {
     return { blocked: true, reason: 'WAF_RULE' };
@@ -34,7 +44,14 @@ export function inspectRequest(req, { trustedProxy = false } = {}) {
   const origin = req.headers.origin;
   if (origin && req.method !== 'GET' && req.method !== 'HEAD' && !req.headers.authorization) {
     try {
-      if (new URL(origin).host !== req.headers.host) return { blocked: true, reason: 'CSRF' };
+      const originHost = hostnameOf(origin);
+      const allowed = new Set([
+        hostnameOf(req.headers.host),
+        hostnameOf(req.headers['x-forwarded-host']),
+        hostnameOf(publicBaseUrl)
+      ]);
+      allowed.delete('');
+      if (!allowed.has(originHost)) return { blocked: true, reason: 'CSRF' };
     } catch {
       return { blocked: true, reason: 'CSRF' };
     }
