@@ -15,6 +15,7 @@ const PERMISSIONS = {
   'review.approve': ['superadmin', 'community'],
   'catalog.write': ['superadmin', 'community', 'developer'],
   'pack.publish': ['superadmin', 'community'],
+  'distribution.pause': ['superadmin', 'community'],
   'server.create': ['superadmin', 'community', 'developer', 'user'],
   'server.manage': ['superadmin', 'community'],
   'ops.read': ['superadmin', 'community']

@@ -71,7 +71,7 @@ Session routes use the login Bearer token instead. Server-token routes use the o
 | POST | `/api/v1/packs/{id}/rollback` | Admin | Point latest at a previous release |
 | PATCH | `/api/v1/servers/{id}` | Signed-in | Edit your server; community admins can edit any |
 | DELETE | `/api/v1/servers/{id}` | Signed-in | Delete your server; community admins can delete any |
-| POST | `/api/v1/admin/distribution` | Admin | Emergency pause or resume (platform-wide) |
+| POST | `/api/v1/admin/distribution` | Superadmin / community | Emergency pause or resume (platform-wide) |
 | GET | `/api/v1/admin/audit` | Signed-in | Publication audit log |
 | POST | `/api/v1/servers/{id}/sync-status` | Server token | Dedicated-server sync heartbeat |
 | GET | `/api/v1/diagnostics/summary` | Signed-in | Aggregated fingerprints |

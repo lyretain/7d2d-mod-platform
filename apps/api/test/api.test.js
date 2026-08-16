@@ -140,6 +140,11 @@ test('community admins need a superadmin invite and GitHub bind; developers acti
   const playerLogin = await jsonRequest(`${base}/api/v1/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'modder', password: 'regular user password' }) });
   const activated = await jsonRequest(`${base}/api/v1/auth/activate`, { method: 'POST', headers: { authorization: `Bearer ${playerLogin.token}`, 'content-type': 'application/json' }, body: JSON.stringify({ inviteCode: developerInvite.code }) });
   assert.equal(activated.user.role, 'developer');
+  assert.equal((await fetch(`${base}/api/v1/admin/distribution`, { method: 'POST', headers: { authorization: `Bearer ${playerLogin.token}`, 'content-type': 'application/json' }, body: JSON.stringify({ paused: true }) })).status, 403);
+  const paused = await jsonRequest(`${base}/api/v1/admin/distribution`, { method: 'POST', headers: communityHeaders, body: JSON.stringify({ paused: true, reason: 'community halt' }) });
+  assert.equal(paused.distributionPaused, true);
+  const resumed = await jsonRequest(`${base}/api/v1/admin/distribution`, { method: 'POST', headers: communityHeaders, body: JSON.stringify({ paused: false }) });
+  assert.equal(resumed.distributionPaused, false);
 });
 
 test('setup page creates the first community admin then retires the token', async (t) => {

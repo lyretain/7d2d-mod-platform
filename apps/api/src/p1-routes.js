@@ -259,9 +259,12 @@ export async function handleP1(req, res, ctx) {
     return json(res, 200, { audit: filterAudit(store.snapshot(), { action: url.searchParams.get('action'), actor: url.searchParams.get('actor'), from: url.searchParams.get('from'), to: url.searchParams.get('to'), limit: url.searchParams.get('limit') }) }), true;
   }
   if (req.method === 'POST' && pathname === '/api/v1/admin/confirm') {
-    if (!requireAdmin()) return true;
     const body = await readJson(req, 32 * 1024);
     requireFields(body, ['action']);
+    const confirmPerm = body.action === 'distribution.pause' || body.action === 'distribution.resume'
+      ? 'distribution.pause'
+      : 'platform.manage';
+    if (!requirePerm(confirmPerm)) return true;
     const issued = await store.mutate((draft) => issueConfirm(draft, { action: body.action, actor: principal().username }));
     return json(res, 201, issued), true;
   }

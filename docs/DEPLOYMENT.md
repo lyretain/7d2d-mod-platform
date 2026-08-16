@@ -191,9 +191,9 @@ The proxy needs at least:
 7. Mark DLL / restart, and confirm redistribution rights.
 8. Pick Mods in the workshop or build a Pack on `/packs`, then publish an immutable Release.
 9. Register a dedicated server on `/servers` and bind a published Pack. The token in `server.config.json` is shown once.
-10. Operations on `/ops` cover stats, review, audit, and launcher self-update packages.
+10. Operations on `/ops` cover stats, review, audit, and launcher self-update packages. Superadmins and community admins can also pause the whole platform there.
 
-The sidebar hides by `permissions`: no `catalog.write` hides Mods, no `ops.read` hides Operations, no `server.manage` hides the emergency pause.
+The sidebar hides by `permissions`: no `catalog.write` hides Mods, no `ops.read` hides Operations. The platform-wide emergency pause lives on Operations and is only shown to superadmins and community admins.
 
 ## 8. Backup and restore
 

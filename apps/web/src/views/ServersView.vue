@@ -4,7 +4,7 @@ import { api } from '../api/client';
 import UiCard from '../components/UiCard.vue';
 import UiTable from '../components/UiTable.vue';
 import { i18n, t } from '../i18n';
-import { confirmAction, fail, ok } from '../lib/feedback';
+import { fail, ok } from '../lib/feedback';
 import { catalog, loadPacks, packOptionLabel } from '../stores/catalog';
 import { can, session } from '../stores/session';
 
@@ -12,12 +12,10 @@ const name = ref('');
 const serverId = ref('');
 const packId = ref('');
 const addresses = ref('');
-const pauseReason = ref('');
 const configText = ref('');
 const configJson = ref('');
 const selected = ref(-1);
 const servers = ref<Record<string, unknown>[]>([]);
-const paused = ref(false);
 
 function pluginConfig(created: any) {
   if (created?.config) return created.config;
@@ -40,20 +38,10 @@ function showConfig(created: any) {
   configText.value = t('srv.configPrefix') + json;
 }
 
-async function loadPauseState() {
-  try {
-    const status = await api<{ distributionPaused?: boolean }>('/status');
-    paused.value = Boolean(status.distributionPaused);
-  } catch {
-    /* keep last known */
-  }
-}
-
 async function loadServers(opts?: { silent?: boolean }) {
   try {
     const data = await api<{ servers: Record<string, unknown>[] }>('/api/v1/servers');
     servers.value = data.servers || [];
-    await loadPauseState();
     ok(data, t('srv.loaded'), opts?.silent);
   } catch (error) {
     fail(error);
@@ -121,20 +109,6 @@ async function copyConfig() {
   }
 }
 
-async function pause(next: boolean) {
-  try {
-    const token = await confirmAction(next ? 'distribution.pause' : 'distribution.resume', next ? t('srv.confirmPause') : t('srv.confirmResume'));
-    const result = await api('/api/v1/admin/distribution', {
-      method: 'POST',
-      body: JSON.stringify({ paused: next, reason: pauseReason.value || undefined, confirmToken: token })
-    });
-    ok(result, next ? t('srv.paused') : t('srv.resumed'));
-    await loadServers({ silent: true });
-  } catch (error) {
-    fail(error);
-  }
-}
-
 function pick(row: Record<string, unknown>, index: number) {
   selected.value = index;
   serverId.value = String(row.id || '');
@@ -178,17 +152,6 @@ onMounted(async () => {
         <button type="button" class="btn-secondary" @click="copyConfig">{{ t('srv.copy') }}</button>
       </div>
       <pre class="max-h-56 overflow-auto rounded-lg bg-gray-950 p-3 text-theme-xs text-gray-300">{{ configText }}</pre>
-    </UiCard>
-    <UiCard v-if="can('server.manage')" :title="t('srv.pauseTitle')" :desc="t('srv.pauseHint')" danger>
-      <p class="rounded-lg px-3 py-2 text-sm" :class="paused ? 'bg-error-500/10 text-error-500' : 'bg-success-500/10 text-success-500'">
-        {{ paused ? t('srv.pauseOn') : t('srv.pauseOff') }}
-      </p>
-      <label class="field">{{ t('srv.pauseReason') }}</label>
-      <input v-model="pauseReason" class="input" :placeholder="t('srv.phReason')">
-      <div class="flex flex-wrap gap-2">
-        <button type="button" class="btn-danger" @click="pause(true)">{{ t('srv.pause') }}</button>
-        <button type="button" class="btn-ok" @click="pause(false)">{{ t('srv.resume') }}</button>
-      </div>
     </UiCard>
     <UiCard :title="t('srv.list')" :desc="t('mod.clickFill')">
       <UiTable :rows="servers" :cols="['id', 'name', 'packId', 'publicAddress', 'online', 'acceptingPlayers', 'lastSeenAt']" :selected="selected" @pick="pick" />

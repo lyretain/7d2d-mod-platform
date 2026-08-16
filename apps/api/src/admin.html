@@ -445,16 +445,6 @@
         </div>
         <pre id="serverTokenResult" data-i18n="srv.tokenIdle">登记成功后，这里会给出可直接覆盖到插件目录的 server.config.json。</pre>
       </article>
-      <article class="card danger" id="pauseCard">
-        <h2 data-i18n="srv.pauseTitle">全平台紧急停发</h2>
-        <p class="hint" data-i18n="srv.pauseHint">这是平台级开关，不是某一台服务器，也不是某一个 Mod 包。开启后，所有 Pack 的更新器下载和进服握手都会被拒绝；已经装好的玩家可以继续玩。</p>
-        <label class="field" data-i18n="srv.pauseReason">停发原因</label>
-        <input id="pauseReason" data-i18n-placeholder="srv.phReason" placeholder="可选">
-        <div class="actions">
-          <button onclick="pauseDistribution(true)" data-i18n="srv.pause">紧急停止分发</button>
-          <button class="ok" onclick="pauseDistribution(false)" data-i18n="srv.resume">恢复分发</button>
-        </div>
-      </article>
       <article class="card stretch">
         <div class="card-head"><h2 data-i18n="srv.list">服务器</h2><span class="hint" data-i18n="mod.clickFill">点击一行可回填</span></div>
         <div id="list-servers" class="table-wrap"><p class="empty" data-i18n="loginEmpty">登录后自动加载</p></div>
@@ -472,6 +462,16 @@
         <div class="stat"><b id="statServers">—</b><span data-i18n="nav.servers">服务器</span></div>
         <div class="stat"><b id="statUsers">—</b><span data-i18n="ops.usersTitle">用户</span></div>
       </div>
+      <article class="card danger" id="pauseCard">
+        <h2 data-i18n="srv.pauseTitle">全平台紧急停发</h2>
+        <p class="hint" data-i18n="srv.pauseHint">这是平台级开关，不是某一台服务器，也不是某一个 Mod 包。开启后，所有 Pack 的更新器下载和进服握手都会被拒绝；已经装好的玩家可以继续玩。</p>
+        <label class="field" data-i18n="srv.pauseReason">停发原因</label>
+        <input id="pauseReason" data-i18n-placeholder="srv.phReason" placeholder="可选">
+        <div class="actions">
+          <button onclick="pauseDistribution(true)" data-i18n="srv.pause">紧急停止分发</button>
+          <button class="ok" onclick="pauseDistribution(false)" data-i18n="srv.resume">恢复分发</button>
+        </div>
+      </article>
       <article class="card">
         <h2 data-i18n="ops.quick">快捷查看</h2>
         <div class="actions">
@@ -1084,7 +1084,7 @@ function applyRole(user) {
   show('ops', perms.has('ops.read'));
   show('account', true);
   const pause = document.getElementById('pauseCard');
-  if (pause) pause.hidden = !perms.has('server.manage');
+  if (pause) pause.hidden = !perms.has('distribution.pause');
   const launcher = document.getElementById('launcherCard');
   if (launcher) launcher.hidden = !perms.has('platform.manage');
   return 'workshop';

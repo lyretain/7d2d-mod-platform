@@ -19,6 +19,8 @@ const launcherPlatform = ref('win32');
 const launcherSha = ref('');
 const launcherNotes = ref('');
 const launcherStatus = ref('');
+const pauseReason = ref('');
+const paused = ref(false);
 
 function setTable(nextRows: unknown, nextCols: string[], title: string) {
   rows.value = Array.isArray(nextRows) ? nextRows as Record<string, unknown>[] : [];
@@ -172,6 +174,29 @@ async function approveReview() {
   }
 }
 
+async function loadPauseState() {
+  try {
+    const status = await api<{ distributionPaused?: boolean }>('/status');
+    paused.value = Boolean(status.distributionPaused);
+  } catch {
+    /* keep last known */
+  }
+}
+
+async function pause(next: boolean) {
+  try {
+    const token = await confirmAction(next ? 'distribution.pause' : 'distribution.resume', next ? t('srv.confirmPause') : t('srv.confirmResume'));
+    const result = await api('/api/v1/admin/distribution', {
+      method: 'POST',
+      body: JSON.stringify({ paused: next, reason: pauseReason.value || undefined, confirmToken: token })
+    });
+    ok(result, next ? t('srv.paused') : t('srv.resumed'));
+    await loadPauseState();
+  } catch (error) {
+    fail(error);
+  }
+}
+
 function pickRow(row: Record<string, unknown>) {
   if (row.sha256) {
     reviewSha.value = String(row.sha256);
@@ -182,7 +207,11 @@ function pickRow(row: Record<string, unknown>) {
 onMounted(async () => {
   tableTitle.value = t('ops.data');
   launcherStatus.value = t('ln.none');
-  await Promise.all([loadStats({ silent: true }), can('platform.manage') ? loadLauncher({ silent: true }) : Promise.resolve()]);
+  await Promise.all([
+    loadStats({ silent: true }),
+    loadPauseState(),
+    can('platform.manage') ? loadLauncher({ silent: true }) : Promise.resolve()
+  ]);
 });
 </script>
 
@@ -201,6 +230,17 @@ onMounted(async () => {
         <span class="text-theme-xs text-gray-500">{{ item.label }}</span>
       </div>
     </div>
+    <UiCard v-if="can('distribution.pause')" :title="t('srv.pauseTitle')" :desc="t('srv.pauseHint')" danger>
+      <p class="rounded-lg px-3 py-2 text-sm" :class="paused ? 'bg-error-500/10 text-error-500' : 'bg-success-500/10 text-success-500'">
+        {{ paused ? t('srv.pauseOn') : t('srv.pauseOff') }}
+      </p>
+      <label class="field">{{ t('srv.pauseReason') }}</label>
+      <input v-model="pauseReason" class="input" :placeholder="t('srv.phReason')">
+      <div class="flex flex-wrap gap-2">
+        <button type="button" class="btn-danger" @click="pause(true)">{{ t('srv.pause') }}</button>
+        <button type="button" class="btn-ok" @click="pause(false)">{{ t('srv.resume') }}</button>
+      </div>
+    </UiCard>
     <div class="grid gap-6 xl:grid-cols-2">
       <UiCard :title="t('ops.quick')">
         <div class="flex flex-wrap gap-2">

@@ -191,9 +191,9 @@ docker compose up --build -d
 7. 标记是否包含 DLL、是否需要重启，并确认再分发许可。
 8. 在工坊挑选或到 `/packs` 创建 Pack，并发布不可变 Release。
 9. 在 `/servers` 登记专用服并绑定已发布 Pack；`server.config.json` 里的令牌只显示一次。
-10. 运维在 `/ops` 看统计、审核、审计，并发布启动器自更新包。
+10. 运维在 `/ops` 看统计、审核、审计，发布启动器自更新包；超级管理员和社区管理员可在此页做全平台紧急停发。
 
-侧栏按 `permissions` 隐藏：无 `catalog.write` 看不到 Mod 页，无 `ops.read` 看不到运维，无 `server.manage` 看不到紧急停发。
+侧栏按 `permissions` 隐藏：无 `catalog.write` 看不到 Mod 页，无 `ops.read` 看不到运维。全平台紧急停发只在运维页，且仅超级管理员和社区管理员可见。
 
 ## 八、备份和恢复
 

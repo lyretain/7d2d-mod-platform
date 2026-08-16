@@ -87,7 +87,7 @@
     'page.servers.title': '服务器',
     'page.servers.hint': '登记专用服并绑定已发布的 Pack；按 Server ID 或地址同步',
     'page.ops.title': '运维管理',
-    'page.ops.hint': '审核、审计、统计与会话',
+    'page.ops.hint': '审核、审计、统计、会话，以及全平台紧急停发',
 
     'account.title': '邀请与身份',
     'account.hint': '超级管理员邀请社区管理员；社区管理员绑定 GitHub 后可邀请开发者。普通用户开放注册，开发者用邀请码激活。',
@@ -472,7 +472,7 @@
     'page.servers.title': 'Servers',
     'page.servers.hint': 'Register a dedicated server and bind a published pack; sync by Server ID or address',
     'page.ops.title': 'Operations',
-    'page.ops.hint': 'Reviews, audit, stats, and sessions',
+    'page.ops.hint': 'Reviews, audit, stats, sessions, and the platform-wide emergency pause',
 
     'account.title': 'Invites and identity',
     'account.hint': 'Superadmins invite community admins. Community admins bind GitHub before inviting developers. Regular users register openly; developers activate with an invite.',

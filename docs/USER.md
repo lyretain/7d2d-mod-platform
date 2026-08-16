@@ -11,7 +11,7 @@ This guide is for two audiences:
 - **Hosts**: register a 7 Days to Die dedicated server so players install the same ModPack from the address they join.
 - **Players**: sync Mods from that address, then join.
 
-Anyone can register. Uploading Mods, publishing Packs, review, and the emergency pause still need a community admin or developer.
+Anyone can register. Uploading Mods, publishing Packs, and review still need a community admin or developer. The platform-wide emergency pause is on Operations and only superadmins and community admins can use it.
 
 ## 1. Register and sign in
 

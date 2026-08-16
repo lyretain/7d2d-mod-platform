@@ -69,7 +69,7 @@ Authorization: Bearer <ADMIN_TOKEN>
 | POST | `/api/v1/packs/{id}/rollback` | 管理员 | 将 latest 指针回滚到指定 Release |
 | PATCH | `/api/v1/servers/{id}` | 登录用户 | 修改自己的服务器；社区管理员可改全部 |
 | DELETE | `/api/v1/servers/{id}` | 登录用户 | 删除自己的服务器；社区管理员可删全部 |
-| POST | `/api/v1/admin/distribution` | 管理员 | 紧急停止或恢复分发 |
+| POST | `/api/v1/admin/distribution` | 超级管理员 / 社区管理员 | 紧急停止或恢复全平台分发 |
 | GET | `/api/v1/admin/audit` | 登录用户 | 查看发布审计 |
 | POST | `/api/v1/servers/{id}/sync-status` | 服务端令牌 | 上报同步状态 |
 | GET | `/api/v1/diagnostics/summary` | 登录用户 | 查看故障聚合结果 |

@@ -779,7 +779,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
       }
 
       if (req.method === 'POST' && pathname === '/api/v1/admin/distribution') {
-        if (!requirePerm(req, res, 'platform.manage')) return;
+        if (!requirePerm(req, res, 'distribution.pause')) return;
         const body = await readJson(req, 32 * 1024);
         const principal = auth.principal(req);
         const settings = await store.mutate((draft) => {
