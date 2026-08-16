@@ -1,4 +1,6 @@
-# 中文部署指南
+# 部署指南
+
+[English](DEPLOYMENT.md) · [简体中文](DEPLOYMENT.zh-CN.md)
 
 最后更新：2026-08-16。管理后台已拆成 `apps/web` Vue SPA；API 仍是零运行时依赖。
 
@@ -9,7 +11,7 @@
 - 单节点：不设 `DATABASE_URL` 时使用 JSON 文件，对象存在 `data/objects/`。
 - 生产：设置 `DATABASE_URL`、S3/MinIO 和 `SIGNING_PRIVATE_KEY` 或 `SIGNING_SERVICE_URL`。多实例必须走 PostgreSQL 和共享对象存储。
 
-完整应急步骤见 `docs/RUNBOOK.zh-CN.md`。Cloudflare CDN / R2 见 `docs/CLOUDFLARE.zh-CN.md`。
+完整应急步骤见 [RUNBOOK.zh-CN.md](RUNBOOK.zh-CN.md)（[English](RUNBOOK.md)）。Cloudflare CDN / R2 见 [CLOUDFLARE.zh-CN.md](CLOUDFLARE.zh-CN.md)（[English](CLOUDFLARE.md)）。
 
 ## 二、后台前端
 
@@ -19,7 +21,7 @@
 | `/assets/*` | SPA 静态资源（带哈希，可长期缓存） |
 | `/admin-i18n.js` | 中英文案，不复制进前端仓库 |
 | `/legacy` | 始终返回内嵌旧页 `apps/api/src/admin.html` |
-| `/guide` | 玩家与服主教程 |
+| `/guide` | 玩家与服主教程（`?lang=en` 为英文） |
 
 没有 `apps/web/dist/index.html` 时，`GET /` 回退旧页，API 与测试不依赖前端构建。对外生产应先构建前端，不要把回退页当正式后台。
 
@@ -158,7 +160,7 @@ docker compose up --build -d
 - `GET /admin-i18n.js` 为 JavaScript；
 - 登录后工坊、Pack、服务器、运维页可用。
 
-蓝绿切流见 `docs/RUNBOOK.zh-CN.md`。多实例禁止共享同一份 JSON 文件。
+蓝绿切流见 [RUNBOOK.zh-CN.md](RUNBOOK.zh-CN.md)。多实例禁止共享同一份 JSON 文件。
 
 ## 六、HTTPS 与反向代理
 

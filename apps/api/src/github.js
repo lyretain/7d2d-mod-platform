@@ -16,7 +16,7 @@ export async function exchangeGithubCode({ clientId, clientSecret, code, redirec
   const tokenBody = await tokenRes.json();
   if (!tokenBody.access_token) throw Object.assign(new Error('GitHub authorization failed'), { code: 'INVALID_CREDENTIALS' });
   const userRes = await fetch('https://api.github.com/user', {
-    headers: { authorization: `Bearer ${tokenBody.access_token}`, accept: 'application/vnd.github+json', 'user-agent': '7dtd-mod-platform' }
+    headers: { authorization: `Bearer ${tokenBody.access_token}`, accept: 'application/vnd.github+json', 'user-agent': 'hordepin' }
   });
   const profile = await userRes.json();
   if (!profile.id) throw Object.assign(new Error('GitHub profile was not returned'), { code: 'INVALID_CREDENTIALS' });

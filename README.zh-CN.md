@@ -1,8 +1,10 @@
-# 七日杀 Mod 分发与诊断平台
+# 潮印 Hordepin
 
 [English](README.md) · 简体中文 · [MIT 许可证](LICENSE)
 
-这是一个可部署的单节点 MVP，用于管理、签名、分发七日杀 ModPack，并收集客户端和服务端故障信息。
+**潮印**（英文 **Hordepin**）是一个可部署的单节点平台，用于给七日杀私服的 ModPack 签名、分发，并收集客户端与服务端故障信息。名字取「尸潮」与「印/钉死」：平台公钥 TOFU 钉死，进服握手再把玩家钉在当前 Pack 上。
+
+插件目录和程序集仍叫 `ModPlatform*`，已安装的服不必改文件夹名。
 
 当前插件已针对七日杀 `V 3.10.14`、Steam Build `24436778` 重新编译。真实进服验证仍需在本机启动一次客户端和专用服务器。
 
@@ -37,7 +39,7 @@ plugins/server/           七日杀服务端插件源码
 plugins/shared/           插件共享协议代码
 artifacts/plugins/        已编译的客户端和服务端插件包
 deploy/                   部署及构建脚本
-docs/                     协议、API、安全和中文指南
+docs/                     中英双语：协议、API、安全、部署与教程
 data/                     单节点元数据、签名密钥和 Mod 文件
 ```
 
@@ -62,7 +64,7 @@ npm run dev
 npm run dev:web
 ```
 
-完整步骤见 [中文部署指南](docs/DEPLOYMENT.zh-CN.md)。
+完整步骤见 [部署指南](docs/DEPLOYMENT.zh-CN.md)（[English](docs/DEPLOYMENT.md)）。
 
 首次部署流程：
 
@@ -76,7 +78,7 @@ npm run dev:web
 
 首个用户注册后，`ADMIN_TOKEN` 默认停止作为后台身份使用。只有设置 `ALLOW_BOOTSTRAP_ADMIN=true` 才能继续使用它，建议仅在账户恢复时临时启用。
 
-玩家进服与服主登记服务器，参见 [玩家与服主教程](docs/USER.zh-CN.md)。线上也可打开 `https://mods.aic.la/guide`。
+玩家进服与服主登记服务器，参见 [玩家与服主教程](docs/USER.zh-CN.md)（[English](docs/USER.md)）。线上也可打开 `https://mods.aic.la/guide` 或 `https://mods.aic.la/guide?lang=en`。
 
 ## 客户端同步
 
@@ -123,7 +125,7 @@ artifacts/plugins/ModPlatformClient
 artifacts/plugins/ModPlatformServer
 ```
 
-插件编译和安装参见 [插件构建与安装指南](docs/PLUGIN.zh-CN.md)。
+插件编译和安装参见 [插件构建与安装指南](docs/PLUGIN.zh-CN.md)（[English](docs/PLUGIN.md)）。
 
 ## 故障守护程序
 
@@ -204,9 +206,14 @@ npm.cmd test
 
 ## 进一步阅读
 
-- [生产环境 TODO](docs/PRODUCTION-TODO.zh-CN.md)
-- [部署指南](docs/DEPLOYMENT.zh-CN.md)
-- [插件构建与安装](docs/PLUGIN.zh-CN.md)
-- [中文 API 说明](docs/API.zh-CN.md)
-- [中文安全说明](docs/SECURITY.zh-CN.md)
-- [英文协议说明](docs/PROTOCOL.md)
+索引：[docs/README.zh-CN.md](docs/README.zh-CN.md)
+
+- [玩家与服主教程](docs/USER.zh-CN.md) · [English](docs/USER.md)
+- [部署指南](docs/DEPLOYMENT.zh-CN.md) · [English](docs/DEPLOYMENT.md)
+- [插件构建与安装](docs/PLUGIN.zh-CN.md) · [English](docs/PLUGIN.md)
+- [生产运维 Runbook](docs/RUNBOOK.zh-CN.md) · [English](docs/RUNBOOK.md)
+- [Cloudflare CDN](docs/CLOUDFLARE.zh-CN.md) · [English](docs/CLOUDFLARE.md)
+- [生产环境 TODO](docs/PRODUCTION-TODO.zh-CN.md) · [English](docs/PRODUCTION-TODO.md)
+- [API 说明](docs/API.zh-CN.md) · [English](docs/API.md)
+- [安全说明](docs/SECURITY.zh-CN.md) · [English](docs/SECURITY.md)
+- [协议 v1](docs/PROTOCOL.zh-CN.md) · [English](docs/PROTOCOL.md)

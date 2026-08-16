@@ -1,5 +1,7 @@
 # 生产运维 Runbook
 
+[English](RUNBOOK.md) · [简体中文](RUNBOOK.zh-CN.md)
+
 目标：在预定 RTO 内从全新环境恢复后台、对象文件和签名能力。
 
 建议目标：

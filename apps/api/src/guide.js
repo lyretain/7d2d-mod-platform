@@ -36,13 +36,16 @@ function renderBlocks(markdown) {
   return html;
 }
 
-export function renderUserGuide(markdown) {
+export function renderUserGuide(markdown, lang = 'zh') {
+  const isEn = lang === 'en';
+  const title = isEn ? 'Player and host guide · Hordepin' : '玩家与服主教程 · 潮印';
+  const home = isEn ? 'Back to Hordepin' : '返回平台';
   return `<!doctype html>
-<html lang="zh-CN">
+<html lang="${isEn ? 'en' : 'zh-CN'}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>玩家与服主教程 · 七日杀 Mod 平台</title>
+  <title>${title}</title>
   <style>
     body { margin: 0; background: #101114; color: #e8e6e1; font: 16px/1.65 system-ui, "Segoe UI", "Microsoft YaHei", sans-serif; }
     main { width: min(760px, calc(100% - 32px)); margin: 0 auto; padding: 32px 0 64px; }
@@ -62,7 +65,7 @@ export function renderUserGuide(markdown) {
 </head>
 <body>
   <main>
-    <nav><a href="/">返回平台</a></nav>
+    <nav><a href="/">${home}</a><a href="/guide">简体中文</a><a href="/guide?lang=en">English</a></nav>
     ${renderBlocks(markdown)}
   </main>
 </body>

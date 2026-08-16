@@ -1,5 +1,7 @@
 # 生产环境 TODO
 
+[English](PRODUCTION-TODO.md) · [简体中文](PRODUCTION-TODO.zh-CN.md)
+
 最后检查日期：2026-08-16
 
 当前状态：P0、P1 与后台 API/管理面已落地。CDN 按 Cloudflare（源站缓存或 R2 自定义域名）设计。Windows 客户端插件与 Windows 专用服已完成真实进服验收（V 3.1.0 / Steam Build 24436778）。仍待验收：本地主机模式、Linux 专用服、启动器 Authenticode 代码签名，以及 Postgres/浏览器/压测门禁。启动器 Ed25519 自更新与独立 Vue 后台已落地。

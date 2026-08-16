@@ -1,6 +1,6 @@
 (function (root) {
   const zh = {
-    docTitle: '七日杀 Mod 平台',
+    docTitle: '潮印',
     langZh: '中文',
     langEn: 'EN',
     guide: '教程',
@@ -36,7 +36,7 @@
     'setup.already': '平台已经初始化，请返回登录。',
     'setup.done': '社区已初始化',
 
-    'gate.title': '七日杀 Mod 社区',
+    'gate.title': '潮印',
     'gate.lead': '面向服主与玩家的验签分发平台。普通用户可直接注册并登记服务器，更新器只安装已签名的 Pack。',
     'gate.guide': '阅读玩家与服主教程',
     'gate.f1t': '验签分发',
@@ -64,8 +64,8 @@
     'gate.phRegPassword': '至少10位',
     'gate.phInvite': '社区管理员邀请码，可留空',
 
-    'nav.brand': '七日杀 Mod 社区',
-    'nav.sub': '运营后台',
+    'nav.brand': '潮印',
+    'nav.sub': '七日杀验签分发',
     'nav.workshop': 'Mod列表',
     'nav.mods': '我的Mod',
     'nav.packs': 'Mod包管理',
@@ -382,7 +382,7 @@
   };
 
   const en = {
-    docTitle: '7DTD Mod Platform',
+    docTitle: 'Hordepin',
     langZh: '中文',
     langEn: 'EN',
     guide: 'Guide',
@@ -418,7 +418,7 @@
     'setup.already': 'The platform is already initialized. Please sign in.',
     'setup.done': 'Community initialized',
 
-    'gate.title': '7 Days to Die Mod Community',
+    'gate.title': 'Hordepin',
     'gate.lead': 'A signed distribution platform for hosts and players. Anyone can register a server; the updater only installs signed packs.',
     'gate.guide': 'Read the player and host guide',
     'gate.f1t': 'Signed releases',
@@ -446,8 +446,8 @@
     'gate.phRegPassword': 'At least 10 characters',
     'gate.phInvite': 'Community-admin invite, optional',
 
-    'nav.brand': '7DTD Mod Community',
-    'nav.sub': 'Operations console',
+    'nav.brand': 'Hordepin',
+    'nav.sub': 'Signed 7DTD packs',
     'nav.workshop': 'Mod list',
     'nav.mods': 'My mods',
     'nav.packs': 'Pack management',

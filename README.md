@@ -1,8 +1,10 @@
-# 7DTD Mod Platform MVP
+# Hordepin
 
 [简体中文文档](README.zh-CN.md) · English · [MIT License](LICENSE)
 
-A deployable, dependency-light MVP for managing, signing, distributing and diagnosing 7 Days to Die ModPacks.
+**Hordepin** (Chinese: **潮印**) is a deployable, dependency-light platform for signing, distributing, and diagnosing 7 Days to Die ModPacks on private servers. The name is *horde* (the game’s signature night) plus *pin* (pinned platform keys and a join handshake that locks clients to the server’s pack).
+
+Plugin folders and assemblies stay `ModPlatform*` so existing installs keep working.
 
 ## Included
 
@@ -42,7 +44,7 @@ npm run dev
 npm run dev:web
 ```
 
-Player and server-owner tutorial: [docs/USER.zh-CN.md](docs/USER.zh-CN.md) or `/guide` on a running instance.
+Player and host tutorial: [docs/USER.md](docs/USER.md) / [中文](docs/USER.zh-CN.md), or `/guide` and `/guide?lang=en` on a running instance.
 
 ### Run with Docker
 
@@ -157,3 +159,17 @@ That does **not** automatically make a 7DTD-related business legal. Separate rul
 4. **Dependencies above** — Vue, Vite, Tailwind, Lucide, and TailAdmin community are permissive. Do not copy TailAdmin Pro assets. If you run MinIO, follow MinIO’s own license.
 
 This is not legal advice. If you plan to charge players or redistribute Mods at scale, get a lawyer to review the Fun Pimps terms and your Mod author contracts.
+
+## Further reading
+
+Index: [docs/README.md](docs/README.md)
+
+- [Player and host guide](docs/USER.md) · [中文](docs/USER.zh-CN.md)
+- [Deployment](docs/DEPLOYMENT.md) · [中文](docs/DEPLOYMENT.zh-CN.md)
+- [Plugin build and install](docs/PLUGIN.md) · [中文](docs/PLUGIN.zh-CN.md)
+- [Production runbook](docs/RUNBOOK.md) · [中文](docs/RUNBOOK.zh-CN.md)
+- [Cloudflare CDN](docs/CLOUDFLARE.md) · [中文](docs/CLOUDFLARE.zh-CN.md)
+- [Production TODO](docs/PRODUCTION-TODO.md) · [中文](docs/PRODUCTION-TODO.zh-CN.md)
+- [HTTP API](docs/API.md) · [中文](docs/API.zh-CN.md)
+- [Security](docs/SECURITY.md) · [中文](docs/SECURITY.zh-CN.md)
+- [Protocol v1](docs/PROTOCOL.md) · [中文](docs/PROTOCOL.zh-CN.md)

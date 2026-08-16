@@ -1,4 +1,6 @@
-# 中文 API 说明
+# API 说明
+
+[English](API.md) · [简体中文](API.zh-CN.md)
 
 管理员接口必须携带：
 
@@ -72,8 +74,14 @@ Authorization: Bearer <ADMIN_TOKEN>
 | POST | `/api/v1/servers/{id}/sync-status` | 服务端令牌 | 上报同步状态 |
 | GET | `/api/v1/diagnostics/summary` | 登录用户 | 查看故障聚合结果 |
 | GET | `/api/v1/public/packs/{id}/latest` | 公开 | 获取最新签名 manifest |
+| GET | `/api/v1/public/launcher/latest?platform=win32` | 公开 | 获取已签名的启动器自更新 manifest |
+| POST | `/api/v1/admin/launcher` | 管理员 | 把已入库的启动器 ZIP 发布为自更新通道 |
+| POST | `/api/v1/admin/launcher/revoke` | 管理员 | 吊销某平台当前启动器 |
+| GET | `/api/v1/admin/launcher` | 管理员 | 查看已发布的启动器通道 |
 | GET | `/api/v1/public/artifacts/{sha256}` | 公开 | 下载不可变 Mod 文件 |
-| GET | `/api/v1/public/servers/resolve?address=host:port` | 公开 | 根据服务器地址解析 ModPack |
+| GET | `/api/v1/public/servers/resolve?address=host:port` | 公开 | 根据服务器地址解析 ModPack，也可用 `?serverId=` |
+| POST | `/api/v1/public/handshakes` | 公开 | 客户端插件提交待认领 hello |
+| POST | `/api/v1/servers/{id}/pending-handshake/claim` | 服务端令牌 | 服务端插件按玩家 ID 认领 hello |
 | GET | `/api/v1/servers/{id}/assignment` | 服务端令牌 | 获取服务器分配和心跳 |
 | POST | `/api/v1/diagnostics` | 公开、受限流保护 | 上传诊断事件 |
 

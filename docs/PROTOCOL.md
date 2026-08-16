@@ -1,5 +1,7 @@
 # Protocol v1
 
+[English](PROTOCOL.md) · [简体中文](PROTOCOL.zh-CN.md)
+
 ## Trust model
 
 The platform signs the canonical JSON representation of each manifest with Ed25519. `signing` is omitted while canonicalizing. Clients pin the SPKI public key on first contact, or administrators provide it explicitly. A changed key is rejected until approved.
