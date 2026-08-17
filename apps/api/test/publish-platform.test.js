@@ -9,7 +9,7 @@ import { SigningService } from '../src/signing.js';
 import { JsonStore } from '../src/store.js';
 import { sha256 } from '../src/util.js';
 import { createStoredZip } from '../../updater/test/zip-helper.js';
-import { describeApiError, packArtifacts, pluginSpecFromZip, pluginVersionFromFiles, publishPlatform, requestHeaders, zipPluginFolder } from '../../../deploy/publish-platform.js';
+import { describeApiError, packArtifacts, parseOriginAddress, pluginSpecFromZip, pluginVersionFromFiles, publishPlatform, requestHeaders, resolvePublishTarget, zipPluginFolder } from '../../../deploy/publish-platform.js';
 
 async function fixture(t, extra = {}) {
   const dataDir = await mkdtemp(path.join(os.tmpdir(), 'mod-platform-publish-'));
@@ -54,6 +54,26 @@ test('detects Cloudflare challenge pages and sends the skip header', () => {
   assert.equal(requestHeaders({ PLATFORM_CF_SKIP_TOKEN: 'ci-secret' })['x-hordepin-ci'], 'ci-secret');
 });
 
+test('origin IP publish target keeps the public Host header', () => {
+  assert.deepEqual(parseOriginAddress('203.0.113.10:8080'), { ip: '203.0.113.10', port: '8080' });
+  const target = resolvePublishTarget({
+    baseUrl: 'https://mods.aic.la',
+    originIp: '203.0.113.10:8080'
+  });
+  assert.equal(target.connectHost, '203.0.113.10');
+  assert.equal(target.port, 8080);
+  assert.equal(target.protocol, 'http:');
+  assert.equal(target.host, 'mods.aic.la');
+  assert.equal(target.sni, 'mods.aic.la');
+  const tlsTarget = resolvePublishTarget({
+    baseUrl: 'https://mods.aic.la',
+    originIp: '203.0.113.10'
+  });
+  assert.equal(tlsTarget.protocol, 'https:');
+  assert.equal(tlsTarget.port, 443);
+  assert.equal(tlsTarget.connectHost, '203.0.113.10');
+});
+
 test('plugin zip version is read from plugin-version.json', () => {
   const zip = pluginZip('ModPlatformClient', '0.2.12');
   const spec = pluginSpecFromZip('mod-platform-client', zip);
@@ -84,8 +104,13 @@ test('CI can upload first-party plugins and developers cannot register those ids
   assert.equal(packed.specs.length, 2);
   assert.ok((await zipPluginFolder(clientDir, 'ModPlatformClient')).length > 0);
 
+  const origin = new URL(base);
   const published = await publishPlatform({
-    baseUrl: base,
+    baseUrl: 'https://mods.aic.la',
+    originIp: origin.hostname,
+    originPort: origin.port,
+    originScheme: 'http',
+    publicHost: 'mods.aic.la',
     token: 'test-admin-token-1234',
     clientDir,
     serverDir,

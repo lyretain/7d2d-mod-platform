@@ -1,5 +1,9 @@
 #!/usr/bin/env node
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { createHash } from 'node:crypto';
+import http from 'node:http';
+import https from 'node:https';
+import tls from 'node:tls';
 import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -96,14 +100,71 @@ export function requestHeaders(env = process.env) {
 export function describeApiError(status, text) {
   const body = String(text || '');
   if (/just a moment|cf-mitigated|challenges\.cloudflare\.com/i.test(body)) {
-    return `Cloudflare blocked this CI request (${status}). Skip Bot Fight Mode for /api/v1/*, or add a WAF skip for header x-hordepin-ci and set secret PLATFORM_CF_SKIP_TOKEN.`;
+    return `Cloudflare blocked this CI request (${status}). Set repository variable PLATFORM_ORIGIN_IP to the origin public IP so CI bypasses Cloudflare, or skip Bot Fight for /api/v1/* / header x-hordepin-ci.`;
   }
   return body.slice(0, 500) || `HTTP ${status}`;
+}
+
+export function parseOriginAddress(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return { ip: '', port: '' };
+  const bracket = raw.match(/^\[([^\]]+)\](?::(\d+))?$/);
+  if (bracket) return { ip: bracket[1], port: bracket[2] || '' };
+  if (/^\d{1,3}(?:\.\d{1,3}){3}:\d+$/.test(raw)) {
+    const index = raw.lastIndexOf(':');
+    return { ip: raw.slice(0, index), port: raw.slice(index + 1) };
+  }
+  return { ip: raw, port: '' };
+}
+
+export function resolvePublishTarget({
+  baseUrl = 'https://mods.aic.la',
+  originIp = '',
+  originScheme = '',
+  originPort = '',
+  publicHost = '',
+  insecure = false
+} = {}) {
+  const publicUrl = new URL(String(baseUrl || 'https://mods.aic.la').replace(/\/$/, '') + '/');
+  const hostHeader = String(publicHost || publicUrl.host || publicUrl.hostname).trim() || publicUrl.hostname;
+  const parsed = parseOriginAddress(originIp);
+  if (!parsed.ip) {
+    return {
+      protocol: publicUrl.protocol,
+      connectHost: publicUrl.hostname,
+      port: Number(publicUrl.port || (publicUrl.protocol === 'https:' ? 443 : 80)),
+      host: publicUrl.host,
+      sni: publicUrl.hostname,
+      insecure: false
+    };
+  }
+  const port = String(originPort || parsed.port || '').trim();
+  const scheme = String(originScheme || (port === '80' || port === '8080' ? 'http' : 'https')).replace(':', '').toLowerCase();
+  const resolvedPort = Number(port || (scheme === 'http' ? 80 : 443));
+  return {
+    protocol: `${scheme}:`,
+    connectHost: parsed.ip,
+    port: resolvedPort,
+    host: hostHeader,
+    sni: hostHeader.split(':')[0],
+    insecure: Boolean(insecure)
+  };
+}
+
+const publishContext = new AsyncLocalStorage();
+
+function currentPublish() {
+  return publishContext.getStore() || {};
 }
 
 export function parseArgs(argv = process.argv.slice(2), env = process.env) {
   const options = {
     baseUrl: env.PLATFORM_BASE_URL || env.PUBLIC_BASE_URL || 'https://mods.aic.la',
+    originIp: env.PLATFORM_ORIGIN_IP || '',
+    originScheme: env.PLATFORM_ORIGIN_SCHEME || '',
+    originPort: env.PLATFORM_ORIGIN_PORT || '',
+    publicHost: env.PLATFORM_PUBLIC_HOST || '',
+    insecure: env.PLATFORM_ORIGIN_INSECURE === 'true',
     token: env.PLATFORM_TOKEN || '',
     username: env.PLATFORM_USERNAME || '',
     password: env.PLATFORM_PASSWORD || '',
@@ -129,9 +190,56 @@ export function parseArgs(argv = process.argv.slice(2), env = process.env) {
   return options;
 }
 
-async function api(baseUrl, token, pathname, { method = 'GET', headers = {}, body } = {}) {
-  const response = await fetch(`${String(baseUrl).replace(/\/$/, '')}${pathname}`, {
+function sendRequest(target, { method, pathname, headers, body }) {
+  const payload = body == null ? null : (Buffer.isBuffer(body) ? body : Buffer.from(body));
+  const lib = target.protocol === 'https:' ? https : http;
+  const reqHeaders = { host: target.host, ...headers };
+  if (payload) reqHeaders['content-length'] = String(payload.length);
+  const options = {
+    protocol: target.protocol,
+    hostname: target.connectHost,
+    port: target.port,
+    path: pathname,
     method,
+    headers: reqHeaders
+  };
+  if (target.protocol === 'https:') {
+    options.servername = target.sni;
+    if (target.insecure) {
+      options.rejectUnauthorized = false;
+      options.checkServerIdentity = () => undefined;
+    } else {
+      options.checkServerIdentity = (_host, cert) => tls.checkServerIdentity(target.sni, cert);
+    }
+  }
+  return new Promise((resolve, reject) => {
+    const req = lib.request(options, (res) => {
+      const chunks = [];
+      res.on('data', (chunk) => chunks.push(chunk));
+      res.on('end', () => {
+        const text = Buffer.concat(chunks).toString('utf8');
+        resolve({ ok: res.statusCode >= 200 && res.statusCode < 300, status: res.statusCode, text });
+      });
+    });
+    req.on('error', reject);
+    if (payload) req.write(payload);
+    req.end();
+  });
+}
+
+async function api(baseUrl, token, pathname, { method = 'GET', headers = {}, body } = {}) {
+  const options = currentPublish();
+  const target = resolvePublishTarget({
+    baseUrl,
+    originIp: options.originIp || process.env.PLATFORM_ORIGIN_IP,
+    originScheme: options.originScheme || process.env.PLATFORM_ORIGIN_SCHEME,
+    originPort: options.originPort || process.env.PLATFORM_ORIGIN_PORT,
+    publicHost: options.publicHost || process.env.PLATFORM_PUBLIC_HOST,
+    insecure: options.insecure || process.env.PLATFORM_ORIGIN_INSECURE === 'true'
+  });
+  const response = await sendRequest(target, {
+    method,
+    pathname,
     headers: {
       ...requestHeaders(process.env),
       ...(token ? { authorization: `Bearer ${token}` } : {}),
@@ -139,7 +247,7 @@ async function api(baseUrl, token, pathname, { method = 'GET', headers = {}, bod
     },
     body
   });
-  const text = await response.text();
+  const text = response.text;
   let parsed = null;
   try { parsed = text ? JSON.parse(text) : null; } catch { parsed = { raw: text }; }
   if (!response.ok) {
@@ -300,38 +408,44 @@ export async function packArtifacts(options) {
 export async function publishPlatform(options) {
   const packed = await packArtifacts(options);
   if (options.packOnly) return { packed, published: false, skipped: 'pack-only' };
-  const token = await login(options.baseUrl, options);
-  if (!token) return { packed, published: false, skipped: 'no credentials' };
-  const uploaded = [];
-  for (const spec of packed.specs) {
-    const fileName = `${spec.root}-${spec.version}.zip`;
-    const artifact = await uploadArtifact(options.baseUrl, token, spec.zip, fileName);
-    await approveReview(options.baseUrl, token, spec.sha256);
-    const mod = await registerMod(options.baseUrl, token, spec);
-    uploaded.push({ id: spec.id, version: spec.version, sha256: spec.sha256, size: spec.zip.length, artifact, mod });
-  }
-  let launcher = null;
-  const launcherPath = await findLauncherZip(options.outputDir, options.launcherZip);
-  if (options.publishLauncher && launcherPath) {
-    const zip = await readFile(launcherPath);
-    const hash = sha256Buffer(zip);
-    const pkg = JSON.parse(await readFile(path.join(ROOT, 'package.json'), 'utf8'));
-    await uploadArtifact(options.baseUrl, token, zip, path.basename(launcherPath));
-    await approveReview(options.baseUrl, token, hash);
-    launcher = await publishLauncher(options.baseUrl, token, {
-      sha256: hash,
-      version: pkg.version,
-      fileName: path.basename(launcherPath),
-      notes: process.env.GITHUB_SHA ? `github:${process.env.GITHUB_SHA}` : 'ci'
+  return publishContext.run(options, async () => {
+    const target = resolvePublishTarget(options);
+    if (options.originIp) {
+      console.log(`Publishing via origin ${target.connectHost}:${target.port} (${target.protocol}) Host: ${target.host}`);
+    }
+    const token = await login(options.baseUrl, options);
+    if (!token) return { packed, published: false, skipped: 'no credentials' };
+    const uploaded = [];
+    for (const spec of packed.specs) {
+      const fileName = `${spec.root}-${spec.version}.zip`;
+      const artifact = await uploadArtifact(options.baseUrl, token, spec.zip, fileName);
+      await approveReview(options.baseUrl, token, spec.sha256);
+      const mod = await registerMod(options.baseUrl, token, spec);
+      uploaded.push({ id: spec.id, version: spec.version, sha256: spec.sha256, size: spec.zip.length, artifact, mod });
+    }
+    let launcher = null;
+    const launcherPath = await findLauncherZip(options.outputDir, options.launcherZip);
+    if (options.publishLauncher && launcherPath) {
+      const zip = await readFile(launcherPath);
+      const hash = sha256Buffer(zip);
+      const pkg = JSON.parse(await readFile(path.join(ROOT, 'package.json'), 'utf8'));
+      await uploadArtifact(options.baseUrl, token, zip, path.basename(launcherPath));
+      await approveReview(options.baseUrl, token, hash);
+      launcher = await publishLauncher(options.baseUrl, token, {
+        sha256: hash,
+        version: pkg.version,
+        fileName: path.basename(launcherPath),
+        notes: process.env.GITHUB_SHA ? `github:${process.env.GITHUB_SHA}` : 'ci'
+      });
+    }
+    const pack = await upsertPlatformPack(options.baseUrl, token, {
+      packId: options.packId,
+      packName: options.packName,
+      gameVersion: options.gameVersion,
+      specs: packed.specs
     });
-  }
-  const pack = await upsertPlatformPack(options.baseUrl, token, {
-    packId: options.packId,
-    packName: options.packName,
-    gameVersion: options.gameVersion,
-    specs: packed.specs
+    return { packed: { files: packed.files }, published: true, uploaded, launcher, pack };
   });
-  return { packed: { files: packed.files }, published: true, uploaded, launcher, pack };
 }
 
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);

@@ -239,7 +239,7 @@ docker compose up --build -d
 
 | 密钥 | 用途 |
 |---|---|
-| `PLATFORM_BASE_URL` | API 地址，默认 `https://mods.aic.la` |
+| `PLATFORM_BASE_URL` | 对外 API 域名，默认 `https://mods.aic.la`。不要填源站 IP |
 | `PLATFORM_TOKEN` | 超级管理员会话令牌（也可用用户名密码） |
 | `PLATFORM_USERNAME` | 超级管理员登录名；该账户不能开 TOTP |
 | `PLATFORM_PASSWORD` | 超级管理员密码 |
@@ -255,12 +255,18 @@ docker compose up --build -d
 | `PLATFORM_GAME_VERSION` | 默认 `3.10.14` |
 | `PLATFORM_PUBLISH_LAUNCHER` | 设为 `false` 则不发布启动器自更新 |
 | `STEAM_BUILD_ID` | 缓存键，默认 `24436778` |
+| `PLATFORM_ORIGIN_IP` | 源站真实 IP，可带端口如 `203.0.113.10:8080`。填写后 CI 直连该地址，Host 仍用 `mods.aic.la`，绕过 Cloudflare 质询 |
+| `PLATFORM_ORIGIN_SCHEME` | 可选 `http` / `https`。端口为 `80`/`8080` 时默认 http；源站若把 HTTP 跳到域名再进 Cloudflare，应改用 `https` |
+| `PLATFORM_ORIGIN_PORT` | 可选。未写在 IP 里时用这个端口 |
+| `PLATFORM_PUBLIC_HOST` | 可选。默认从 `PLATFORM_BASE_URL` 取主机名 |
+| `PLATFORM_ORIGIN_INSECURE` | 可选。`true` 时跳过源站 HTTPS 证书校验（仅自签证书） |
 
 CI 账户必须是超级管理员（`platform.manage`）。本地等价命令：
 
 ```powershell
 npm run publish-platform -- --pack-only
 $env:PLATFORM_BASE_URL = "https://mods.aic.la"
+$env:PLATFORM_ORIGIN_IP = "203.0.113.10:8080"
 $env:PLATFORM_USERNAME = "ci-bot"
 $env:PLATFORM_PASSWORD = "..."
 npm run publish-platform

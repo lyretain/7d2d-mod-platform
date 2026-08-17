@@ -76,12 +76,18 @@ Manifest download URLs become `https://cdn.example.com/objects/<sha256>`. Hash b
 - Managed rules plus rate limits on `/api/v1/auth/login`, `/api/v1/auth/register`, `/api/v1/diagnostics`.
 - Do **not** put Bot Fight / managed challenges on `/api/v1/*`. GitHub Actions, the launcher, and the game plugins cannot pass a “Just a moment…” page.
 - Admin host `admin.example.com` can add IP Access or Zero Trust.
-- Allow only Cloudflare IPs to the origin, or use Authenticated Origin Pulls.
+- Allow only Cloudflare IPs to the origin, or use Authenticated Origin Pulls. If CI uses `PLATFORM_ORIGIN_IP`, also allow GitHub Actions on that origin port.
 - Free/Pro plans cap a single upload at 100 MB. The admin UI chunks ZIP files larger than 8 MiB (8 MiB each). Player downloads are not affected.
 
 ### Let CI through Cloudflare
 
-GitHub egress IPs often get a 403 HTML challenge. Use either:
+GitHub egress IPs often get a 403 HTML challenge. Prefer repository variable **`PLATFORM_ORIGIN_IP`** so CI talks to the origin directly:
+
+1. GitHub → **Settings** → **Secrets and variables** → **Actions** → **Variables**
+2. Add `PLATFORM_ORIGIN_IP` = the origin public IP, for example `203.0.113.10` or `203.0.113.10:8080`
+3. Allow GitHub Actions to reach that port; the `Host` header stays `mods.aic.la`. Keep `PLATFORM_BASE_URL` as `https://mods.aic.la`; do not put the IP there.
+
+You can still Skip Bot Fight on `/api/v1/` or header `x-hordepin-ci` instead.
 
 1. **Recommended: turn off bot challenges on the API**  
    Cloudflare Dashboard → **Security** → **WAF** → **Custom rules** → **Create rule**  

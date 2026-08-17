@@ -239,7 +239,7 @@ Repository **secrets**:
 
 | Secret | Purpose |
 |---|---|
-| `PLATFORM_BASE_URL` | API origin; defaults to `https://mods.aic.la` |
+| `PLATFORM_BASE_URL` | Public API host; defaults to `https://mods.aic.la`. Do not put the origin IP here |
 | `PLATFORM_TOKEN` | Session bearer for a superadmin (optional if username/password are set) |
 | `PLATFORM_USERNAME` | Superadmin login; the account must not use TOTP |
 | `PLATFORM_PASSWORD` | Superadmin password |
@@ -255,12 +255,18 @@ Repository **variables** (optional):
 | `PLATFORM_GAME_VERSION` | Default `3.10.14` |
 | `PLATFORM_PUBLISH_LAUNCHER` | Set `false` to skip launcher self-update |
 | `STEAM_BUILD_ID` | Cache key; default `24436778` |
+| `PLATFORM_ORIGIN_IP` | Origin public IP, optionally with a port such as `203.0.113.10:8080`. CI connects here and still sends `Host: mods.aic.la`, skipping Cloudflare challenges |
+| `PLATFORM_ORIGIN_SCHEME` | Optional `http` / `https`. Defaults to http when the port is `80` or `8080`. Use `https` if the origin redirects HTTP back to the public hostname |
+| `PLATFORM_ORIGIN_PORT` | Optional when the port is not part of the IP value |
+| `PLATFORM_PUBLIC_HOST` | Optional. Defaults to the host in `PLATFORM_BASE_URL` |
+| `PLATFORM_ORIGIN_INSECURE` | Optional. `true` skips origin HTTPS certificate checks (self-signed only) |
 
 The CI user must be a superadmin (`platform.manage`). Local equivalent:
 
 ```powershell
 npm run publish-platform -- --pack-only
 $env:PLATFORM_BASE_URL = "https://mods.aic.la"
+$env:PLATFORM_ORIGIN_IP = "203.0.113.10:8080"
 $env:PLATFORM_USERNAME = "ci-bot"
 $env:PLATFORM_PASSWORD = "..."
 npm run publish-platform
