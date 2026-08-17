@@ -164,7 +164,7 @@ async function submitDialog() {
     dialogOpen.value = false;
     clearCart();
     await loadPacks({ silent: true });
-    if (goPick) await router.push(`/packs/${encodeURIComponent(pack.id)}/contents`);
+    if (goPick) await router.push(`/packs/${encodeURIComponent(pack.id)}`);
   } catch (error) {
     fail(error);
   }

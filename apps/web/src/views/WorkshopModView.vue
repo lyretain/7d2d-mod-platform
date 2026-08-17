@@ -150,7 +150,7 @@ async function submitDialog() {
     dialogOpen.value = false;
     await loadPacks({ silent: true });
     ok(pack, t('ws.createdPick'));
-    await router.push(`/packs/${encodeURIComponent(pack.id)}/contents`);
+    await router.push(`/packs/${encodeURIComponent(pack.id)}`);
   } catch (error) {
     fail(error);
   }
