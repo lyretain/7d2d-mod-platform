@@ -46,6 +46,7 @@ test('admin page wires i18n script and language switch', () => {
   assert.match(html, /<script src="\/admin-i18n\.js"><\/script>/);
   assert.match(html, /data-lang-switch/);
   assert.match(html, /data-i18n="gate\.title"/);
+  assert.match(html, /github.com\/lyretain\/7d2d-mod-platform/);
   assert.match(html, /function applyI18n\(/);
   assert.match(html, /function setLang\(/);
 });

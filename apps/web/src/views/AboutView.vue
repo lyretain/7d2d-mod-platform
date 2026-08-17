@@ -3,6 +3,7 @@ import { Download } from 'lucide-vue-next';
 import { computed, onMounted, ref } from 'vue';
 import { api } from '../api/client';
 import AppFooter from '../components/AppFooter.vue';
+import GitHubRepoLink from '../components/GitHubRepoLink.vue';
 import LangSwitch from '../components/LangSwitch.vue';
 import UiCard from '../components/UiCard.vue';
 import { i18n, t } from '../i18n';
@@ -72,6 +73,7 @@ function shaLabel(value?: string) {
           <span class="text-theme-xs text-gray-500">{{ t('nav.sub') }}</span>
         </router-link>
         <div class="flex items-center gap-2">
+          <GitHubRepoLink :labeled="false" :size="18" />
           <LangSwitch />
           <a href="/guide" class="btn-secondary hidden sm:inline-flex">{{ t('guide') }}</a>
           <router-link to="/signin" class="btn-primary">{{ t('about.signin') }}</router-link>

@@ -7,6 +7,7 @@ import { useSidebar } from '../composables/useSidebar';
 import { i18n, t } from '../i18n';
 import { clearToken } from '../stores/session';
 import { showToast } from '../stores/toast';
+import GitHubRepoLink from './GitHubRepoLink.vue';
 import LangSwitch from './LangSwitch.vue';
 
 const route = useRoute();
@@ -44,6 +45,7 @@ async function logout() {
         </div>
       </div>
       <div class="flex items-center gap-2">
+        <GitHubRepoLink :labeled="false" :size="18" class="hidden sm:inline-flex" />
         <LangSwitch />
         <router-link to="/about" class="btn-secondary hidden sm:inline-flex">{{ t('nav.about') }}</router-link>
         <a href="/guide" class="btn-secondary hidden sm:inline-flex">{{ t('guide') }}</a>

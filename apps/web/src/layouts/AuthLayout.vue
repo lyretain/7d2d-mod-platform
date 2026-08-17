@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppFooter from '../components/AppFooter.vue';
+import GitHubRepoLink from '../components/GitHubRepoLink.vue';
 import LangSwitch from '../components/LangSwitch.vue';
 import { i18n, t } from '../i18n';
 
@@ -19,9 +20,10 @@ defineProps<{ title: string; lead?: string }>();
             <span class="text-sm text-gray-500">{{ t('gate.f' + n + 'd') }}</span>
           </li>
         </ul>
-        <div class="mt-8 flex flex-wrap gap-x-4 gap-y-2">
+        <div class="mt-8 flex flex-wrap items-center gap-x-4 gap-y-2">
           <a href="/about" class="text-sm text-brand-500">{{ t('nav.about') }}</a>
           <a href="/guide" class="text-sm text-brand-500">{{ t('gate.guide') }}</a>
+          <GitHubRepoLink class="text-sm" />
         </div>
       </div>
       <div class="flex flex-1 items-center justify-center px-5 py-10">

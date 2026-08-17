@@ -76,6 +76,7 @@
 
     'footer.copyright': '© 2026 Lyretain',
     'footer.sponsor': '赞助',
+    'footer.github': 'GitHub 仓库',
 
     'page.account.title': '账户管理',
     'page.account.hint': '按账户分区管理年龄认证、身份和邀请',
@@ -653,6 +654,7 @@
 
     'footer.copyright': '© 2026 Lyretain',
     'footer.sponsor': 'Sponsored by',
+    'footer.github': 'GitHub repository',
 
     'page.account.title': 'Account',
     'page.account.hint': 'Manage age verification, identity, and invites by section',

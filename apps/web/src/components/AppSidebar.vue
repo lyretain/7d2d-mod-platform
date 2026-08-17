@@ -5,6 +5,7 @@ import { useRoute } from 'vue-router';
 import { useSidebar } from '../composables/useSidebar';
 import { i18n, t } from '../i18n';
 import { can, roleLabel, session } from '../stores/session';
+import GitHubRepoLink from './GitHubRepoLink.vue';
 
 const route = useRoute();
 const { isExpanded, isHovered, isMobileOpen, setIsHovered } = useSidebar();
@@ -60,6 +61,9 @@ function active(path: string) {
         </li>
       </ul>
     </nav>
+    <div class="mb-4" :class="wide ? '' : 'lg:flex lg:justify-center'">
+      <GitHubRepoLink :labeled="wide" class="text-theme-xs" />
+    </div>
     <div v-if="wide && session.user" class="mb-6 rounded-xl border border-gray-200 p-3 text-theme-xs text-gray-500 dark:border-gray-800">
       {{ session.user.username }} · {{ roleLabel(session.user.role) }}
     </div>

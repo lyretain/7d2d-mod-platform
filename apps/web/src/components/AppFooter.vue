@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { i18n, t } from '../i18n';
+import GitHubRepoLink from './GitHubRepoLink.vue';
 
 withDefaults(defineProps<{ compact?: boolean }>(), { compact: false });
 
@@ -22,6 +23,7 @@ const sponsor = computed(() => {
       : 'flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-gray-200 pt-4 dark:border-gray-800'"
   >
     <p class="m-0">{{ copyright }}</p>
+    <GitHubRepoLink />
     <p class="m-0">
       {{ sponsor }}
       <a href="https://aicocloud.com/" target="_blank" rel="noreferrer" class="text-brand-500 hover:underline">AICOCLOUD</a>

@@ -366,6 +366,7 @@ test('regular users can register a game server and open the user guide', async (
   const guideHtml = await guide.text();
   assert.match(guideHtml, /玩家与服主教程/);
   assert.match(guideHtml, /href="\/about"/);
+  assert.match(guideHtml, /github.com\/lyretain\/7d2d-mod-platform/);
   const guideEn = await fetch(`${base}/guide?lang=en`);
   assert.equal(guideEn.status, 200);
   assert.match(await guideEn.text(), /Player and host guide/);
