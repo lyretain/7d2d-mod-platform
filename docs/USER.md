@@ -6,7 +6,7 @@ Platform: [https://mods.aic.la](https://mods.aic.la)
 
 Install steps and official plugin / launcher downloads: [https://mods.aic.la/about](https://mods.aic.la/about). Plugin ZIPs are also on [GitHub Releases](https://github.com/lyretain/7d2d-mod-platform/releases/latest).
 
-Current game target: `V 3.1.0` (Steam Build `24436778`). Mods that contain DLLs need EAC off.
+Current targets: client `V 3.1.0`, server `V 3.10.14` (Steam Build `24436778`). Mods that contain DLLs need EAC off.
 
 Hordepin is a 7 Days to Die mod distribution and sync platform. This guide is for two audiences:
 
@@ -65,7 +65,7 @@ Overwrite `server.config.json` with the JSON from the console. Keep the field ca
   "BaseUrl": "https://mods.aic.la",
   "ServerId": "srv_...",
   "ServerToken": "...",
-  "GameVersion": "3.1.0",
+  "GameVersion": "3.10.14",
   "RefreshSeconds": 60,
   "HandshakeTimeoutSeconds": 180,
   "AutoSync": true,

@@ -13,6 +13,7 @@ import { DEFAULT_CHUNK_BYTES } from '../apps/api/src/artifact-upload.js';
 import { buildStoredZip, listZip } from '../apps/updater/src/zip.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const PROJECT_VERSIONS = JSON.parse(await readFile(path.join(ROOT, 'project-versions.json'), 'utf8'));
 const SMALL_UPLOAD_BYTES = 8 * 1024 * 1024;
 const LOCAL = 0x04034b50;
 
@@ -68,7 +69,7 @@ export function pluginVersionFromFiles(files, rootName) {
   return String(match[1]).replace(/(\.0)+$/, '') || String(match[1]);
 }
 
-export function pluginSpecFromZip(id, zip, gameVersion = '3.1.0') {
+export function pluginSpecFromZip(id, zip, gameVersion = PROJECT_VERSIONS.serverGameVersion) {
   const meta = platformPluginMod(id);
   if (!meta) throw new Error(`Unknown platform plugin id: ${id}`);
   const files = unzipStoredFiles(zip);
@@ -170,7 +171,7 @@ export function parseArgs(argv = process.argv.slice(2), env = process.env) {
     password: env.PLATFORM_PASSWORD || '',
     packId: env.PLATFORM_PACK_ID || '',
     packName: env.PLATFORM_PACK_NAME || 'Hordepin Platform',
-    gameVersion: env.PLATFORM_GAME_VERSION || '3.1.0',
+    gameVersion: env.PLATFORM_GAME_VERSION || PROJECT_VERSIONS.serverGameVersion,
     publishLauncher: env.PLATFORM_PUBLISH_LAUNCHER !== 'false',
     clientDir: path.join(ROOT, 'artifacts', 'plugins', 'ModPlatformClient'),
     serverDir: path.join(ROOT, 'artifacts', 'plugins', 'ModPlatformServer'),

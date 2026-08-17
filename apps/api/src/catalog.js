@@ -334,7 +334,7 @@ export function pluginServerConfig({ baseUrl, serverId, token, gameVersion }) {
     BaseUrl: String(baseUrl || '').replace(/\/$/, ''),
     ServerId: serverId,
     ServerToken: token,
-    GameVersion: gameVersion || '3.1.0',
+    GameVersion: gameVersion || '3.10.14',
     RefreshSeconds: 60,
     HandshakeTimeoutSeconds: 180,
     AutoSync: true,

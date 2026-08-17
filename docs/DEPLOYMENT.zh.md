@@ -188,7 +188,7 @@ docker compose up --build -d
 3. 之后未登录访客看到 `/signin`（登录 / 邀请码注册），不再露出 `ADMIN_TOKEN`。
 4. 已登录超级管理员可在 `/account` 邀请社区管理员；社区管理员绑定 GitHub 后可邀请开发者。普通用户开放注册。
 5. 有 `catalog.write` 的角色到 `/mods` 上传 ZIP，获得 SHA-256。
-6. 登记 Mod 版本，填写游戏版本（例如 `3.1.0`）和 ZIP 顶层目录。
+6. 登记 Mod 版本，填写客户端兼容版本（例如 `3.1.0`）和 ZIP 顶层目录。Pack 与服务器使用服务端版本串 `3.10.14`；平台会把二者映射为同一游戏 Build。
 7. 标记是否包含 DLL、是否需要重启，并确认再分发许可。
 8. 在工坊挑选或到 `/packs` 创建 Pack，并发布不可变 Release。
 9. 在 `/servers` 登记专用服并绑定已发布 Pack；`server.config.json` 里的令牌只显示一次。
@@ -252,7 +252,7 @@ docker compose up --build -d
 |---|---|
 | `PLATFORM_PACK_ID` | 若填写，CI 会更新该 Pack 并发布 Release |
 | `PLATFORM_PACK_NAME` | 新建该 Pack 时用的名称 |
-| `PLATFORM_GAME_VERSION` | 默认 `3.1.0` |
+| `PLATFORM_GAME_VERSION` | 服务端/Pack 版本，默认 `3.10.14` |
 | `PLATFORM_PUBLISH_LAUNCHER` | 设为 `false` 则不发布启动器自更新 |
 | `STEAM_BUILD_ID` | 缓存键，默认 `24436778` |
 | `PLATFORM_ORIGIN_IP` | 源站真实 IP，可带端口如 `203.0.113.10:8080`。填写后 CI 直连该地址，Host 仍用 `mods.aic.la`，绕过 Cloudflare 质询 |

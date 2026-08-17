@@ -188,7 +188,7 @@ The proxy needs at least:
 3. Later visitors see `/signin` (sign-in / invite register). `ADMIN_TOKEN` is no longer shown.
 4. A signed-in superadmin invites community admins on `/account`. Community admins invite developers after binding GitHub. Regular users can register openly.
 5. Roles with `catalog.write` upload a ZIP on `/mods` and get a SHA-256.
-6. Register the Mod version with a game version (for example `3.1.0`) and the ZIP top-level directories.
+6. Register the Mod version with its client-compatible game version (for example `3.1.0`) and the ZIP top-level directories. Packs and servers use the server string `3.10.14`; the platform maps both strings to the same build.
 7. Mark DLL / restart, and confirm redistribution rights.
 8. Pick Mods in the workshop or build a Pack on `/packs`, then publish an immutable Release.
 9. Register a dedicated server on `/servers` and bind a published Pack. The token in `server.config.json` is shown once.
@@ -252,7 +252,7 @@ Repository **variables** (optional):
 |---|---|
 | `PLATFORM_PACK_ID` | If set, CI updates this Pack and publishes a Release |
 | `PLATFORM_PACK_NAME` | Name used when creating that Pack |
-| `PLATFORM_GAME_VERSION` | Default `3.1.0` |
+| `PLATFORM_GAME_VERSION` | Server/Pack version; default `3.10.14` |
 | `PLATFORM_PUBLISH_LAUNCHER` | Set `false` to skip launcher self-update |
 | `STEAM_BUILD_ID` | Cache key; default `24436778` |
 | `PLATFORM_ORIGIN_IP` | Origin public IP, optionally with a port such as `203.0.113.10:8080`. CI connects here and still sends `Host: mods.aic.la`, skipping Cloudflare challenges |

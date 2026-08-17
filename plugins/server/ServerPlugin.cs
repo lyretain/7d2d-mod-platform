@@ -61,7 +61,7 @@ public sealed class ModPlatformServerPlugin : IModApi
         ModEvents.GameUpdate.RegisterHandler(OnGameUpdate);
         Task.Run(() => PollAsync(modDirectory, lifetime.Token));
         AppDomain.CurrentDomain.ProcessExit += (_, __) => lifetime.Cancel();
-        Log.Out("[ModPlatform] Server bootstrap started v" + PluginIdentity.PluginVersion + " protocol " + PluginIdentity.ProtocolVersion + " target " + PluginIdentity.TargetGameVersion + " / " + PluginIdentity.TargetSteamBuild);
+        Log.Out("[ModPlatform] Server bootstrap started v" + PluginIdentity.PluginVersion + " protocol " + PluginIdentity.ProtocolVersion + " target " + PluginIdentity.TargetServerGameVersion + " / " + PluginIdentity.TargetSteamBuild);
     }
 
     public static void OnHello(ClientInfo client, HandshakeHello hello)
@@ -560,7 +560,7 @@ public sealed class ModPlatformServerPlugin : IModApi
     static string DetectGameVersion()
     {
         try { return string.Format("{0} {1}.{2}.{3}", Constants.cReleaseType, Constants.cVersionMajor, Constants.cVersionMinor, Constants.cVersionBuild).Trim(); }
-        catch { return config != null && !string.IsNullOrEmpty(config.GameVersion) ? config.GameVersion : PluginIdentity.TargetGameVersion; }
+        catch { return config != null && !string.IsNullOrEmpty(config.GameVersion) ? config.GameVersion : PluginIdentity.TargetServerGameVersion; }
     }
 
     static void Ignore(Task task) { }

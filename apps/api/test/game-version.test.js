@@ -17,7 +17,7 @@ test('major-range mods cover the same major line from the declared floor', () =>
   assert.equal(gameVersionMatches(['3.10'], '3.10.14', 'major'), true);
 });
 
-test('handshake treats the live 3.1.0 string as the same game as the mislabeled 3.10.14 pack', () => {
+test('handshake treats client 3.1.0 as compatible with server 3.10.14', () => {
   assert.equal(handshakeVersionsCompatible('V 3.1.0', '3.10.14'), true);
   assert.equal(handshakeVersionsCompatible('3.1.0 (b14)', '3.10.14'), true);
   assert.equal(handshakeVersionsCompatible('V 3.1.0', '3.1.0'), true);
@@ -26,6 +26,7 @@ test('handshake treats the live 3.1.0 string as the same game as the mislabeled 
 
 test('exact game versions still require a full match', () => {
   assert.equal(gameVersionMatches(['3.10.14'], '3.10.14', 'exact'), true);
+  assert.equal(gameVersionMatches(['3.1.0'], '3.10.14', 'exact'), true);
   assert.equal(gameVersionMatches(['3.10.14'], '3.10.15', 'exact'), false);
   assert.equal(gameVersionMatches(['3.0+'], '3.10.14', 'exact'), true);
   assert.equal(gameVersionMatches([], '3.10.14', 'exact'), true);

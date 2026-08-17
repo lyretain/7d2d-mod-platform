@@ -1,10 +1,12 @@
 param(
   [string]$OutDir = "",
-  [string]$SteamBuildId = "24436778",
+  [string]$SteamBuildId = "",
   [int]$AppId = 294420
 )
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
+$projectVersions = Get-Content -LiteralPath (Join-Path $root "project-versions.json") -Raw | ConvertFrom-Json
+if (-not $SteamBuildId) { $SteamBuildId = [string]$projectVersions.steamBuildId }
 if (-not $OutDir) { $OutDir = Join-Path $root ".ci\7dtd-managed" }
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 $needed = @("Assembly-CSharp.dll", "LogLibrary.dll", "UnityEngine.CoreModule.dll")

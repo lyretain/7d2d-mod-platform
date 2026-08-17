@@ -6,7 +6,7 @@
 
 安装流程和官方插件、启动器下载：[https://mods.aic.la/about](https://mods.aic.la/about)。插件 ZIP 也在 [GitHub Releases](https://github.com/lyretain/7d2d-mod-platform/releases/latest)。
 
-当前适配游戏：`V 3.1.0`（Steam Build `24436778`）。含 DLL 的 Mod 需要关闭 EAC。
+当前适配版本：客户端 `V 3.1.0`，服务端 `V 3.10.14`（Steam Build `24436778`）。含 DLL 的 Mod 需要关闭 EAC。
 
 Hordepin 是七日杀 Mod 的分发与同步平台。这篇文档面向两类人：
 
@@ -65,7 +65,7 @@ Hordepin 是七日杀 Mod 的分发与同步平台。这篇文档面向两类人
   "BaseUrl": "https://mods.aic.la",
   "ServerId": "srv_...",
   "ServerToken": "...",
-  "GameVersion": "3.1.0",
+  "GameVersion": "3.10.14",
   "RefreshSeconds": 60,
   "HandshakeTimeoutSeconds": 180,
   "AutoSync": true,

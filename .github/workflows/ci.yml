@@ -110,18 +110,15 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .ci/7dtd-managed
-          key: 7dtd-managed-${{ vars.STEAM_BUILD_ID || '24436778' }}
+          key: 7dtd-managed-${{ hashFiles('project-versions.json') }}
       - name: Fetch game references
         shell: pwsh
         run: |
-          ./deploy/fetch-game-managed.ps1 -OutDir ".ci/7dtd-managed" -SteamBuildId "${{ vars.STEAM_BUILD_ID || '24436778' }}"
+          ./deploy/fetch-game-managed.ps1 -OutDir ".ci/7dtd-managed"
       - name: Build plugins
         shell: pwsh
         run: |
-          ./deploy/build-plugins.ps1 `
-            -GameManagedDir (Resolve-Path ".ci/7dtd-managed").Path `
-            -GameVersion "${{ vars.PLATFORM_GAME_VERSION || '3.1.0' }}" `
-            -SteamBuildId "${{ vars.STEAM_BUILD_ID || '24436778' }}"
+          ./deploy/build-plugins.ps1 -GameManagedDir (Resolve-Path ".ci/7dtd-managed").Path
       - name: Build launcher
         shell: pwsh
         run: ./deploy/build-launcher.ps1
@@ -149,6 +146,7 @@ jobs:
           })
           if (-not $zips.Count) { throw "No plugin ZIP was packed." }
           $files = @($zips | ForEach-Object { $_.FullName })
+          $versions = Get-Content -LiteralPath project-versions.json -Raw | ConvertFrom-Json
           $tag = "v${{ needs.mod-version.outputs.version }}"
           $title = "Hordepin mods ${{ needs.mod-version.outputs.version }}"
           $notes = @(
@@ -156,7 +154,8 @@ jobs:
             '',
             "- Version: ${{ needs.mod-version.outputs.version }}",
             "- Commit: ${{ github.sha }}",
-            "- Game: ${{ vars.PLATFORM_GAME_VERSION || '3.1.0' }} (Steam ${{ vars.STEAM_BUILD_ID || '24436778' }})",
+            "- Client game: $($versions.clientGameVersion)",
+            "- Server game: $($versions.serverGameVersion) (Steam $($versions.steamBuildId))",
             '- Extract ModPlatformClient into %APPDATA%\7DaysToDie\Mods\',
             '- Extract ModPlatformServer into the dedicated server Mods folder',
             '- Launcher builds are published to the management platform, not this Release'

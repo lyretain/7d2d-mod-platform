@@ -437,7 +437,7 @@
           <div><label class="field" data-i18n="pack.name">名称</label><input id="packName" data-i18n-placeholder="pack.phName" placeholder="正式服 Pack"></div>
         </div>
         <label class="field" data-i18n="pack.game">游戏版本</label>
-        <input id="packGame" placeholder="3.1.0">
+        <input id="packGame" placeholder="3.10.14">
         <label class="field" data-i18n="pack.mods">包含的 Mod</label>
         <div class="picker" id="packEntryPicker">
           <button type="button" class="picker-btn" id="packEntryToggle" onclick="togglePackEntries(event)" data-i18n="pack.pick">选择已登记的 Mod（可多选）</button>
@@ -597,7 +597,7 @@
       <label class="field" data-i18n="ws.dlgName">名称</label>
       <input id="workshopPackName" data-i18n-placeholder="ws.phName" placeholder="例如 周末 PVE">
       <label class="field" data-i18n="ws.dlgGame">游戏版本</label>
-      <input id="workshopPackGame" placeholder="3.1.0">
+      <input id="workshopPackGame" placeholder="3.10.14">
     </div>
     <div id="workshopAddFields" hidden>
       <label class="field" data-i18n="ws.dlgPack">加入哪个 Pack</label>
@@ -1856,7 +1856,7 @@ function pluginConfigFromCreate(created) {
     BaseUrl: location.origin,
     ServerId: created.serverId,
     ServerToken: created.token,
-    GameVersion: pack.gameVersion || '3.1.0',
+    GameVersion: pack.gameVersion || '3.10.14',
     RefreshSeconds: 60,
     HandshakeTimeoutSeconds: 15,
     AutoSync: true,

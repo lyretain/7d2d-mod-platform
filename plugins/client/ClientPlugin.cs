@@ -57,7 +57,7 @@ public sealed class ModPlatformClientPlugin : IModApi
         ModEvents.GameStartDone.RegisterHandler(OnGameStartDone);
         ModEvents.GameUpdate.RegisterHandler(OnGameUpdate);
         if (config.DiagnosticsEnabled) Ignore(SendAsync("plugin_initialized", null));
-        Log.Out("[ModPlatform] Client bootstrap initialized v" + PluginIdentity.PluginVersion + " protocol " + PluginIdentity.ProtocolVersion + " target " + PluginIdentity.TargetGameVersion + " / " + PluginIdentity.TargetSteamBuild);
+        Log.Out("[ModPlatform] Client bootstrap initialized v" + PluginIdentity.PluginVersion + " protocol " + PluginIdentity.ProtocolVersion + " target " + PluginIdentity.TargetClientGameVersion + " / " + PluginIdentity.TargetSteamBuild);
     }
 
     internal static ClientConfig CurrentConfig()
@@ -140,7 +140,7 @@ public sealed class ModPlatformClientPlugin : IModApi
         config.AutoSync = autoSync;
         config.AutoRestart = autoRestart;
         config.DiagnosticsEnabled = diagnostics;
-        if (string.IsNullOrEmpty(config.GameVersion)) config.GameVersion = PluginIdentity.TargetGameVersion;
+        if (string.IsNullOrEmpty(config.GameVersion)) config.GameVersion = PluginIdentity.TargetClientGameVersion;
         SaveConfig();
         ApplyRuntime(true);
         Log.Out("[ModPlatform] Client settings saved BaseUrl=" + config.BaseUrl + " AutoSync=" + config.ShouldSync + " AutoRestart=" + config.ShouldRestart + " Diagnostics=" + config.DiagnosticsEnabled);
@@ -527,7 +527,7 @@ public sealed class ModPlatformClientPlugin : IModApi
     static string DetectGameVersion()
     {
         try { return string.Format("{0} {1}.{2}.{3}", Constants.cReleaseType, Constants.cVersionMajor, Constants.cVersionMinor, Constants.cVersionBuild).Trim(); }
-        catch { return config != null && !string.IsNullOrEmpty(config.GameVersion) ? config.GameVersion : PluginIdentity.TargetGameVersion; }
+        catch { return config != null && !string.IsNullOrEmpty(config.GameVersion) ? config.GameVersion : PluginIdentity.TargetClientGameVersion; }
     }
 
     static void TryReconnectNow(string address)
@@ -609,7 +609,7 @@ public sealed class ClientConfig
     public ClientConfig()
     {
         BaseUrl = "https://mods.aic.la";
-        GameVersion = PluginIdentity.TargetGameVersion;
+        GameVersion = PluginIdentity.TargetClientGameVersion;
         DiagnosticsEnabled = true;
         AutoSync = true;
         AutoRestart = true;

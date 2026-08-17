@@ -44,7 +44,7 @@ function pluginConfig(created: any) {
     BaseUrl: location.origin,
     ServerId: created.serverId,
     ServerToken: created.token,
-    GameVersion: pack.gameVersion || '3.1.0',
+    GameVersion: pack.gameVersion || '3.10.14',
     RefreshSeconds: 60,
     HandshakeTimeoutSeconds: 180,
     AutoSync: true,

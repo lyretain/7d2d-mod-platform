@@ -4,7 +4,7 @@
 
 Last reviewed: 2026-08-16
 
-Status: P0, P1, and the admin API/console are in place. CDN is designed for Cloudflare (origin cache or an R2 custom domain). The Windows client plugin and Windows dedicated server have passed a live join on V 3.1.0 / Steam Build 24436778. Still open: listen-server host mode, Linux dedicated server, Authenticode on the launcher, and Postgres/browser/load-test gates. Launcher Ed25519 self-update and the standalone Vue console are done.
+Status: P0, P1, and the admin API/console are in place. CDN is designed for Cloudflare (origin cache or an R2 custom domain). The Windows client plugin and Windows dedicated server have passed a live join with client V 3.1.0 and server V 3.10.14 / Steam Build 24436778. Still open: listen-server host mode, Linux dedicated server, Authenticode on the launcher, and Postgres/browser/load-test gates. Launcher Ed25519 self-update and the standalone Vue console are done.
 
 ## Definition of done
 
@@ -22,7 +22,7 @@ Call it “ready for public production” only when all of these are true:
 ### Current game version
 
 - [x] Rebuild the client plugin against Steam Build `24436778` (game `V 3.1.0`) `Assembly-CSharp.dll`
-- [x] Rebuild the server plugin against Steam Build `24436778` (game `V 3.1.0`) `Assembly-CSharp.dll`
+- [x] Rebuild the server plugin against Steam Build `24436778` (server `V 3.10.14`) `Assembly-CSharp.dll`
 - [x] Recheck `IModApi`, logging, network packages, and event callbacks
 - [x] Write Steam Build ID, game version, and protocol version into plugin artifacts
 - [x] Client plugin start test passed
@@ -297,7 +297,7 @@ Accept: restore API, files, and signing on a clean box inside the RTO.
 
 Keep the first milestone to:
 
-- [x] Plugins compile for the current game (`V 3.1.0` / Build `24436778`)
+- [x] Plugins compile for the current game (client `V 3.1.0`, server `V 3.10.14` / Build `24436778`)
 - [x] Live Windows handshake blocks incompatible players and allows entry after sync
 - [ ] Standalone launcher is Authenticode-signed and can sync, start, reconnect, and self-update in one click
 - [x] Windows dedicated server auto-syncs the Pack

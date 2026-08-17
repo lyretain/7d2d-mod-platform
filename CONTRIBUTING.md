@@ -35,7 +35,7 @@ npm run start:ui
 
 ### 版本与兼容性
 
-`project-versions.json` 是平台、插件、协议、目标游戏版本和 Steam Build 的唯一版本事实源。修改插件版本时，同时更新两个 `plugins/*/ModInfo.xml`。不要直接在文档或运行时代码中引入另一套“当前版本”。
+`project-versions.json` 是平台、插件、协议、客户端目标版本、服务端目标版本和 Steam Build 的唯一版本事实源。修改插件版本时，同时更新两个 `plugins/*/ModInfo.xml`。不要把客户端版本与服务端版本合并为一个“当前版本”。
 
 游戏版本、握手协议、manifest、数据库结构或安装布局变化必须包含：
 
@@ -88,7 +88,7 @@ Plugin builds require assemblies from a lawfully installed copy of 7 Days to Die
 
 ### Versions and compatibility
 
-`project-versions.json` is the single source of truth for platform, plugin, protocol, target game, and Steam Build versions. When changing the plugin version, update both `plugins/*/ModInfo.xml` files as well.
+`project-versions.json` is the single source of truth for platform, plugin, protocol, client target, server target, and Steam Build versions. When changing the plugin version, update both `plugins/*/ModInfo.xml` files as well. Do not collapse the client and server strings into one current version.
 
 Changes to game compatibility, handshakes, manifests, database schemas, or installation layout must include tests, compatibility notes, migration or rollback steps, and user-facing release notes.
 

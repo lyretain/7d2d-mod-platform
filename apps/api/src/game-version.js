@@ -45,7 +45,7 @@ export function gameVersionMatches(declared, packGameVersion, range = 'exact') {
     const generic = isGenericGameVersion(item, range);
     const parsed = parseGameVersion(normalizeGameVersionSpec(item));
     if (!parsed) return item === wanted;
-    if (!generic) return item === wanted;
+    if (!generic) return handshakeVersionsCompatible(item, wanted);
     return pack.major === parsed.major && compareGameVersion(pack, parsed) >= 0;
   });
 }

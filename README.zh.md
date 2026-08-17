@@ -6,7 +6,7 @@
 
 插件目录和程序集仍叫 `ModPlatform*`，已安装的服不必改文件夹名。
 
-当前插件已针对七日杀 `V 3.1.0`、Steam Build `24436778` 重新编译，并已通过 Windows 客户端与 Windows 专用服务器真实进服验证。本地主机模式和 Linux 专用服务器仍待验证。权威版本信息见 [`project-versions.json`](project-versions.json)。
+当前客户端目标版本为七日杀 `V 3.1.0`，服务端目标版本为 `V 3.10.14`，对应 Steam Build `24436778`。Windows 客户端与 Windows 专用服务器已通过真实进服验证；本地主机模式和 Linux 专用服务器仍待验证。权威版本信息见 [`project-versions.json`](project-versions.json)。
 
 ## 已实现功能
 
