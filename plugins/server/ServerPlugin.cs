@@ -72,7 +72,7 @@ public sealed class ModPlatformServerPlugin : IModApi
         {
             clients[Key(client)] = new ClientHandshake { Verified = decision.Ok, Reason = decision.Reason, Message = decision.Message, JoinedAt = DateTime.UtcNow, Client = client };
         }
-        Log.Out("[ModPlatform] Handshake from " + client.playerName + " => " + decision.Reason + " client=" + (hello == null ? "" : hello.GameVersion) + " pack=" + (policy == null ? "" : policy.GameVersion) + " server=" + DetectGameVersion());
+        Log.Out("[ModPlatform] Handshake from " + client.playerName + " => " + decision.Reason + " hello=" + HelloSummary(hello) + " policy=" + PolicySummary() + " server=" + DetectGameVersion());
         if (decision.Ok) Ignore(SendAsync("handshake_ok", client, null, HandshakeReasons.Ok));
         else if (decision.Reason != HandshakeReasons.Syncing) Kick(client, decision.Reason, decision.Message);
     }
@@ -270,8 +270,31 @@ public sealed class ModPlatformServerPlugin : IModApi
         if (!string.IsNullOrEmpty(hello.KeyId) && !string.IsNullOrEmpty(current.KeyId) && hello.KeyId != current.KeyId)
             return Deny(HandshakeReasons.PackMismatch, "Signing key does not match the assigned release.");
         if (hello.ArtifactFingerprint != current.ArtifactFingerprint)
-            return Deny(HandshakeReasons.PackMismatch, "Installed Mod hashes do not match the signed manifest.");
+            return Deny(HandshakeReasons.PackMismatch, "Installed Mod hashes do not match the signed manifest. client=" + FingerprintHint(hello.ArtifactFingerprint) + " required=" + FingerprintHint(current.ArtifactFingerprint));
         return new Decision { Ok = true, Reason = HandshakeReasons.Ok, Message = HandshakeReasons.Ok };
+    }
+
+    static string HelloSummary(HandshakeHello hello)
+    {
+        if (hello == null) return "";
+        return hello.GameVersion + " " + hello.PackId + " v" + hello.PackVersion;
+    }
+
+    static string PolicySummary()
+    {
+        HandshakePolicy current;
+        lock (gate) current = policy;
+        if (current == null) return "";
+        return current.GameVersion + " " + current.PackId + " v" + current.PackVersion;
+    }
+
+    static string FingerprintHint(string value)
+    {
+        if (string.IsNullOrEmpty(value)) return "(empty)";
+        var count = 1;
+        for (var i = 0; i < value.Length; i++) if (value[i] == ',') count += 1;
+        var prefix = value.Length <= 24 ? value : value.Substring(0, 24) + "...";
+        return count + " hashes " + prefix;
     }
 
     static Decision Deny(string reason, string detail) { return new Decision { Ok = false, Reason = reason, Message = DenyMessage(reason, detail) }; }
@@ -285,7 +308,7 @@ public sealed class ModPlatformServerPlugin : IModApi
     static void Kick(ClientInfo client, string reason, string message)
     {
         if (client == null) return;
-        Log.Warning("[ModPlatform] Reject " + client.playerName + " " + reason);
+        Log.Warning("[ModPlatform] Reject " + client.playerName + " " + reason + (string.IsNullOrEmpty(message) ? "" : " " + message));
         Ignore(SendAsync("handshake_kick", client, null, reason));
         try { ConnectionManager.Instance.DisconnectClient(client, false, false); }
         catch (Exception error) { Log.Warning("[ModPlatform] Disconnect failed: " + error.Message); }

@@ -424,7 +424,7 @@ public sealed class ModPlatformClientPlugin : IModApi
             handshakeSent = true;
             handshakeAddress = address;
             handshakeServerId = resolvedServerId;
-            Log.Out("[ModPlatform] Handshake sent server=" + resolvedServerId + " address=" + address + " pack=" + hello.PackId + " v" + hello.PackVersion);
+            Log.Out("[ModPlatform] Handshake sent server=" + resolvedServerId + " address=" + address + " pack=" + hello.PackId + " v" + hello.PackVersion + " fingerprint=" + (hello.ArtifactFingerprint == null ? "0" : hello.ArtifactFingerprint.Split(',').Length.ToString()) + " hashes");
             Ignore(SendAsync("handshake_sent", null));
         }
         catch (Exception error)

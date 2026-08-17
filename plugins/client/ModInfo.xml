@@ -4,7 +4,7 @@
 	<DisplayName value="Mod Platform Client" />
 	<Description value="Client handshake, pack verification and crash diagnostics." />
 	<Author value="ModPlatform" />
-	<Version value="0.2.10.0" />
+	<Version value="0.2.11.0" />
 	<Website value="https://mods.aic.la" />
 	<SkipWithAntiCheat value="true" />
 </xml>

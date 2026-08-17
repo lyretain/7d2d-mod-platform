@@ -2,11 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.Serialization.Json;
 
 namespace ModPlatform.Shared
 {
     public static class LocalState
     {
+        static readonly DataContractJsonSerializerSettings JsonSettings = new DataContractJsonSerializerSettings { UseSimpleDictionaryFormat = true };
+
         public static LocalPackState ReadPackState(string modsDirectory)
         {
             if (string.IsNullOrEmpty(modsDirectory)) return null;
@@ -14,36 +17,42 @@ namespace ModPlatform.Shared
             if (string.IsNullOrEmpty(file) || !File.Exists(file)) return null;
             try
             {
-                var text = File.ReadAllText(file);
-                var packId = ReadJsonString(text, "packId");
-                var packVersion = ReadJsonInt(text, "packVersion");
-                var gameVersion = ReadJsonString(text, "gameVersion");
-                var shas = new List<string>();
-                foreach (var token in new[] { "\"sha256\":\"", "\"sha256\": \"" })
-                {
-                    var index = 0;
-                    while ((index = text.IndexOf(token, index, StringComparison.Ordinal)) >= 0)
-                    {
-                        index += token.Length;
-                        var end = text.IndexOf('"', index);
-                        if (end < 0) break;
-                        shas.Add(text.Substring(index, end - index).ToLowerInvariant());
-                    }
-                }
-                shas = shas.Distinct().OrderBy(value => value, StringComparer.Ordinal).ToList();
+                PackSyncState state;
+                using (var stream = File.OpenRead(file))
+                    state = (PackSyncState)new DataContractJsonSerializer(typeof(PackSyncState), JsonSettings).ReadObject(stream);
+                if (state == null) return null;
                 return new LocalPackState
                 {
-                    PackId = packId,
-                    PackVersion = packVersion,
-                    GameVersion = gameVersion,
-                    KeyId = ReadJsonString(text, "keyId"),
-                    ArtifactFingerprint = string.Join(",", shas)
+                    PackId = state.PackId,
+                    PackVersion = state.PackVersion,
+                    GameVersion = state.GameVersion,
+                    KeyId = state.KeyId,
+                    ManagedRoots = state.ManagedRoots,
+                    ArtifactFingerprint = ArtifactFingerprint(state.ManagedRoots)
                 };
             }
             catch
             {
                 return null;
             }
+        }
+
+        public static string ArtifactFingerprint(IDictionary<string, ManagedRoot> roots)
+        {
+            var shas = new List<string>();
+            if (roots == null) return "";
+            foreach (var root in roots.Values)
+            {
+                if (root == null) continue;
+                if (!string.IsNullOrEmpty(root.Sha256)) shas.Add(root.Sha256.Trim().ToLowerInvariant());
+                if (root.Overlays == null) continue;
+                foreach (var overlay in root.Overlays)
+                {
+                    if (overlay == null || string.IsNullOrEmpty(overlay.Sha256)) continue;
+                    shas.Add(overlay.Sha256.Trim().ToLowerInvariant());
+                }
+            }
+            return string.Join(",", shas.Where(value => !string.IsNullOrEmpty(value)).Distinct().OrderBy(value => value, StringComparer.Ordinal));
         }
 
         public static string ReadReconnectAddress(string modsDirectory)
@@ -96,20 +105,6 @@ namespace ModPlatform.Shared
             var end = json.IndexOf('"', start + 1);
             if (end < 0) return null;
             return json.Substring(start + 1, end - start - 1);
-        }
-
-        static int ReadJsonInt(string json, string key)
-        {
-            var token = "\"" + key + "\"";
-            var index = json.IndexOf(token, StringComparison.Ordinal);
-            if (index < 0) return 0;
-            var colon = json.IndexOf(':', index + token.Length);
-            if (colon < 0) return 0;
-            var cursor = colon + 1;
-            while (cursor < json.Length && (json[cursor] == ' ' || json[cursor] == '\t')) cursor += 1;
-            var end = cursor;
-            while (end < json.Length && char.IsDigit(json[end])) end += 1;
-            return end > cursor ? int.Parse(json.Substring(cursor, end - cursor)) : 0;
         }
     }
 }

@@ -10,7 +10,7 @@
 - Unity: `2022.3.62f2`
 - Plugin target: `netstandard2.1`
 - Handshake protocol: `1`
-- Plugin version: `0.2.10`
+- Plugin version: `0.2.11`
 
 ## 2. Use a prebuilt pack
 
@@ -158,7 +158,7 @@ The plugins already do:
 - the server claims that handshake by Steam/EOS/name and rejects unsynced, version-mismatched, or timed-out players on `PlayerLogin` / `PlayerSpawning`, with a kick reason that includes the launcher URL. Handshake wait is at least 120s (180s while a `syncing` hello is in flight) so a large content overlay cannot lose the race to the old 15s default
 - sync claims same-name folders the Pack already declared; the server cache lives in `ModPlatformServer/.modplatform`
 
-Upgrade client and server plugins together to `0.2.10`. The dedicated server plugin is required for the longer handshake wait.
+Upgrade client and server plugins together to `0.2.11`. The dedicated server plugin is required for the longer handshake wait. Overlay-only pack changes must install into the live mod folder; skipping that left the client on stale hashes and caused `PACK_MISMATCH`.
 
 ```powershell
 npm run launcher -- join --base-url http://localhost:8080 --address game.example.com:26900

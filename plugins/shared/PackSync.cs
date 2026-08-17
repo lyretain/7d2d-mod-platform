@@ -174,6 +174,19 @@ namespace ModPlatform.Shared
                     result.Unchanged += 1;
                     continue;
                 }
+                var baseInstalled = roots.All(root =>
+                    Directory.Exists(Path.Combine(modsDir, root))
+                    && state.ManagedRoots.TryGetValue(root, out var current)
+                    && string.Equals(current.Sha256, mod.Sha256, StringComparison.OrdinalIgnoreCase));
+                if (baseInstalled)
+                {
+                    await ApplyOverlaysAsync(mod, roots, cacheDir, modsDir, baseUrl, token, reporter).ConfigureAwait(false);
+                    ClearRemovedOverlaySlots(modsDir, roots, state, mod);
+                    foreach (var root in roots) state.ManagedRoots[root] = desired[root];
+                    result.Updated += 1;
+                    result.Changed = true;
+                    continue;
+                }
                 var cacheFile = Path.Combine(cacheDir, mod.Sha256.ToLowerInvariant() + ".zip");
                 if (NeedsFetch(cacheFile, mod.Sha256, mod.Size))
                 {
@@ -193,8 +206,6 @@ namespace ModPlatform.Shared
                         if (!Directory.Exists(staged)) throw new InvalidOperationException("Staged install root is missing: " + root + " (" + mod.Id + ")");
                         var target = Path.Combine(modsDir, root);
                         var hadTarget = Directory.Exists(target);
-                        if (hadTarget && state.ManagedRoots.TryGetValue(root, out var previous) && string.Equals(previous.Sha256, mod.Sha256, StringComparison.OrdinalIgnoreCase))
-                            continue;
                         if (InstallRoot(staged, target, Path.Combine(pendingDir, root)))
                         {
                             if (hadTarget) result.Updated += 1;
@@ -252,6 +263,29 @@ namespace ModPlatform.Shared
                 .Where(item => item != null && !string.IsNullOrEmpty(item.Sha256))
                 .Select(item => (item.Id ?? "") + ":" + item.Sha256.ToLowerInvariant())
                 .OrderBy(item => item, StringComparer.Ordinal));
+        }
+
+        static void ClearRemovedOverlaySlots(string modsDir, List<string> roots, PackSyncState state, ManifestMod mod)
+        {
+            var keep = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (mod.Overlays != null)
+            {
+                foreach (var overlay in mod.Overlays)
+                {
+                    if (overlay == null || string.IsNullOrEmpty(overlay.Path)) continue;
+                    keep.Add(overlay.Path);
+                }
+            }
+            foreach (var root in roots)
+            {
+                if (!state.ManagedRoots.TryGetValue(root, out var previous) || previous == null || previous.Overlays == null) continue;
+                foreach (var overlay in previous.Overlays)
+                {
+                    if (overlay == null || string.IsNullOrEmpty(overlay.Path) || keep.Contains(overlay.Path)) continue;
+                    var dest = Path.Combine(modsDir, root, overlay.Path);
+                    try { if (Directory.Exists(dest)) Directory.Delete(dest, true); } catch { }
+                }
+            }
         }
 
         static async Task ApplyOverlaysAsync(ManifestMod mod, List<string> roots, string cacheDir, string stageDir, string baseUrl, CancellationToken token, DownloadReporter reporter)

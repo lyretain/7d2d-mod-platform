@@ -10,7 +10,7 @@
 - Unity：`2022.3.62f2`
 - 插件目标框架：`netstandard2.1`
 - 握手协议：`1`
-- 插件版本：`0.2.10`
+- 插件版本：`0.2.11`
 
 ## 二、使用现成插件包
 
@@ -158,7 +158,7 @@ E:\Project\artifacts\plugins
 - 服务端按玩家 Steam/EOS/名称认领该握手，并在 `PlayerLogin` / `PlayerSpawning` 拒绝未同步、版本不符或超时的玩家，踢出原因包含启动器地址。等待下限 120 秒（正在同步时 180 秒），避免大体积 overlay 还没下完就被旧的 15 秒超时踢掉。
 - 同步时会认领 Pack 已声明且已存在的同名目录；服务端缓存写在 `ModPlatformServer/.modplatform`。
 
-客户端和服务端插件建议一起升级到 `0.2.10`。这次必须更新专用服插件，否则仍会 15 秒超时。
+客户端和服务端插件建议一起升级到 `0.2.11`。这次必须更新专用服插件，否则仍会 15 秒超时。只改内容 overlay、本体 ZIP 不变时也会写入安装目录；旧逻辑会跳过安装并带着过期指纹握手，导致 `PACK_MISMATCH`。
 
 ```powershell
 npm run launcher -- join --base-url http://localhost:8080 --address game.example.com:26900
