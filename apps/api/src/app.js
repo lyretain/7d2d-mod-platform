@@ -14,7 +14,7 @@ import { ingestDiagnostic, shouldBlockInstalls } from './compatibility.js';
 import { handleP1 } from './p1-routes.js';
 import { consumeRateLimit, inspectRequest, routeLimit, securityHeaders } from './security.js';
 import { notify } from './alerts.js';
-import { expandPackEntries, listModContents, migrateSlotContents, normalizeContentSlots, normalizeDependsOn, normalizeEntryContents, overlaysForPackEntry, pluginServerConfig, purgeContentRefs, recordDownload, requireConfirm } from './catalog.js';
+import { assignmentAcceptingPlayers, expandPackEntries, listModContents, migrateSlotContents, normalizeContentSlots, normalizeDependsOn, normalizeEntryContents, overlaysForPackEntry, pluginServerConfig, purgeContentRefs, recordDownload, requireConfirm } from './catalog.js';
 import { gameVersionMatches } from './game-version.js';
 import { artifactPublicUrl, cloudflareCacheHeaders, manifestPublicUrl, purgeCloudflare } from './cloudflare.js';
 import { can, canViewAdult, denyReason, describePrincipal } from './roles.js';
@@ -937,7 +937,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
         const pack = snapshot.packs[server.packId];
         const release = pack && activeRelease(snapshot, pack);
         const policy = handshakePolicy(snapshot, pack, signing, { launcherUrl, publicBaseUrl });
-        const acceptingPlayers = Boolean(release) && !policy.distributionPaused && server.sync?.ok !== false;
+        const acceptingPlayers = assignmentAcceptingPlayers(snapshot, server);
         return json(res, 200, { serverId: server.id, packId: server.packId, manifest: release?.manifest || null, handshake: policy, acceptingPlayers });
       }
 

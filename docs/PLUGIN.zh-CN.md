@@ -10,7 +10,7 @@
 - Unity：`2022.3.62f2`
 - 插件目标框架：`netstandard2.1`
 - 握手协议：`1`
-- 插件版本：`0.2.3`
+- 插件版本：`0.2.6`
 
 ## 二、使用现成插件包
 
@@ -97,7 +97,7 @@ E:\Project\artifacts\plugins
 - 按 manifest 自动下载、校验 SHA-256 并安装到同级 `Mods`（`AutoSync` 默认开启）；已存在的同名目录会被认领并按 Pack 更新，不会再因「unmanaged」失败；
 - Pack 发布新版本后，下次刷新会增量更新；
 - 更新本地 `current-assignment.json` 并上报 `sync-status`；
-- 含 DLL 或首次安装后要求重启；`AutoRestart=true` 时下载完成后退出进程。
+- 含 DLL 或首次安装后要求重启；只更新内容 overlay 时不踢人。`AutoRestart=true` 时，在必须重启的下载完成后退出进程。
 - 在刷新失败时上报诊断信息。
 
 ## 五、客户端配置
@@ -158,7 +158,7 @@ E:\Project\artifacts\plugins
 - 服务端按玩家 Steam/EOS/名称认领该握手，并在 `PlayerLogin` / `PlayerSpawning` 拒绝未同步、版本不符或超时的玩家，踢出原因包含启动器地址。
 - 同步时会认领 Pack 已声明且已存在的同名目录；服务端缓存写在 `ModPlatformServer/.modplatform`。
 
-客户端和服务端插件建议一起升级到 `0.2.3`。
+客户端和服务端插件建议一起升级到 `0.2.6`。
 
 ```powershell
 npm run launcher -- join --base-url http://localhost:8080 --address game.example.com:26900

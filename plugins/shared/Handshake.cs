@@ -12,6 +12,7 @@ namespace ModPlatform.Shared
         public const string Revoked = "RELEASE_REVOKED";
         public const string DistributionPaused = "DISTRIBUTION_PAUSED";
         public const string Timeout = "HANDSHAKE_TIMEOUT";
+        public const string Syncing = "PACK_SYNCING";
         public const string InvalidHello = "INVALID_HELLO";
     }
 

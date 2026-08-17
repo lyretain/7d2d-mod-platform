@@ -301,6 +301,16 @@ test('regular users can register a game server and open the user guide', async (
   assert.equal(created.config.GameVersion, '3.10.14');
   assert.equal(created.config.RefreshSeconds, 60);
   assert.equal(created.config.HandshakeTimeoutSeconds, 15);
+  const serverAuth = { authorization: `Bearer ${created.token}`, 'content-type': 'application/json' };
+  let assigned = await jsonRequest(`${base}/api/v1/servers/${created.serverId}/assignment`, { headers: { authorization: `Bearer ${created.token}` } });
+  assert.equal(assigned.acceptingPlayers, true);
+  await jsonRequest(`${base}/api/v1/servers/${created.serverId}/sync-status`, { method: 'POST', headers: serverAuth, body: JSON.stringify({ stage: 'sync_failed', ok: false, message: 'network' }) });
+  assigned = await jsonRequest(`${base}/api/v1/servers/${created.serverId}/assignment`, { headers: { authorization: `Bearer ${created.token}` } });
+  assert.equal(assigned.acceptingPlayers, true);
+  await jsonRequest(`${base}/api/v1/servers/${created.serverId}/sync-status`, { method: 'POST', headers: serverAuth, body: JSON.stringify({ stage: 'sync_ok', ok: true, requiresRestart: true }) });
+  assigned = await jsonRequest(`${base}/api/v1/servers/${created.serverId}/assignment`, { headers: { authorization: `Bearer ${created.token}` } });
+  assert.equal(assigned.acceptingPlayers, false);
+  await jsonRequest(`${base}/api/v1/servers/${created.serverId}/sync-status`, { method: 'POST', headers: serverAuth, body: JSON.stringify({ stage: 'sync_ok', ok: true, requiresRestart: false }) });
   const resolved = await jsonRequest(`${base}/api/v1/public/servers/resolve?address=play.example.com:26900`);
   assert.equal(resolved.packId, 'prod-pack');
   assert.equal(resolved.serverId, created.serverId);

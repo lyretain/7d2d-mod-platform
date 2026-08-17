@@ -91,8 +91,10 @@ public sealed class ModPlatformServerPlugin : IModApi
             }
             else if (!acceptingPlayers)
             {
-                reason = HandshakeReasons.Timeout;
-                message = DenyMessage(reason, "Server is still synchronizing mods. Retry in a moment.");
+                reason = HandshakeReasons.Syncing;
+                message = DenyMessage(reason, pendingRestart
+                    ? "Dedicated server must restart to load the new pack. Wait for it to come back, then reconnect."
+                    : "Server is still installing the ModPack. Wait until sync finishes, then reconnect.");
             }
             else if (clients.TryGetValue(Key(data.ClientInfo), out var state) && !state.Verified)
             {
@@ -276,6 +278,7 @@ public sealed class ModPlatformServerPlugin : IModApi
             try
             {
                 var assignment = await platform.GetAssignmentAsync(config.ServerId, config.ServerToken, token).ConfigureAwait(false);
+                if (LocalPackMatches(assignment)) ApplyAssignment(assignment, directory);
                 if (config.ShouldSync && assignment != null && assignment.Manifest != null)
                     await SyncPackAsync(assignment, token).ConfigureAwait(false);
                 ApplyAssignment(assignment, directory);
@@ -303,11 +306,12 @@ public sealed class ModPlatformServerPlugin : IModApi
             var result = await PackSync.SyncAsync(modsDirectory, config.BaseUrl, assignment.Manifest, token).ConfigureAwait(false);
             if (result.Changed) Log.Out("[ModPlatform] Pack sync " + assignment.PackId + " v" + assignment.Manifest.PackVersion + " installed=" + result.Installed + " updated=" + result.Updated + " unchanged=" + result.Unchanged);
             else Log.Out("[ModPlatform] Pack sync already current " + assignment.PackId + " v" + assignment.Manifest.PackVersion);
-            if (result.RequiresRestart || result.Changed)
+            if (result.RequiresRestart)
             {
                 pendingRestart = true;
                 Log.Warning("[ModPlatform] " + (result.Message ?? "Restart the dedicated server to load the new pack."));
             }
+            else if (result.Changed) Log.Out("[ModPlatform] Pack files updated without a restart.");
             status = new ServerSyncStatus { Stage = "sync_ok", Ok = true, PackId = assignment.PackId, PackVersion = assignment.Manifest.PackVersion, RequiresRestart = pendingRestart, Message = result.Message };
             try { await platform.SendSyncStatusAsync(config.ServerId, config.ServerToken, status, token).ConfigureAwait(false); } catch { }
             if (config.ShouldRestart && pendingRestart) RequestRestart();
@@ -342,9 +346,29 @@ public sealed class ModPlatformServerPlugin : IModApi
         lock (gate)
         {
             policy = assignment.Handshake;
-            acceptingPlayers = assignment.AcceptingPlayers && !pendingRestart && policy != null && !policy.DistributionPaused && policy.PackVersion != null;
+            acceptingPlayers = CanAccept(assignment);
         }
         Log.Out("[ModPlatform] Active pack " + assignment.PackId + " v" + (assignment.Manifest == null ? 0 : assignment.Manifest.PackVersion) + " accepting=" + acceptingPlayers + (pendingRestart ? " restartRequired=True" : ""));
+    }
+
+    static bool CanAccept(ServerAssignment assignment)
+    {
+        if (assignment == null || !assignment.AcceptingPlayers) return false;
+        if (pendingRestart) return false;
+        var current = assignment.Handshake;
+        if (current == null || current.DistributionPaused || current.PackVersion == null) return false;
+        return LocalPackMatches(assignment);
+    }
+
+    static bool LocalPackMatches(ServerAssignment assignment)
+    {
+        if (assignment == null || assignment.Handshake == null) return false;
+        var current = assignment.Handshake;
+        var state = LocalState.ReadPackState(modsDirectory);
+        if (state == null || string.IsNullOrEmpty(state.PackId) || current.PackVersion == null) return false;
+        if (state.PackId != current.PackId || state.PackVersion != current.PackVersion.Value) return false;
+        if (!string.IsNullOrEmpty(current.ArtifactFingerprint) && !string.IsNullOrEmpty(state.ArtifactFingerprint) && state.ArtifactFingerprint != current.ArtifactFingerprint) return false;
+        return true;
     }
 
     static void LoadCachedAssignment(string directory)
@@ -359,7 +383,7 @@ public sealed class ModPlatformServerPlugin : IModApi
                 lock (gate)
                 {
                     policy = assignment.Handshake;
-                    acceptingPlayers = assignment.AcceptingPlayers && !pendingRestart && policy != null && !policy.DistributionPaused && policy.PackVersion != null;
+                    acceptingPlayers = CanAccept(assignment);
                 }
                 Log.Out("[ModPlatform] Loaded cached assignment " + assignment.PackId);
             }

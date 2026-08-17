@@ -10,7 +10,7 @@
 - Unity: `2022.3.62f2`
 - Plugin target: `netstandard2.1`
 - Handshake protocol: `1`
-- Plugin version: `0.2.3`
+- Plugin version: `0.2.6`
 
 ## 2. Use a prebuilt pack
 
@@ -97,7 +97,7 @@ The server plugin periodically:
 - downloads, SHA-256-checks, and installs into sibling `Mods` (`AutoSync` is on by default); existing same-name folders are claimed and updated, and no longer fail as “unmanaged”
 - incrementally updates on the next refresh after a new Pack Release
 - writes local `current-assignment.json` and reports `sync-status`
-- requires a restart after DLL or first-time installs; with `AutoRestart=true` the process exits after download
+- requires a restart after DLL or first-time installs; content-only overlay updates can go live without kicking players. With `AutoRestart=true` the process exits after a restart-required download
 - reports diagnostics when a refresh fails
 
 ## 5. Client config
@@ -158,7 +158,7 @@ The plugins already do:
 - the server claims that handshake by Steam/EOS/name and rejects unsynced, version-mismatched, or timed-out players on `PlayerLogin` / `PlayerSpawning`, with a kick reason that includes the launcher URL
 - sync claims same-name folders the Pack already declared; the server cache lives in `ModPlatformServer/.modplatform`
 
-Upgrade client and server plugins together to `0.2.3`.
+Upgrade client and server plugins together to `0.2.6`.
 
 ```powershell
 npm run launcher -- join --base-url http://localhost:8080 --address game.example.com:26900

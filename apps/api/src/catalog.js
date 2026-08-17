@@ -341,6 +341,12 @@ export function pluginServerConfig({ baseUrl, serverId, token, gameVersion }) {
   };
 }
 
+export function assignmentAcceptingPlayers(snapshot, server) {
+  const pack = snapshot.packs?.[server?.packId];
+  const release = pack && activeRelease(snapshot, pack);
+  return Boolean(release) && !snapshot.settings?.distributionPaused && !server?.sync?.requiresRestart;
+}
+
 export function listServers(snapshot) {
   const cutoff = Date.now() - 5 * 60_000;
   return Object.values(snapshot.servers || {}).map((server) => {
@@ -352,7 +358,7 @@ export function listServers(snapshot) {
       publicAddresses: addresses,
       publicAddress: addresses[0] || null,
       online,
-      acceptingPlayers: online && server.sync?.ok !== false && !snapshot.settings?.distributionPaused
+      acceptingPlayers: online && assignmentAcceptingPlayers(snapshot, server)
     };
   });
 }
