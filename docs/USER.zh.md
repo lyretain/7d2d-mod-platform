@@ -1,10 +1,10 @@
 # 玩家与服主教程
 
-[English](USER.md) · [简体中文](USER.zh-CN.md)
+[English](USER.md) · [简体中文](USER.zh.md)
 
 平台地址：[https://mods.aic.la](https://mods.aic.la)
 
-安装流程和官方插件、启动器下载：[https://mods.aic.la/about](https://mods.aic.la/about) · [GitHub Releases](https://github.com/lyretain/7d2d-mod-platform/releases/latest)
+安装流程和官方插件、启动器下载：[https://mods.aic.la/about](https://mods.aic.la/about)。插件 ZIP 也在 [GitHub Releases](https://github.com/lyretain/7d2d-mod-platform/releases/latest)。
 
 当前适配游戏：`V 3.10.14`（Steam Build `24436778`）。含 DLL 的 Mod 需要关闭 EAC。
 
@@ -184,4 +184,4 @@ node apps/updater/src/cli.js --base-url https://mods.aic.la --server-address pla
 - **插件没有日志**：确认整个文件夹在 `Mods` 下，且 `ModInfo.xml`、主 DLL、`ModPlatform.Shared.dll` 都在；EAC 已关。
 - **想上传自己的 Mod**：先用开发者邀请码激活，或注册时带上开发者邀请码。发布 Pack 需要社区管理员。
 
-更细的插件安装见 [插件指南](PLUGIN.zh-CN.md)（[English](PLUGIN.md)）。后台部署见 [部署指南](DEPLOYMENT.zh-CN.md)（[English](DEPLOYMENT.md)）。
+更细的插件安装见 [插件指南](PLUGIN.zh.md)（[English](PLUGIN.md)）。后台部署见 [部署指南](DEPLOYMENT.zh.md)（[English](DEPLOYMENT.md)）。

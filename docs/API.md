@@ -1,6 +1,6 @@
 # HTTP API
 
-[English](API.md) · [简体中文](API.zh-CN.md)
+[English](API.md) · [简体中文](API.zh.md)
 
 Administrator routes require:
 

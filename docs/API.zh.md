@@ -1,6 +1,6 @@
 # API 说明
 
-[English](API.md) · [简体中文](API.zh-CN.md)
+[English](API.md) · [简体中文](API.zh.md)
 
 管理员接口必须携带：
 

@@ -1,6 +1,6 @@
 # 安全说明
 
-[English](SECURITY.md) · [简体中文](SECURITY.zh-CN.md)
+[English](SECURITY.md) · [简体中文](SECURITY.zh.md)
 
 ## 当前已经实施的安全措施
 

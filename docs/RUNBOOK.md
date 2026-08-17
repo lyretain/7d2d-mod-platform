@@ -1,6 +1,6 @@
 # Production runbook
 
-[English](RUNBOOK.md) · [简体中文](RUNBOOK.zh-CN.md)
+[English](RUNBOOK.md) · [简体中文](RUNBOOK.zh.md)
 
 Goal: restore the API, object files, and signing on a clean machine inside the target RTO.
 

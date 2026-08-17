@@ -1,6 +1,6 @@
 # 部署指南
 
-[English](DEPLOYMENT.md) · [简体中文](DEPLOYMENT.zh-CN.md)
+[English](DEPLOYMENT.md) · [简体中文](DEPLOYMENT.zh.md)
 
 最后更新：2026-08-17。管理后台已拆成 `apps/web` Vue SPA；API 仍是零运行时依赖。
 
@@ -11,7 +11,7 @@
 - 单节点：不设 `DATABASE_URL` 时使用 JSON 文件，对象存在 `data/objects/`。
 - 生产：设置 `DATABASE_URL`、S3/MinIO 和 `SIGNING_PRIVATE_KEY` 或 `SIGNING_SERVICE_URL`。多实例必须走 PostgreSQL 和共享对象存储。
 
-完整应急步骤见 [RUNBOOK.zh-CN.md](RUNBOOK.zh-CN.md)（[English](RUNBOOK.md)）。Cloudflare CDN / R2 见 [CLOUDFLARE.zh-CN.md](CLOUDFLARE.zh-CN.md)（[English](CLOUDFLARE.md)）。
+完整应急步骤见 [RUNBOOK.zh.md](RUNBOOK.zh.md)（[English](RUNBOOK.md)）。Cloudflare CDN / R2 见 [CLOUDFLARE.zh.md](CLOUDFLARE.zh.md)（[English](CLOUDFLARE.md)）。
 
 ## 二、后台前端
 
@@ -161,7 +161,7 @@ docker compose up --build -d
 - `GET /admin-i18n.js` 为 JavaScript；
 - 登录后工坊、Pack、服务器、运维页可用。
 
-蓝绿切流见 [RUNBOOK.zh-CN.md](RUNBOOK.zh-CN.md)。多实例禁止共享同一份 JSON 文件。
+蓝绿切流见 [RUNBOOK.zh.md](RUNBOOK.zh.md)。多实例禁止共享同一份 JSON 文件。
 
 ## 六、HTTPS 与反向代理
 
@@ -226,13 +226,13 @@ docker compose up --build -d
 - 已在目标七日杀版本上测试客户端和服务端插件；
 - 若希望 CI 自动上传插件 ZIP，已配置 GitHub Actions 密钥。
 
-## 十、GitHub Actions
+## 10. GitHub Actions
 
 `.github/workflows/ci.yml` 在每次 push 和 pull request 上跑 `npm test`。`main`（以及手动 `workflow_dispatch`）还会在 Windows 任务里：
 
 1. 缓存 7DTD 引用程序集（缓存未命中时用 SteamCMD 拉专用服）
 2. 编译客户端/服务端插件和便携启动器
-3. 打包 `ModPlatformClient` / `ModPlatformServer`，上传为 GitHub Actions artifacts，并在 `main` 上创建 GitHub Release（附 ZIP）
+3. 打包 `ModPlatformClient` / `ModPlatformServer`，上传为 GitHub Actions artifacts，并在 `main` 上创建 GitHub Release（只附插件 Mod ZIP，不含启动器）
 4. 若配置了仓库密钥，则把 ZIP 上传到管理平台、自动通过平台插件审核、登记 `mod-platform-client` / `mod-platform-server`、发布启动器自更新，并可选写入 Pack Release
 
 仓库 **secrets**：

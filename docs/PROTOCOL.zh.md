@@ -1,6 +1,6 @@
 # 协议 v1
 
-[English](PROTOCOL.md) · [简体中文](PROTOCOL.zh-CN.md)
+[English](PROTOCOL.md) · [简体中文](PROTOCOL.zh.md)
 
 ## 信任模型
 

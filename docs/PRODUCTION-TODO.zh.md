@@ -1,6 +1,6 @@
 # 生产环境 TODO
 
-[English](PRODUCTION-TODO.md) · [简体中文](PRODUCTION-TODO.zh-CN.md)
+[English](PRODUCTION-TODO.md) · [简体中文](PRODUCTION-TODO.zh.md)
 
 最后检查日期：2026-08-16
 

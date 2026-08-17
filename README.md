@@ -1,6 +1,6 @@
 # Hordepin
 
-[简体中文文档](README.zh-CN.md) · English · [MIT License](LICENSE)
+[简体中文文档](README.zh.md) · English · [MIT License](LICENSE)
 
 **Hordepin** is a 7 Days to Die mod distribution and sync platform: hosts publish signed ModPacks, and players automatically download the same mods when they join. The name is *horde* (the game’s signature night) plus *pin* (pinned platform keys and a join handshake that locks clients to the server’s pack).
 
@@ -44,7 +44,7 @@ npm run dev
 npm run dev:web
 ```
 
-Player and host tutorial: [docs/USER.md](docs/USER.md) / [中文](docs/USER.zh-CN.md), or `/guide` and `/guide?lang=en` on a running instance. Install steps and official downloads: `/about`. CI also publishes plugin and launcher ZIPs to [GitHub Releases](https://github.com/lyretain/7d2d-mod-platform/releases).
+Player and host tutorial: [docs/USER.md](docs/USER.md) / [中文](docs/USER.zh.md), or `/guide` and `/guide?lang=en` on a running instance. Install steps and official downloads: `/about`. CI also publishes client/server plugin ZIPs to [GitHub Releases](https://github.com/lyretain/7d2d-mod-platform/releases).
 
 ### Run with Docker
 
@@ -168,12 +168,12 @@ This is not legal advice. If you plan to charge players or redistribute Mods at 
 
 Index: [docs/README.md](docs/README.md)
 
-- [Player and host guide](docs/USER.md) · [中文](docs/USER.zh-CN.md)
-- [Deployment](docs/DEPLOYMENT.md) · [中文](docs/DEPLOYMENT.zh-CN.md)
-- [Plugin build and install](docs/PLUGIN.md) · [中文](docs/PLUGIN.zh-CN.md)
-- [Production runbook](docs/RUNBOOK.md) · [中文](docs/RUNBOOK.zh-CN.md)
-- [Cloudflare CDN](docs/CLOUDFLARE.md) · [中文](docs/CLOUDFLARE.zh-CN.md)
-- [Production TODO](docs/PRODUCTION-TODO.md) · [中文](docs/PRODUCTION-TODO.zh-CN.md)
-- [HTTP API](docs/API.md) · [中文](docs/API.zh-CN.md)
-- [Security](docs/SECURITY.md) · [中文](docs/SECURITY.zh-CN.md)
-- [Protocol v1](docs/PROTOCOL.md) · [中文](docs/PROTOCOL.zh-CN.md)
+- [Player and host guide](docs/USER.md) · [中文](docs/USER.zh.md)
+- [Deployment](docs/DEPLOYMENT.md) · [中文](docs/DEPLOYMENT.zh.md)
+- [Plugin build and install](docs/PLUGIN.md) · [中文](docs/PLUGIN.zh.md)
+- [Production runbook](docs/RUNBOOK.md) · [中文](docs/RUNBOOK.zh.md)
+- [Cloudflare CDN](docs/CLOUDFLARE.md) · [中文](docs/CLOUDFLARE.zh.md)
+- [Production TODO](docs/PRODUCTION-TODO.md) · [中文](docs/PRODUCTION-TODO.zh.md)
+- [HTTP API](docs/API.md) · [中文](docs/API.zh.md)
+- [Security](docs/SECURITY.md) · [中文](docs/SECURITY.zh.md)
+- [Protocol v1](docs/PROTOCOL.md) · [中文](docs/PROTOCOL.zh.md)

@@ -1,10 +1,10 @@
 # Player and host guide
 
-[English](USER.md) · [简体中文](USER.zh-CN.md)
+[English](USER.md) · [简体中文](USER.zh.md)
 
 Platform: [https://mods.aic.la](https://mods.aic.la)
 
-Install steps and official plugin / launcher downloads: [https://mods.aic.la/about](https://mods.aic.la/about) · [GitHub Releases](https://github.com/lyretain/7d2d-mod-platform/releases/latest)
+Install steps and official plugin / launcher downloads: [https://mods.aic.la/about](https://mods.aic.la/about). Plugin ZIPs are also on [GitHub Releases](https://github.com/lyretain/7d2d-mod-platform/releases/latest).
 
 Current game target: `V 3.10.14` (Steam Build `24436778`). Mods that contain DLLs need EAC off.
 

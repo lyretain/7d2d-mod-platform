@@ -1,6 +1,6 @@
 # Security model
 
-[English](SECURITY.md) · [简体中文](SECURITY.zh-CN.md)
+[English](SECURITY.md) · [简体中文](SECURITY.zh.md)
 
 ## Enforced in this MVP
 

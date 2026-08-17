@@ -95,18 +95,21 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $ErrorActionPreference = 'Continue'
-          $zips = @(Get-ChildItem -Path artifacts -Filter *.zip -File)
-          if (-not $zips.Count) { throw "No plugin or launcher ZIP was packed." }
+          $zips = @(Get-ChildItem -Path artifacts -File | Where-Object {
+            $_.Name -match '^ModPlatform(Client|Server)-.+\.zip$'
+          })
+          if (-not $zips.Count) { throw "No plugin ZIP was packed." }
           $files = @($zips | ForEach-Object { $_.FullName })
           $tag = "ci-${{ github.run_number }}"
-          $title = "Hordepin build ${{ github.run_number }}"
+          $title = "Hordepin mods ${{ github.run_number }}"
           $notes = @(
-            'Official 7 Days to Die plugin and launcher build.',
+            'Official 7 Days to Die client and server plugin mods.',
             '',
             "- Commit: ${{ github.sha }}",
             "- Game: ${{ vars.PLATFORM_GAME_VERSION || '3.10.14' }} (Steam ${{ vars.STEAM_BUILD_ID || '24436778' }})",
             '- Extract ModPlatformClient into %APPDATA%\7DaysToDie\Mods\',
-            '- Extract ModPlatformServer into the dedicated server Mods folder'
+            '- Extract ModPlatformServer into the dedicated server Mods folder',
+            '- Launcher builds are published to the management platform, not this Release'
           ) -join "`n"
           gh release view $tag *>$null
           if ($LASTEXITCODE -eq 0) {

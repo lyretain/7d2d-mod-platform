@@ -1,6 +1,6 @@
 # Cloudflare CDN
 
-[English](CLOUDFLARE.md) · [简体中文](CLOUDFLARE.zh-CN.md)
+[English](CLOUDFLARE.md) · [简体中文](CLOUDFLARE.zh.md)
 
 Recommended topology: player downloads go through Cloudflare. The origin only handles admin, signing, diagnostics, and cache misses.
 

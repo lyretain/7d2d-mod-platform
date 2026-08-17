@@ -64,7 +64,7 @@ npm run dev
 npm run dev:web
 ```
 
-完整步骤见 [部署指南](docs/DEPLOYMENT.zh-CN.md)（[English](docs/DEPLOYMENT.md)）。
+完整步骤见 [部署指南](docs/DEPLOYMENT.zh.md)（[English](docs/DEPLOYMENT.md)）。
 
 首次部署流程：
 
@@ -78,7 +78,7 @@ npm run dev:web
 
 首个用户注册后，`ADMIN_TOKEN` 默认停止作为后台身份使用。只有设置 `ALLOW_BOOTSTRAP_ADMIN=true` 才能继续使用它，建议仅在账户恢复时临时启用。
 
-玩家进服与服主登记服务器，参见 [玩家与服主教程](docs/USER.zh-CN.md)（[English](docs/USER.md)）。线上也可打开 `https://mods.aic.la/guide` 或 `https://mods.aic.la/guide?lang=en`，安装与官方下载见 `https://mods.aic.la/about`，CI 编译产物见 [GitHub Releases](https://github.com/lyretain/7d2d-mod-platform/releases)。
+玩家进服与服主登记服务器，参见 [玩家与服主教程](docs/USER.zh.md)（[English](docs/USER.md)）。线上也可打开 `https://mods.aic.la/guide` 或 `https://mods.aic.la/guide?lang=en`，安装与官方下载见 `https://mods.aic.la/about`，CI 编译的客户端/服务端插件见 [GitHub Releases](https://github.com/lyretain/7d2d-mod-platform/releases)。
 
 ## 客户端同步
 
@@ -125,7 +125,7 @@ artifacts/plugins/ModPlatformClient
 artifacts/plugins/ModPlatformServer
 ```
 
-插件编译和安装参见 [插件构建与安装指南](docs/PLUGIN.zh-CN.md)（[English](docs/PLUGIN.md)）。推到 `main` 时 `.github/workflows/ci.yml` 会重新编译，并可上传到管理平台；密钥见 [部署](docs/DEPLOYMENT.zh-CN.md#十github-actions)。
+插件编译和安装参见 [插件构建与安装指南](docs/PLUGIN.zh.md)（[English](docs/PLUGIN.md)）。推到 `main` 时 `.github/workflows/ci.yml` 会重新编译，并可上传到管理平台；密钥见 [部署](docs/DEPLOYMENT.zh.md#10-github-actions)。
 
 ## 故障守护程序
 
@@ -208,14 +208,14 @@ npm.cmd test
 
 ## 进一步阅读
 
-索引：[docs/README.zh-CN.md](docs/README.zh-CN.md)
+索引：[docs/README.zh.md](docs/README.zh.md)
 
-- [玩家与服主教程](docs/USER.zh-CN.md) · [English](docs/USER.md)
-- [部署指南](docs/DEPLOYMENT.zh-CN.md) · [English](docs/DEPLOYMENT.md)
-- [插件构建与安装](docs/PLUGIN.zh-CN.md) · [English](docs/PLUGIN.md)
-- [生产运维 Runbook](docs/RUNBOOK.zh-CN.md) · [English](docs/RUNBOOK.md)
-- [Cloudflare CDN](docs/CLOUDFLARE.zh-CN.md) · [English](docs/CLOUDFLARE.md)
-- [生产环境 TODO](docs/PRODUCTION-TODO.zh-CN.md) · [English](docs/PRODUCTION-TODO.md)
-- [API 说明](docs/API.zh-CN.md) · [English](docs/API.md)
-- [安全说明](docs/SECURITY.zh-CN.md) · [English](docs/SECURITY.md)
-- [协议 v1](docs/PROTOCOL.zh-CN.md) · [English](docs/PROTOCOL.md)
+- [玩家与服主教程](docs/USER.zh.md) · [English](docs/USER.md)
+- [部署指南](docs/DEPLOYMENT.zh.md) · [English](docs/DEPLOYMENT.md)
+- [插件构建与安装](docs/PLUGIN.zh.md) · [English](docs/PLUGIN.md)
+- [生产运维 Runbook](docs/RUNBOOK.zh.md) · [English](docs/RUNBOOK.md)
+- [Cloudflare CDN](docs/CLOUDFLARE.zh.md) · [English](docs/CLOUDFLARE.md)
+- [生产环境 TODO](docs/PRODUCTION-TODO.zh.md) · [English](docs/PRODUCTION-TODO.md)
+- [API 说明](docs/API.zh.md) · [English](docs/API.md)
+- [安全说明](docs/SECURITY.zh.md) · [English](docs/SECURITY.md)
+- [协议 v1](docs/PROTOCOL.zh.md) · [English](docs/PROTOCOL.md)

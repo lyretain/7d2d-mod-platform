@@ -1,6 +1,6 @@
 # Production TODO
 
-[English](PRODUCTION-TODO.md) · [简体中文](PRODUCTION-TODO.zh-CN.md)
+[English](PRODUCTION-TODO.md) · [简体中文](PRODUCTION-TODO.zh.md)
 
 Last reviewed: 2026-08-16
 

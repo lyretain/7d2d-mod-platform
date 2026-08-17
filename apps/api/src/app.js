@@ -176,7 +176,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
       }
       if (req.method === 'GET' && (pathname === '/guide' || pathname === '/docs/user')) {
         const lang = url.searchParams.get('lang') === 'en' ? 'en' : 'zh';
-        const guideFile = lang === 'en' ? '../../../docs/USER.md' : '../../../docs/USER.zh-CN.md';
+        const guideFile = lang === 'en' ? '../../../docs/USER.md' : '../../../docs/USER.zh.md';
         const markdown = readFileSync(new URL(guideFile, import.meta.url), 'utf8');
         const body = Buffer.from(renderUserGuide(markdown, lang));
         res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'content-length': body.length, 'x-content-type-options': 'nosniff' });

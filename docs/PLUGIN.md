@@ -1,6 +1,6 @@
 # Plugin build and install
 
-[English](PLUGIN.md) · [简体中文](PLUGIN.zh-CN.md)
+[English](PLUGIN.md) · [简体中文](PLUGIN.zh.md)
 
 ## 1. Current verified environment
 
