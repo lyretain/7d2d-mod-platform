@@ -32,7 +32,7 @@ namespace ModPlatform.Shared
 {
     public static class PluginIdentity
     {
-        public const string PluginVersion = "0.2.11";
+        public const string PluginVersion = "0.2.12";
         public const int ProtocolVersion = 1;
         public const string TargetGameVersion = "$GameVersion";
         public const string TargetSteamBuild = "$SteamBuildId";
@@ -42,7 +42,7 @@ namespace ModPlatform.Shared
 Set-Content -LiteralPath (Join-Path $root "plugins\shared\PluginIdentity.cs") -Value $identity -Encoding UTF8
 
 $versionInfo = @{
-  pluginVersion = "0.2.11"
+  pluginVersion = "0.2.12"
   protocolVersion = 1
   targetGameVersion = $GameVersion
   targetSteamBuild = $SteamBuildId

@@ -13,7 +13,7 @@ function args(argv) {
 
 const options = args(process.argv.slice(2));
 if (!options.baseUrl || (!options.packId && !options.serverAddress) || !options.modsDir) {
-  console.error('Usage: npm run updater -- --base-url http://host:8080 (--pack-id my-pack | --server-address host:port) --mods-dir "C:\\...\\7DaysToDie\\Mods" [--public-key BASE64] [--force]');
+  console.error('Usage: npm run updater -- --base-url http://host:8080 (--pack-id my-pack | --server-address host:port) --mods-dir "C:\\...\\7DaysToDie\\Mods" [--side client|server] [--public-key BASE64] [--force]');
   process.exit(2);
 }
 
@@ -31,7 +31,8 @@ try {
     profile: options.profile,
     force: Boolean(options.force),
     concurrency: options.concurrency ? Number(options.concurrency) : 2,
-    bandwidth: options.bandwidth ? Number(options.bandwidth) : undefined
+    bandwidth: options.bandwidth ? Number(options.bandwidth) : undefined,
+    side: options.side || (options.serverAddress ? 'client' : undefined)
   });
   console.log(JSON.stringify({ ok: true, packId: result.state.packId, packVersion: result.state.packVersion, requiresRestart: result.state.requiresRestart }, null, 2));
 } catch (error) {

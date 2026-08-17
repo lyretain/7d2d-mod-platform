@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { activeRelease, releaseDiff } from './protocol.js';
+import { activeRelease, normalizeInstallSide, releaseDiff } from './protocol.js';
 import { gameVersionMatches } from './game-version.js';
 import { serverAddresses } from './servers.js';
 import { id, isSafeId } from './util.js';
@@ -267,6 +267,7 @@ export function listMods(snapshot, query = '', options = {}) {
       versionCount: versions.length,
       latestVersion: latest?.version || null,
       containsDll: versions.some((item) => item.containsDll),
+      installSide: normalizeInstallSide(latest?.installSide),
       author: info.author,
       description: info.description,
       gameVersions,
@@ -278,7 +279,7 @@ export function listMods(snapshot, query = '', options = {}) {
       contentCounts: contentCounts(snapshot, mod.id, Boolean(options.requireReview)),
       r18: Boolean(mod.r18),
       r18ContentCount: r18ContentCount(snapshot, mod.id),
-      versions: versions.map((item) => ({ version: item.version, artifactSha: item.artifactSha, artifactSize: item.artifactSize, gameVersions: item.gameVersions, gameVersionRange: item.gameVersionRange || 'exact', containsDll: item.containsDll, dependsOn: item.dependsOn || [], createdAt: item.createdAt }))
+      versions: versions.map((item) => ({ version: item.version, artifactSha: item.artifactSha, artifactSize: item.artifactSize, gameVersions: item.gameVersions, gameVersionRange: item.gameVersionRange || 'exact', containsDll: item.containsDll, installSide: normalizeInstallSide(item.installSide), dependsOn: item.dependsOn || [], createdAt: item.createdAt }))
     };
     if (!options.adultVerified && (row.r18 || row.r18ContentCount > 0)) {
       row.description = null;

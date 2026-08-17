@@ -129,7 +129,7 @@ try {
     packId = resolved.packId;
     if (resolved.handshake?.distributionPaused) throw new Error('Mod distribution is paused');
   }
-  const planned = await planPack({ baseUrl, packId, modsDir: options.modsDir || env.modsDir, explicitPublicKey: options.publicKey, profile: options.profile });
+  const planned = await planPack({ baseUrl, packId, modsDir: options.modsDir || env.modsDir, explicitPublicKey: options.publicKey, profile: options.profile, side: 'client' });
   printPlan(planned.plan);
   if (command === 'plan') process.exit(0);
 
@@ -143,6 +143,7 @@ try {
     force: Boolean(options.force),
     concurrency: options.concurrency ? Number(options.concurrency) : 2,
     bandwidth: options.bandwidth ? Number(options.bandwidth) : undefined,
+    side: 'client',
     onProgress(event) {
       if (event.phase !== 'download' || !event.total) return;
       const pct = Math.floor((event.bytes / event.total) * 100);

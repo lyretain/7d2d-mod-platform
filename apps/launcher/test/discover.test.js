@@ -21,3 +21,19 @@ test('planFromManifest marks DLL mods and removals', () => {
   assert.equal(plan.items.find((item) => item.root === 'Cars').action, 'install');
   assert.equal(plan.items.find((item) => item.root === 'OldMod').action, 'remove');
 });
+
+test('planFromManifest installs only the requested side', () => {
+  const manifest = {
+    packId: 'p',
+    packVersion: 1,
+    mods: [
+      { id: 'shared', version: '1', sha256: 'aa', size: 1, installRoots: ['Shared'], installSide: 'both' },
+      { id: 'srv', version: '1', sha256: 'bb', size: 1, installRoots: ['ServerOnly'], installSide: 'server' },
+      { id: 'cli', version: '1', sha256: 'cc', size: 1, installRoots: ['ClientOnly'], installSide: 'client' }
+    ]
+  };
+  const client = planFromManifest(manifest, {}, 'client');
+  assert.deepEqual(client.items.map((item) => item.root).sort(), ['ClientOnly', 'Shared']);
+  const server = planFromManifest(manifest, {}, 'server');
+  assert.deepEqual(server.items.map((item) => item.root).sort(), ['ServerOnly', 'Shared']);
+});

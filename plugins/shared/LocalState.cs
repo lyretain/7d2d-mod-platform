@@ -44,6 +44,8 @@ namespace ModPlatform.Shared
             foreach (var root in roots.Values)
             {
                 if (root == null) continue;
+                var side = string.IsNullOrWhiteSpace(root.InstallSide) ? "both" : root.InstallSide.Trim().ToLowerInvariant();
+                if (side != "both") continue;
                 if (!string.IsNullOrEmpty(root.Sha256)) shas.Add(root.Sha256.Trim().ToLowerInvariant());
                 if (root.Overlays == null) continue;
                 foreach (var overlay in root.Overlays)

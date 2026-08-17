@@ -46,6 +46,7 @@ namespace ModPlatform.Shared
         [DataMember(Name = "installRoots")] public List<string> InstallRoots { get; set; }
         [DataMember(Name = "containsDll")] public bool ContainsDll { get; set; }
         [DataMember(Name = "requiresRestart")] public bool RequiresRestart { get; set; }
+        [DataMember(Name = "installSide")] public string InstallSide { get; set; }
         [DataMember(Name = "overlays")] public List<ManifestOverlay> Overlays { get; set; }
     }
 

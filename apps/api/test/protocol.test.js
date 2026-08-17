@@ -39,6 +39,32 @@ test('handshake accepts a matching hello and rejects spoofed hashes', () => {
   assert.equal(evaluateHello(hello, handshakePolicy(snapshot, snapshot.packs.prod, { keyId: 'abc' })).reason, 'DISTRIBUTION_PAUSED');
 });
 
+test('handshake fingerprint ignores server-only and client-only mods', () => {
+  const snapshot = {
+    settings: { distributionPaused: false },
+    releases: {
+      rel_1: {
+        id: 'rel_1',
+        packVersion: 1,
+        revokedAt: null,
+        manifest: {
+          packVersion: 1,
+          gameVersion: '3.10.14',
+          signing: { keyId: 'abc' },
+          mods: [
+            { sha256: 'aa', installSide: 'both' },
+            { sha256: 'bb', installSide: 'server' },
+            { sha256: 'cc', installSide: 'client' }
+          ]
+        }
+      }
+    },
+    packs: { prod: { id: 'prod', latestReleaseId: 'rel_1', gameVersion: '3.10.14' } }
+  };
+  const policy = handshakePolicy(snapshot, snapshot.packs.prod, { keyId: 'abc' });
+  assert.equal(policy.artifactFingerprint, 'aa');
+});
+
 test('release diff lists added removed and changed mods', () => {
   const diff = releaseDiff(
     { mods: [{ id: 'a', version: '1', sha256: '1' }, { id: 'b', version: '1', sha256: '2' }] },

@@ -193,12 +193,15 @@ POST /api/v1/artifacts/<sha256>/uploads/<uploadId>/complete
   "installRoots": ["ExampleVehicles"],
   "containsDll": true,
   "requiresRestart": true,
+  "installSide": "both",
   "dependsOn": ["harmony"],
   "r18": false
 }
 ```
 
 `installRoots` 必须与 ZIP 中的顶层目录完全一致。更新器默认拒绝覆盖不属于平台管理的同名目录。
+
+`installSide` 为 `both`（默认）、`server` 或 `client`。专用服自动更新服务端与两端模组，玩家自动更新客户端与两端模组。握手指纹只包含 `both`。
 
 `dependsOn` 是已登记的前置 Mod ID 列表。创建或发布 Pack 时会自动展开这些前置（含传递依赖）写入 `entries`，更新器会一起下载。前置排在依赖它们的 Mod 前面。
 

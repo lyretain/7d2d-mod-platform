@@ -29,6 +29,8 @@ public sealed class ModPlatformClientPlugin : IModApi
     static bool syncReady;
     static string syncedAddress;
     static DateTime nextSyncAttempt;
+    static DateTime nextRefresh;
+    static bool silentRefresh;
     static bool restartPromptPending;
     static bool restartPromptShown;
     static string syncProgressText;
@@ -226,8 +228,10 @@ public sealed class ModPlatformClientPlugin : IModApi
         if (platform == null || config == null || !config.ShouldSync || syncBusy) return;
         var address = CurrentServerAddress();
         if (string.IsNullOrEmpty(address)) return;
-        if (syncReady && string.Equals(syncedAddress, address, StringComparison.OrdinalIgnoreCase)) return;
+        var sameServer = syncReady && string.Equals(syncedAddress, address, StringComparison.OrdinalIgnoreCase);
+        if (sameServer && DateTime.UtcNow < nextRefresh) return;
         if (DateTime.UtcNow < nextSyncAttempt) return;
+        silentRefresh = sameServer;
         syncBusy = true;
         nextSyncAttempt = DateTime.UtcNow.AddSeconds(8);
         Ignore(SyncPackAsync(address));
@@ -244,14 +248,18 @@ public sealed class ModPlatformClientPlugin : IModApi
             if (resolved.Handshake != null && resolved.Handshake.DistributionPaused)
                 throw new InvalidOperationException("Mod distribution is paused.");
             var manifest = await platform.GetLatestPackAsync(resolved.PackId, CancellationToken.None).ConfigureAwait(false);
-            syncProgress = new PackSyncProgress { Phase = "start", PackFiles = manifest == null || manifest.Mods == null ? 0 : manifest.Mods.Count };
-            syncProgressText = Loc("xuiModPlatformDownloading");
-            var result = await PackSync.SyncAsync(modsDirectory, config.BaseUrl, manifest, CancellationToken.None, OnPackSyncProgress).ConfigureAwait(false);
+            if (!silentRefresh)
+            {
+                syncProgress = new PackSyncProgress { Phase = "start", PackFiles = manifest == null || manifest.Mods == null ? 0 : manifest.Mods.Count };
+                syncProgressText = Loc("xuiModPlatformDownloading");
+            }
+            var result = await PackSync.SyncAsync(modsDirectory, config.BaseUrl, manifest, CancellationToken.None, silentRefresh ? (Action<PackSyncProgress>)null : OnPackSyncProgress, "client").ConfigureAwait(false);
             if (result.Changed) Log.Out("[ModPlatform] Client pack sync " + manifest.PackId + " v" + manifest.PackVersion + " installed=" + result.Installed + " updated=" + result.Updated + " unchanged=" + result.Unchanged);
             else Log.Out("[ModPlatform] Client pack already current " + manifest.PackId + " v" + manifest.PackVersion);
             syncedAddress = address;
             syncReady = true;
-            handshakeSent = false;
+            nextRefresh = DateTime.UtcNow.AddSeconds(60);
+            if (!silentRefresh) handshakeSent = false;
             if (result.RequiresRestart)
             {
                 LocalState.WriteReconnect(modsDirectory, address);
@@ -259,7 +267,7 @@ public sealed class ModPlatformClientPlugin : IModApi
                 if (config.ShouldRestart) QueueRestartPrompt();
                 else syncReady = false;
             }
-            else
+            else if (!silentRefresh || result.Changed)
             {
                 TrySendHandshake();
             }
@@ -267,7 +275,7 @@ public sealed class ModPlatformClientPlugin : IModApi
         }
         catch (Exception error)
         {
-            syncReady = false;
+            if (!silentRefresh) syncReady = false;
             syncProgressText = null;
             syncProgress = null;
             Log.Warning("[ModPlatform] Client pack sync failed: " + error.Message);
@@ -295,7 +303,7 @@ public sealed class ModPlatformClientPlugin : IModApi
         var xui = FindXui();
         if (xui == null || xui.playerUI == null || xui.playerUI.windowManager == null) return;
         var windows = xui.playerUI.windowManager;
-        var shouldOpen = syncBusy;
+        var shouldOpen = syncBusy && !silentRefresh;
         try
         {
             var open = windows.IsWindowOpen("modPlatformSync");

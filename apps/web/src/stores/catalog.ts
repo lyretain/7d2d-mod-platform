@@ -28,6 +28,7 @@ export type ModRow = {
   latestVersion?: string;
   versionCount?: number;
   containsDll?: boolean;
+  installSide?: 'both' | 'server' | 'client';
   description?: string;
   author?: string;
   artifactSize?: number;
@@ -46,6 +47,7 @@ export type ModRow = {
     artifactSha?: string;
     gameVersions?: string[];
     gameVersionRange?: string;
+    installSide?: 'both' | 'server' | 'client';
     dependsOn?: string[];
   }>;
 };

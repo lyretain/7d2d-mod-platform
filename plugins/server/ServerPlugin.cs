@@ -347,7 +347,7 @@ public sealed class ModPlatformServerPlugin : IModApi
         try { await platform.SendSyncStatusAsync(config.ServerId, config.ServerToken, status, token).ConfigureAwait(false); } catch { }
         try
         {
-            var result = await PackSync.SyncAsync(modsDirectory, config.BaseUrl, assignment.Manifest, token, progress => Log.Out("[ModPlatform] " + progress.ToLogLine())).ConfigureAwait(false);
+            var result = await PackSync.SyncAsync(modsDirectory, config.BaseUrl, assignment.Manifest, token, progress => Log.Out("[ModPlatform] " + progress.ToLogLine()), "server").ConfigureAwait(false);
             if (result.Changed) Log.Out("[ModPlatform] Pack sync " + assignment.PackId + " v" + assignment.Manifest.PackVersion + " installed=" + result.Installed + " updated=" + result.Updated + " unchanged=" + result.Unchanged);
             else Log.Out("[ModPlatform] Pack sync already current " + assignment.PackId + " v" + assignment.Manifest.PackVersion);
             if (result.RequiresRestart)

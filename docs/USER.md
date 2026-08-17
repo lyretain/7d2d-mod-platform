@@ -75,14 +75,14 @@ Do not give `ServerToken` to players or put it in the client plugin.
 
 ### 4. Sync Mods and start the server
 
-The server plugin **downloads and installs** the current Pack into the sibling `Mods` directory (next to `ModPlatformServer`). After you publish a new Release, the dedicated server fetches it on the next refresh (60 seconds by default).
+The server plugin **downloads and installs server and shared mods** from the current Pack into the sibling `Mods` directory (next to `ModPlatformServer`). After you publish a new Release, the dedicated server fetches it on the next refresh (60 seconds by default). Client-only mods are not installed on the dedicated server.
 
 DLL Mods need a dedicated-server restart before they load. Restart when the log shows `restartRequired=True`. To exit after download so an external guardian can start the process again, set `AutoRestart` to `true`.
 
-You can still preinstall with the updater or guardian:
+You can still preinstall with the updater or guardian (`--side server` on a dedicated server):
 
 ```powershell
-node apps/updater/src/cli.js --base-url https://mods.aic.la --server-address "play.example.com:26900" --mods-dir "C:\7DTDDedicated\Mods"
+node apps/updater/src/cli.js --base-url https://mods.aic.la --pack-id your-pack --mods-dir "C:\7DTDDedicated\Mods" --side server
 ```
 
 After start, the dedicated-server log should contain:
@@ -124,7 +124,7 @@ Ask the host or a community admin for the plugin pack. The repo copy lives in `a
 
 ### 2. Auto-sync when you join
 
-Install the client plugin and join. It resolves the Pack, downloads into `%APPDATA%\7DaysToDie\Mods`, then handshakes by Server ID. DLL Packs show a restart confirm first. The log should contain:
+Install the client plugin and join. It resolves the Pack, downloads **client and shared** mods into `%APPDATA%\7DaysToDie\Mods`, then handshakes by Server ID. While connected it rechecks about every 60 seconds. DLL Packs show a restart confirm first. The log should contain:
 
 ```text
 [ModPlatform] Resolving pack for 192.168.3.42:26900

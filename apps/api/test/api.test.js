@@ -83,6 +83,30 @@ test('pack create pulls prerequisite mods into the release', async (t) => {
   assert.deepEqual(latest.mods.map((mod) => mod.id), ['harmony', 'gunmod']);
 });
 
+test('server-only and client-only mods publish with installSide and stay out of handshake fingerprints', async (t) => {
+  const { base } = await fixture(t);
+  const admin = { authorization: 'Bearer test-admin-token-1234', 'content-type': 'application/json' };
+  const sharedZip = createStoredZip({ 'SharedMod/ModInfo.xml': '<xml />' });
+  const serverZip = createStoredZip({ 'ServerMod/ModInfo.xml': '<xml />' });
+  const clientZip = createStoredZip({ 'ClientMod/ModInfo.xml': '<xml />' });
+  const sharedSha = sha256(sharedZip);
+  const serverSha = sha256(serverZip);
+  const clientSha = sha256(clientZip);
+  await jsonRequest(`${base}/api/v1/artifacts/${sharedSha}`, { method: 'PUT', headers: { ...admin, 'content-type': 'application/zip' }, body: sharedZip });
+  await jsonRequest(`${base}/api/v1/artifacts/${serverSha}`, { method: 'PUT', headers: { ...admin, 'content-type': 'application/zip' }, body: serverZip });
+  await jsonRequest(`${base}/api/v1/artifacts/${clientSha}`, { method: 'PUT', headers: { ...admin, 'content-type': 'application/zip' }, body: clientZip });
+  await jsonRequest(`${base}/api/v1/mods`, { method: 'POST', headers: admin, body: JSON.stringify({ id: 'shared-mod', name: 'Shared', version: '1.0.0', artifactSha: sharedSha, gameVersions: ['3.10.14'], installRoots: ['SharedMod'], installSide: 'both' }) });
+  await jsonRequest(`${base}/api/v1/mods`, { method: 'POST', headers: admin, body: JSON.stringify({ id: 'server-mod', name: 'Server', version: '1.0.0', artifactSha: serverSha, gameVersions: ['3.10.14'], installRoots: ['ServerMod'], installSide: 'server' }) });
+  await jsonRequest(`${base}/api/v1/mods`, { method: 'POST', headers: admin, body: JSON.stringify({ id: 'client-mod', name: 'Client', version: '1.0.0', artifactSha: clientSha, gameVersions: ['3.10.14'], installRoots: ['ClientMod'], installSide: 'client' }) });
+  const pack = await jsonRequest(`${base}/api/v1/packs`, { method: 'POST', headers: admin, body: JSON.stringify({ id: 'side-pack', name: 'Sides', gameVersion: '3.10.14', entries: [{ modId: 'shared-mod', version: '1.0.0' }, { modId: 'server-mod', version: '1.0.0' }, { modId: 'client-mod', version: '1.0.0' }] }) });
+  assert.equal(pack.entries.length, 3);
+  await jsonRequest(`${base}/api/v1/packs/side-pack/releases`, { method: 'POST', headers: admin, body: '{}' });
+  const latest = await jsonRequest(`${base}/api/v1/public/packs/side-pack/latest`);
+  assert.deepEqual(Object.fromEntries(latest.mods.map((mod) => [mod.id, mod.installSide])), { 'shared-mod': 'both', 'server-mod': 'server', 'client-mod': 'client' });
+  const listed = await jsonRequest(`${base}/api/v1/mods`, { headers: { authorization: admin.authorization } });
+  assert.equal(listed.mods.find((item) => item.id === 'server-mod').installSide, 'server');
+});
+
 test('content slots attach overlays that publish into the release', async (t) => {
   const { base } = await fixture(t);
   const admin = { authorization: 'Bearer test-admin-token-1234', 'content-type': 'application/json' };

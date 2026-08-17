@@ -10,7 +10,7 @@
 - Unity: `2022.3.62f2`
 - Plugin target: `netstandard2.1`
 - Handshake protocol: `1`
-- Plugin version: `0.2.11`
+- Plugin version: `0.2.12`
 
 ## 2. Use a prebuilt pack
 
@@ -94,7 +94,7 @@ The plugin looks for config in this order: the current Mod directory (`Mod.Path`
 The server plugin periodically:
 
 - fetches the current ModPack from the platform
-- downloads, SHA-256-checks, and installs into sibling `Mods` (`AutoSync` is on by default); existing same-name folders are claimed and updated, and no longer fail as “unmanaged”
+- downloads, SHA-256-checks, and installs **server and shared** mods into sibling `Mods` (`AutoSync` is on by default); existing same-name folders are claimed and updated, and no longer fail as “unmanaged”
 - incrementally updates on the next refresh after a new Pack Release
 - writes local `current-assignment.json` and reports `sync-status`
 - requires a restart after DLL or first-time installs; content-only overlay updates can go live without kicking players. With `AutoRestart=true` the process exits after a restart-required download
@@ -116,7 +116,7 @@ Example `client.config.json`:
 
 With `DiagnosticsEnabled` off, the in-game client plugin does not send crash events. The external guardian has its own switch.
 
-`AutoSync` is on by default: the client resolves the Pack for the `host:port` it is about to join, downloads into `%APPDATA%\7DaysToDie\Mods`, then sends the handshake. DLL Packs quit and reconnect after install (`AutoRestart`, on by default).
+`AutoSync` is on by default: the client resolves the Pack for the `host:port` it is about to join, installs **client and shared** mods into `%APPDATA%\7DaysToDie\Mods`, then sends the handshake. DLL Packs quit and reconnect after install (`AutoRestart`, on by default). While connected, it silently rechecks about every 60 seconds; overlay-only updates can apply without a download window.
 
 You can also change these in game: main menu or ESC → **Options** → **Mod platform**. Apply writes the same `client.config.json` and takes effect immediately.
 
@@ -154,11 +154,13 @@ The plugins already do:
 
 - assignment polling and diagnostic upload
 - handshake v1: the client posts Pack, version, signing key, and installed-file fingerprints over platform HTTP, not a custom NetPackage (so extra server-only Mods cannot shift package IDs)
-- the client downloads and installs the current Pack from the server address, then sends the handshake
+- the client downloads and installs **client and shared** mods from the server address, then sends the handshake; while connected it rechecks about every 60 seconds (content overlays can go live without a restart)
+- the dedicated server polls assignment every 60 seconds and installs **server and shared** mods; content overlays can go live without kicking players
+- a registered mod may set `installSide` to `both` (default), `server`, or `client`. Handshake fingerprints only include `both`
 - the server claims that handshake by Steam/EOS/name and rejects unsynced, version-mismatched, or timed-out players on `PlayerLogin` / `PlayerSpawning`, with a kick reason that includes the launcher URL. Handshake wait is at least 120s (180s while a `syncing` hello is in flight) so a large content overlay cannot lose the race to the old 15s default
 - sync claims same-name folders the Pack already declared; the server cache lives in `ModPlatformServer/.modplatform`
 
-Upgrade client and server plugins together to `0.2.11`. The dedicated server plugin is required for the longer handshake wait. Overlay-only pack changes must install into the live mod folder; skipping that left the client on stale hashes and caused `PACK_MISMATCH`.
+Upgrade client and server plugins together to `0.2.12`. Side-aware auto-update only installs server or client mods on the matching side; older plugins still install everything. Handshake fingerprints ignore server-only and client-only artifacts, so mixed packs need this plugin version.
 
 ```powershell
 npm run launcher -- join --base-url http://localhost:8080 --address game.example.com:26900

@@ -40,8 +40,8 @@ export async function syncDedicatedServer(config) {
       if (!resolved.ok) throw new Error(`Unable to resolve server pack (${resolved.status})`);
       packId = (await resolved.json()).packId;
     }
-    const planned = await planPack({ baseUrl: config.baseUrl, packId, modsDir, explicitPublicKey: config.publicKey });
-    const result = await syncPack({ baseUrl: config.baseUrl, packId, modsDir, explicitPublicKey: config.publicKey, force: Boolean(config.force) });
+    const planned = await planPack({ baseUrl: config.baseUrl, packId, modsDir, explicitPublicKey: config.publicKey, side: 'server' });
+    const result = await syncPack({ baseUrl: config.baseUrl, packId, modsDir, explicitPublicKey: config.publicKey, force: Boolean(config.force), side: 'server' });
     await atomicJson(lastGoodFile, result.manifest);
     await atomicJson(breakerFile, { failures: 0, lastSuccessAt: new Date().toISOString() });
     await report(config, { stage: 'sync_ok', ok: true, packId: result.state.packId, packVersion: result.state.packVersion, requiresRestart: result.state.requiresRestart });

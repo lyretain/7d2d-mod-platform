@@ -7,6 +7,7 @@ import { Readable, Transform } from 'node:stream';
 import { extractZipFile, listZipFile } from './zip.js';
 import { manifestArtifacts, overlayKey, remapOverlayEntry } from './overlay.js';
 import { verifyManifest } from './verify.js';
+import { modsForInstallSide, normalizeInstallSide } from '../../api/src/protocol.js';
 
 async function exists(file) {
   try { await access(file); return true; } catch { return false; }
@@ -184,10 +185,11 @@ function rootMatches(current, mod) {
   return current?.sha256 === mod.sha256 && overlayKey(current?.overlays) === overlayKey(mod.overlays);
 }
 
-export function planFromManifest(manifest, state = { managedRoots: {} }) {
+export function planFromManifest(manifest, state = { managedRoots: {} }, side) {
   const desired = new Map();
   const items = [];
-  for (const mod of manifest.mods) {
+  const mods = modsForInstallSide(manifest.mods, side);
+  for (const mod of mods) {
     const overlaySize = (mod.overlays || []).reduce((sum, item) => sum + (item.size || 0), 0);
     for (const root of mod.installRoots || []) {
       const current = state.managedRoots?.[root];
@@ -214,8 +216,8 @@ export function planFromManifest(manifest, state = { managedRoots: {} }) {
     packId: manifest.packId,
     packVersion: manifest.packVersion,
     gameVersion: manifest.gameVersion,
-    requiresRestart: manifest.mods.some((mod) => mod.requiresRestart),
-    containsDll: manifest.mods.some((mod) => mod.containsDll),
+    requiresRestart: mods.some((mod) => mod.requiresRestart),
+    containsDll: mods.some((mod) => mod.containsDll),
     downloadBytes: bytes,
     items
   };
@@ -224,10 +226,10 @@ export function planFromManifest(manifest, state = { managedRoots: {} }) {
 export async function planPack(options) {
   const { manifest, controlDir } = await loadVerifiedManifest(options);
   const state = await readJson(path.join(controlDir, 'state.json'), { schemaVersion: 1, managedRoots: {}, installedArtifacts: {} });
-  return { manifest, plan: planFromManifest(manifest, state) };
+  return { manifest, plan: planFromManifest(manifest, state, options.side) };
 }
 
-export async function syncPack({ baseUrl, packId, modsDir, explicitPublicKey, profile, force = false, onProgress, signal, concurrency = 2, bandwidth, cacheDays = 14 } = {}) {
+export async function syncPack({ baseUrl, packId, modsDir, explicitPublicKey, profile, force = false, onProgress, signal, concurrency = 2, bandwidth, cacheDays = 14, side } = {}) {
   const { manifest, controlDir, resolvedMods } = await loadVerifiedManifest({ baseUrl, packId, modsDir, explicitPublicKey, profile, signal });
   const cacheDir = path.join(controlDir, 'cache');
   const stageDir = path.join(controlDir, `stage-${Date.now()}`);
@@ -235,16 +237,18 @@ export async function syncPack({ baseUrl, packId, modsDir, explicitPublicKey, pr
   const stateFile = path.join(controlDir, 'state.json');
   const txnFile = path.join(controlDir, 'transaction.json');
   const state = await readJson(stateFile, { schemaVersion: 1, managedRoots: {}, installedArtifacts: {} });
-  const plan = planFromManifest(manifest, state);
+  const mods = modsForInstallSide(manifest.mods, side);
+  const filtered = { ...manifest, mods };
+  const plan = planFromManifest(filtered, state);
   if (onProgress) onProgress({ phase: 'plan', plan });
-  await assertDiskSpace(controlDir, plan.downloadBytes + manifest.mods.reduce((sum, mod) => sum + (mod.size || 0), 0));
+  await assertDiskSpace(controlDir, plan.downloadBytes + mods.reduce((sum, mod) => sum + (mod.size || 0), 0));
   const desiredRoots = new Map();
   const transaction = [];
 
   try {
     const needed = [];
     const seenArtifacts = new Set();
-    for (const mod of manifest.mods) {
+    for (const mod of mods) {
       if (!/^[a-f0-9]{64}$/.test(mod.sha256) || !Array.isArray(mod.installRoots) || !mod.installRoots.length) throw new Error(`Manifest contains an invalid artifact entry: ${mod.id}`);
       for (const overlay of mod.overlays || []) {
         if (!/^[a-f0-9]{64}$/.test(overlay.sha256) || !/^[^\\/:*?"<>|.][^\\/:*?"<>|]{0,127}$/.test(overlay.path || '')) {
@@ -270,8 +274,8 @@ export async function syncPack({ baseUrl, packId, modsDir, explicitPublicKey, pr
       }
     });
 
-    for (const mod of manifest.mods) {
-      const owner = { modId: mod.id, version: mod.version, sha256: mod.sha256, overlays: (mod.overlays || []).map((item) => ({ id: item.id, path: item.path, sha256: item.sha256 })) };
+    for (const mod of mods) {
+      const owner = { modId: mod.id, version: mod.version, sha256: mod.sha256, installSide: normalizeInstallSide(mod.installSide), overlays: (mod.overlays || []).map((item) => ({ id: item.id, path: item.path, sha256: item.sha256 })) };
       const unchanged = mod.installRoots.every((root) => rootMatches(state.managedRoots?.[root], mod));
       if (unchanged) {
         for (const root of mod.installRoots) desiredRoots.set(root, owner);
@@ -338,13 +342,13 @@ export async function syncPack({ baseUrl, packId, modsDir, explicitPublicKey, pr
     state.keyId = manifest.signing?.keyId || null;
     state.installedArtifacts = Object.fromEntries([...desiredRoots].map(([root, owner]) => [root, owner]));
     state.updatedAt = new Date().toISOString();
-    state.requiresRestart = manifest.mods.some((mod) => mod.requiresRestart);
+    state.requiresRestart = mods.some((mod) => mod.requiresRestart);
     await atomicJson(stateFile, state);
     await atomicJson(txnFile, { items: transaction.map(({ staged, root, owner, ...item }) => item), committed: true, startedAt: new Date().toISOString() });
     await rm(txnFile, { force: true });
     await rm(stageDir, { recursive: true, force: true });
     await pruneDir(cacheDir, {
-      keep: new Set(manifest.mods.flatMap((mod) => manifestArtifacts(mod).map((item) => `${item.sha256}.zip`))),
+      keep: new Set(mods.flatMap((mod) => manifestArtifacts(mod).map((item) => `${item.sha256}.zip`))),
       maxAgeMs: cacheDays * 86400_000
     });
     await pruneDir(path.join(controlDir, 'backups'), { maxAgeMs: cacheDays * 86400_000 });

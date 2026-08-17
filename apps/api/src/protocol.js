@@ -15,9 +15,27 @@ export const HANDSHAKE_REASON = {
   INVALID_HELLO: 'INVALID_HELLO'
 };
 
+export function normalizeInstallSide(value) {
+  const raw = String(value || '').trim().toLowerCase();
+  if (raw === 'server' || raw === 'client') return raw;
+  return 'both';
+}
+
+export function modAppliesToSide(mod, side) {
+  if (!side) return true;
+  const wanted = normalizeInstallSide(side);
+  if (wanted === 'both') return true;
+  return normalizeInstallSide(mod?.installSide) === 'both' || normalizeInstallSide(mod?.installSide) === wanted;
+}
+
+export function modsForInstallSide(mods, side) {
+  return (mods || []).filter((mod) => modAppliesToSide(mod, side));
+}
+
 export function artifactFingerprint(mods = []) {
   const hashes = [];
   for (const mod of mods) {
+    if (normalizeInstallSide(mod?.installSide) !== 'both') continue;
     if (mod?.sha256) hashes.push(String(mod.sha256).toLowerCase());
     for (const overlay of mod?.overlays || []) {
       if (overlay?.sha256) hashes.push(String(overlay.sha256).toLowerCase());

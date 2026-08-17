@@ -38,7 +38,8 @@ const form = ref({
   dependsOn: [] as string[],
   slots: [] as string[],
   extraSlot: '',
-  r18: false
+  r18: false,
+  installSide: 'both'
 });
 const suggestedSlots = ref<Slot[]>([]);
 const reviewHint = ref('');
@@ -66,10 +67,10 @@ const slots = computed(() => mod.value?.contentSlots || []);
 const versions = computed(() => mod.value?.versions || []);
 
 function modHint(item: ModRow) {
-  return [
-    item.latestVersion || '—',
-    t('mod.slotCount', { n: item.contentSlots?.length || 0 })
-  ].join(' · ');
+  const parts = [item.latestVersion || '—', t('mod.slotCount', { n: item.contentSlots?.length || 0 })];
+  if (item.installSide === 'server') parts.push(t('mod.sideServer'));
+  if (item.installSide === 'client') parts.push(t('mod.sideClient'));
+  return parts.join(' · ');
 }
 
 function itemsFor(slotId: string) {
@@ -99,7 +100,8 @@ function resetForm() {
     dependsOn: [],
     slots: [],
     extraSlot: '',
-    r18: false
+    r18: false,
+    installSide: 'both'
   };
   suggestedSlots.value = [];
   file.value = null;
@@ -118,8 +120,10 @@ function fillForm(row: ModRow) {
     form.value.gameVersions = (latest.gameVersions || []).join(',');
     form.value.generic = latest.gameVersionRange === 'major';
     form.value.dependsOn = latest.dependsOn || [];
+    form.value.installSide = latest.installSide || 'both';
   } else {
     form.value.dependsOn = [];
+    form.value.installSide = row.installSide || 'both';
   }
   form.value.slots = (row.contentSlots || []).map((item) => item.path);
   suggestedSlots.value = row.contentSlots || [];
@@ -199,6 +203,7 @@ async function registerMod() {
         installRoots: form.value.installRoots.split(',').map((item) => item.trim()).filter(Boolean),
         containsDll: form.value.containsDll,
         requiresRestart: form.value.containsDll,
+        installSide: form.value.installSide,
         dependsOn: form.value.dependsOn,
         contentSlots: selectedSlots.value,
         r18: form.value.r18
@@ -406,6 +411,13 @@ onMounted(async () => {
         <label class="field">{{ t('mod.roots') }}</label>
         <input v-model="form.installRoots" class="input" :placeholder="t('mod.phRoots')">
         <label class="flex items-center gap-2 text-sm text-gray-500"><input v-model="form.containsDll" type="checkbox"><span>{{ t('mod.containsDll') }}</span></label>
+        <label class="field">{{ t('mod.installSide') }}</label>
+        <p class="text-theme-xs text-gray-500">{{ t('mod.installSideHint') }}</p>
+        <select v-model="form.installSide" class="input">
+          <option value="both">{{ t('mod.sideBoth') }}</option>
+          <option value="server">{{ t('mod.sideServer') }}</option>
+          <option value="client">{{ t('mod.sideClient') }}</option>
+        </select>
         <label class="field">{{ t('mod.depends') }}</label>
         <p class="text-theme-xs text-gray-500">{{ t('mod.dependsHint') }}</p>
         <div class="max-h-40 space-y-2 overflow-auto rounded-lg border border-gray-200 p-3 dark:border-gray-800">

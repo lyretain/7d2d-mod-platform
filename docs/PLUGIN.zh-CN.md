@@ -10,7 +10,7 @@
 - Unity：`2022.3.62f2`
 - 插件目标框架：`netstandard2.1`
 - 握手协议：`1`
-- 插件版本：`0.2.11`
+- 插件版本：`0.2.12`
 
 ## 二、使用现成插件包
 
@@ -94,7 +94,7 @@ E:\Project\artifacts\plugins
 服务端插件会定期：
 
 - 从后台获取当前 ModPack；
-- 按 manifest 自动下载、校验 SHA-256 并安装到同级 `Mods`（`AutoSync` 默认开启）；已存在的同名目录会被认领并按 Pack 更新，不会再因「unmanaged」失败；
+- 按 manifest 自动下载、校验 SHA-256 并安装**服务端与两端**模组到同级 `Mods`（`AutoSync` 默认开启）；已存在的同名目录会被认领并按 Pack 更新，不会再因「unmanaged」失败；
 - Pack 发布新版本后，下次刷新会增量更新；
 - 更新本地 `current-assignment.json` 并上报 `sync-status`；
 - 含 DLL 或首次安装后要求重启；只更新内容 overlay 时不踢人。`AutoRestart=true` 时，在必须重启的下载完成后退出进程。
@@ -116,7 +116,7 @@ E:\Project\artifacts\plugins
 
 关闭 `DiagnosticsEnabled` 后，游戏内客户端插件不会主动发送故障事件。外部守护程序需要单独关闭。
 
-`AutoSync` 默认开启：客户端按即将连接的 `地址:端口` 解析 Pack，下载并安装到 `%APPDATA%\7DaysToDie\Mods`。握手会等同步完成后再发。含 DLL 的 Pack 装完后会退出游戏并自动重连（`AutoRestart`，默认开启）。
+`AutoSync` 默认开启：客户端按即将连接的 `地址:端口` 解析 Pack，只安装**客户端与两端**模组到 `%APPDATA%\7DaysToDie\Mods`。握手会等同步完成后再发。含 DLL 的 Pack 装完后会退出游戏并自动重连（`AutoRestart`，默认开启）。同一服务器上约每 60 秒再静默检查一次，内容 overlay 可热更。
 
 这些项也可以在游戏里改：主菜单或 ESC → **选项** → **模组平台**。点「应用」后写入同一份 `client.config.json`，立即生效。
 
@@ -154,11 +154,13 @@ E:\Project\artifacts\plugins
 
 - 后台 assignment 轮询和诊断上报；
 - 握手协议 v1：客户端通过平台 HTTP 提交 Pack、版本、签名 Key 和已安装文件指纹，不再发送自定义 NetPackage（避免服务端多装了其它 Mod 后包 ID 错位）；
-- 客户端按服务器地址自动下载并安装当前 Pack，再发送握手；
+- 客户端按服务器地址自动下载并安装当前 Pack 的**客户端与两端**模组，再发送握手；连上后大约每 60 秒再检查一次更新（内容 overlay 可热更）。
+- 服务端每 60 秒拉取 assignment，只安装**服务端与两端**模组；内容 overlay 可热更，含 DLL 仍需重启。
+- 登记 Mod 时可指定 `installSide`：`both`（默认）、`server`、`client`。握手指纹只包含 `both`。
 - 服务端按玩家 Steam/EOS/名称认领该握手，并在 `PlayerLogin` / `PlayerSpawning` 拒绝未同步、版本不符或超时的玩家，踢出原因包含启动器地址。等待下限 120 秒（正在同步时 180 秒），避免大体积 overlay 还没下完就被旧的 15 秒超时踢掉。
 - 同步时会认领 Pack 已声明且已存在的同名目录；服务端缓存写在 `ModPlatformServer/.modplatform`。
 
-客户端和服务端插件建议一起升级到 `0.2.11`。这次必须更新专用服插件，否则仍会 15 秒超时。只改内容 overlay、本体 ZIP 不变时也会写入安装目录；旧逻辑会跳过安装并带着过期指纹握手，导致 `PACK_MISMATCH`。
+客户端和服务端插件建议一起升级到 `0.2.12`。按安装端自动更新后，专用服只装服务端与两端模组，玩家只装客户端与两端模组；旧插件仍会全装。握手指纹不再计入仅服务端/仅客户端制品，混装 Pack 需要这对插件。
 
 ```powershell
 npm run launcher -- join --base-url http://localhost:8080 --address game.example.com:26900

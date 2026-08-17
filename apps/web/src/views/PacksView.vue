@@ -69,7 +69,8 @@ const addModOptions = computed(() => {
     for (const ver of mod.versions || []) {
       const value = `${mod.id}@${ver.version}`;
       const title = `${mod.name || mod.id} @ ${ver.version}`;
-      const hint = mod.id + (ver.gameVersions?.length ? ` · ${t('pack.gameHint', { games: ver.gameVersions.join('/') })}` : '');
+      const side = sideHint(ver.installSide || mod.installSide);
+      const hint = [mod.id, ver.gameVersions?.length ? t('pack.gameHint', { games: ver.gameVersions.join('/') }) : '', side].filter(Boolean).join(' · ');
       if (needle && !`${title} ${hint}`.toLowerCase().includes(needle)) continue;
       rows.push({ value, title, hint });
     }
@@ -80,6 +81,17 @@ const selectedCount = computed(() => Object.values(picked).reduce((sum, slots) =
 
 function versionsOf(modId: string) {
   return catalog.mods.find((item) => item.id === modId)?.versions || [];
+}
+
+function sideHint(side?: string) {
+  if (side === 'server') return t('mod.sideServer');
+  if (side === 'client') return t('mod.sideClient');
+  return '';
+}
+
+function entrySide(entry: EntryState) {
+  const ver = versionsOf(entry.modId).find((item) => item.version === entry.version);
+  return sideHint(ver?.installSide || catalog.mods.find((item) => item.id === entry.modId)?.installSide);
 }
 
 function contentCount(entry: EntryState) {
@@ -399,6 +411,7 @@ onMounted(async () => {
                       <option v-for="ver in versionsOf(entry.modId)" :key="ver.version" :value="ver.version">{{ ver.version }}</option>
                     </select>
                     <span v-else class="text-theme-xs text-gray-500">@ {{ entry.version }}</span>
+                    <span v-if="entrySide(entry)" class="text-theme-xs text-gray-400">{{ entrySide(entry) }}</span>
                     <span v-if="entry.slots.length" class="text-theme-xs text-gray-400">{{ t('pack.overlayCount', { n: contentCount(entry) }) }}</span>
                     <button v-if="writable" type="button" class="ml-auto text-theme-xs text-error-500" @click="removeMod(entry.modId)">{{ t('pack.removeMod') }}</button>
                   </div>

@@ -75,14 +75,14 @@
 
 ### 4. 同步 Mod 并开服
 
-服务端插件会按当前 Pack **自动下载并安装** Mod 到同级 `Mods` 目录（与 `ModPlatformServer` 并列）。后台发布新 Release 后，专用服会在下一次刷新（默认 60 秒）再下一遍。
+服务端插件会按当前 Pack **自动下载并安装服务端与两端 Mod** 到同级 `Mods` 目录（与 `ModPlatformServer` 并列）。后台发布新 Release 后，专用服会在下一次刷新（默认 60 秒）再下一遍。仅客户端的 Mod 不会装到专用服。
 
 含 DLL 的 Mod 必须重启专用服才会加载。日志出现 `restartRequired=True` 时重启一次。若希望下完自动退出以便外部守护进程拉起，把 `server.config.json` 里的 `AutoRestart` 设为 `true`。
 
-也可以继续用更新器或 guardian 预装：
+也可以继续用更新器或 guardian 预装（专用服用 `--side server`）：
 
 ```powershell
-node apps/updater/src/cli.js --base-url https://mods.aic.la --server-address "play.example.com:26900" --mods-dir "C:\7DTDDedicated\Mods"
+node apps/updater/src/cli.js --base-url https://mods.aic.la --pack-id your-pack --mods-dir "C:\7DTDDedicated\Mods" --side server
 ```
 
 启动后在服务端日志里应看到：
@@ -124,7 +124,7 @@ node apps/updater/src/cli.js --base-url https://mods.aic.la --server-address "pl
 
 ### 2. 进服时自动同步
 
-装好客户端插件后直接进服即可。插件会解析 Pack、下载到 `%APPDATA%\7DaysToDie\Mods`，再按 Server ID 握手。含 DLL 的 Pack 会先弹出重启确认。日志里应有：
+装好客户端插件后直接进服即可。插件会解析 Pack、只下载**客户端与两端**模组到 `%APPDATA%\7DaysToDie\Mods`，再按 Server ID 握手。连上后大约每 60 秒再检查一次更新。含 DLL 的 Pack 会先弹出重启确认。日志里应有：
 
 ```text
 [ModPlatform] Resolving pack for 192.168.3.42:26900

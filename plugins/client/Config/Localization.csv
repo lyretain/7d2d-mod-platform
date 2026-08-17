@@ -3,7 +3,7 @@ xuiBtnOptionsModPlatform,UI,XUi OptionsMenu,x,,,Mod Platform,,,,,,,,,,,,模组�
 xuiModPlatformBaseUrl,UI,XUi OptionsMenu,x,,,Platform URL,,,,,,,,,,,,平台网址,平台網址
 xuiModPlatformBaseUrlTooltip,UI,XUi OptionsMenu,x,,,HTTPS address used to resolve and download the ModPack.,,,,,,,,,,,,用于解析并下载模组包的平台 HTTPS 地址。,用於解析並下載模組包的平台 HTTPS 位址。
 xuiModPlatformAutoSync,UI,XUi OptionsMenu,x,,,Download mods automatically,,,,,,,,,,,,自动下载模组,自動下載模組
-xuiModPlatformAutoSyncTooltip,UI,XUi OptionsMenu,x,,,"When you join a registered server, download and install its current ModPack before handshake.",,,,,,,,,,,,加入已登记的服务器时，先下载并安装当前模组包，再进行握手。,加入已登記的伺服器時，先下載並安裝目前模組包，再進行握手。
+xuiModPlatformAutoSyncTooltip,UI,XUi OptionsMenu,x,,,"When you join a registered server, download its current ModPack (client and shared mods) before handshake. While connected, refresh about every 60 seconds.",,,,,,,,,,,,加入已登记的服务器时，先下载客户端与两端模组再握手；连上后大约每 60 秒再检查一次更新。,加入已登記的伺服器時，先下載用戶端與兩端模組再握手；連上後大約每 60 秒再檢查一次更新。
 xuiModPlatformAutoRestart,UI,XUi OptionsMenu,x,,,Restart after DLL mods,,,,,,,,,,,,含 DLL 时重启,含 DLL 時重啟
 xuiModPlatformAutoRestartTooltip,UI,XUi OptionsMenu,x,,,"If the pack contains DLL files, quit after install and reconnect on the next launch.",,,,,,,,,,,,模组包含 DLL 时，安装完成后退出游戏，下次启动会自动重连。,模組包含 DLL 時，安裝完成後退出遊戲，下次啟動會自動重連。
 xuiModPlatformDiagnostics,UI,XUi OptionsMenu,x,,,Send diagnostics,,,,,,,,,,,,发送诊断信息,傳送診斷資訊

@@ -195,12 +195,15 @@ The API hashes the assembled file. A URL hash that does not match never enters t
   "installRoots": ["ExampleVehicles"],
   "containsDll": true,
   "requiresRestart": true,
+  "installSide": "both",
   "dependsOn": ["harmony"],
   "r18": false
 }
 ```
 
 `installRoots` must match the ZIP top-level directories exactly. The updater refuses to overwrite a same-name folder the platform does not manage.
+
+`installSide` is `both` (default), `server`, or `client`. Dedicated servers auto-update server and shared mods; players auto-update client and shared mods. Handshake fingerprints only include `both`.
 
 `dependsOn` is a list of registered Mod IDs. Creating or publishing a Pack expands those prerequisites (including transitive ones) into `entries` so the updater downloads them automatically. Prerequisites are listed before the mods that need them.
 

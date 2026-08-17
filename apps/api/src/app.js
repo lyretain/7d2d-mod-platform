@@ -7,7 +7,7 @@ import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { prepareDiagnostic } from './diagnostics.js';
 import { createAuthService } from './auth.js';
-import { activeRelease, handshakePolicy, recordAudit, releaseDiff } from './protocol.js';
+import { activeRelease, handshakePolicy, normalizeInstallSide, recordAudit, releaseDiff } from './protocol.js';
 import { bearer, decodeHeaderFileName, id, isSafeId, json, now, problem, readJson, requireFields } from './util.js';
 import { analyzeZipFile, scanFile } from './analyze.js';
 import { ingestDiagnostic, shouldBlockInstalls } from './compatibility.js';
@@ -443,6 +443,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
             installRoots: Array.isArray(body.installRoots) && body.installRoots.length ? body.installRoots : (analysis?.roots || []),
             containsDll: Boolean(body.containsDll || analysis?.containsDll),
             requiresRestart: Boolean(body.requiresRestart || body.containsDll || analysis?.containsDll),
+            installSide: normalizeInstallSide(body.installSide),
             dependsOn,
             author: body.author || analysis?.modInfo?.author || null,
             description: body.description || analysis?.modInfo?.description || null,
@@ -685,6 +686,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
               required: entry.required !== false,
               containsDll: version.containsDll,
               requiresRestart: version.requiresRestart,
+              installSide: normalizeInstallSide(version.installSide),
               installRoots: version.installRoots,
               size: version.artifactSize,
               sha256: version.artifactSha,

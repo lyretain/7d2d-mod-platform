@@ -115,10 +115,15 @@ namespace ModPlatform.Shared
 
         public static async Task<PackSyncResult> SyncAsync(string modsDir, string baseUrl, PackManifest manifest, CancellationToken token)
         {
-            return await SyncAsync(modsDir, baseUrl, manifest, token, null).ConfigureAwait(false);
+            return await SyncAsync(modsDir, baseUrl, manifest, token, null, null).ConfigureAwait(false);
         }
 
         public static async Task<PackSyncResult> SyncAsync(string modsDir, string baseUrl, PackManifest manifest, CancellationToken token, Action<PackSyncProgress> onProgress)
+        {
+            return await SyncAsync(modsDir, baseUrl, manifest, token, onProgress, null).ConfigureAwait(false);
+        }
+
+        public static async Task<PackSyncResult> SyncAsync(string modsDir, string baseUrl, PackManifest manifest, CancellationToken token, Action<PackSyncProgress> onProgress, string installSide)
         {
             if (string.IsNullOrEmpty(modsDir)) throw new InvalidOperationException("Mods directory is not configured.");
             if (manifest == null || manifest.Mods == null) throw new InvalidOperationException("Assignment is missing a signed manifest.");
@@ -132,10 +137,11 @@ namespace ModPlatform.Shared
             var stateFile = Path.Combine(controlDir, "state.json");
             var state = ReadState(stateFile) ?? ReadState(Path.Combine(modsDir, ".modplatform", "state.json")) ?? new PackSyncState { SchemaVersion = 1, ManagedRoots = new Dictionary<string, ManagedRoot>() };
             if (state.ManagedRoots == null) state.ManagedRoots = new Dictionary<string, ManagedRoot>();
+            var mods = manifest.Mods.Where(mod => ModApplies(mod, installSide)).ToList();
 
             var result = new PackSyncResult();
             var desired = new Dictionary<string, ManagedRoot>(StringComparer.OrdinalIgnoreCase);
-            foreach (var mod in manifest.Mods)
+            foreach (var mod in mods)
             {
                 if (mod == null || string.IsNullOrEmpty(mod.Sha256) || !Regex.IsMatch(mod.Sha256, "^[a-fA-F0-9]{64}$"))
                     throw new InvalidOperationException("Manifest contains an invalid artifact: " + (mod == null ? "?" : mod.Id));
@@ -149,6 +155,7 @@ namespace ModPlatform.Shared
                         ModId = mod.Id,
                         Version = mod.Version,
                         Sha256 = mod.Sha256.ToLowerInvariant(),
+                        InstallSide = NormalizeSide(mod.InstallSide),
                         Overlays = (mod.Overlays ?? new List<ManifestOverlay>()).Where(item => item != null && !string.IsNullOrEmpty(item.Sha256)).Select(item => new ManifestOverlay
                         {
                             Id = item.Id,
@@ -159,10 +166,10 @@ namespace ModPlatform.Shared
                 }
             }
 
-            var reporter = BuildReporter(manifest, modsDir, cacheDir, state, onProgress);
+            var reporter = BuildReporter(mods, modsDir, cacheDir, state, onProgress);
             reporter.Start();
 
-            foreach (var mod in manifest.Mods)
+            foreach (var mod in mods)
             {
                 var roots = (mod.InstallRoots == null || mod.InstallRoots.Count == 0) ? new List<string> { mod.Id } : mod.InstallRoots;
                 var unchanged = roots.All(root =>
@@ -241,13 +248,27 @@ namespace ModPlatform.Shared
             state.PackVersion = manifest.PackVersion;
             state.GameVersion = manifest.GameVersion;
             state.KeyId = manifest.Signing == null ? null : manifest.Signing.KeyId;
-            state.RequiresRestart = result.RequiresRestart || manifest.Mods.Any(item => item != null && item.RequiresRestart);
+            state.RequiresRestart = result.RequiresRestart || mods.Any(item => item != null && item.RequiresRestart);
             state.UpdatedAt = DateTime.UtcNow.ToString("o");
             WriteState(stateFile, state);
             if (result.RequiresRestart) result.Message = "Pack files updated; restart to load them.";
             else if (result.Changed) result.Message = "Pack files updated.";
             else result.Message = "Pack already installed.";
             return result;
+        }
+
+        static string NormalizeSide(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return "both";
+            var side = value.Trim().ToLowerInvariant();
+            return side == "server" || side == "client" ? side : "both";
+        }
+
+        static bool ModApplies(ManifestMod mod, string installSide)
+        {
+            if (string.IsNullOrWhiteSpace(installSide) || NormalizeSide(installSide) == "both") return true;
+            var side = NormalizeSide(mod == null ? null : mod.InstallSide);
+            return side == "both" || side == NormalizeSide(installSide);
         }
 
         static bool RootMatches(ManagedRoot current, ManifestMod mod)
@@ -417,11 +438,11 @@ namespace ModPlatform.Shared
             return modId ?? "overlay";
         }
 
-        static DownloadReporter BuildReporter(PackManifest manifest, string modsDir, string cacheDir, PackSyncState state, Action<PackSyncProgress> onProgress)
+        static DownloadReporter BuildReporter(IList<ManifestMod> mods, string modsDir, string cacheDir, PackSyncState state, Action<PackSyncProgress> onProgress)
         {
             var queued = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var reporter = new DownloadReporter { Callback = onProgress };
-            foreach (var mod in manifest.Mods)
+            foreach (var mod in mods ?? new List<ManifestMod>())
             {
                 if (mod == null) continue;
                 reporter.PackFiles += 1;
