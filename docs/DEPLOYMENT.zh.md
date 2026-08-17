@@ -228,7 +228,7 @@ docker compose up --build -d
 
 ## 10. GitHub Actions
 
-`.github/workflows/ci.yml` 在每次 push 和 pull request 上跑 `npm test`。Windows 编译、GitHub Release 和管理平台上传只在 `main` 上**插件版本号变化**时运行（`deploy/build-plugins.ps1` 的 `pluginVersion` 或 `plugins/*/ModInfo.xml`），或手动 `workflow_dispatch`。该任务会：
+`.github/workflows/ci.yml` 在每次 push 和 pull request 上跑 `npm run check`（版本元数据校验和 Node 测试）。Windows 编译、GitHub Release 和管理平台上传只在 `main` 上**插件版本号变化**时运行（`project-versions.json` 的 `pluginVersion` 或 `plugins/*/ModInfo.xml`），或手动 `workflow_dispatch`。该任务会：
 
 1. 缓存 7DTD 引用程序集（缓存未命中时用 SteamCMD 拉专用服）
 2. 编译客户端/服务端插件和便携启动器
@@ -252,7 +252,7 @@ docker compose up --build -d
 |---|---|
 | `PLATFORM_PACK_ID` | 若填写，CI 会更新该 Pack 并发布 Release |
 | `PLATFORM_PACK_NAME` | 新建该 Pack 时用的名称 |
-| `PLATFORM_GAME_VERSION` | 默认 `3.10.14` |
+| `PLATFORM_GAME_VERSION` | 默认 `3.1.0` |
 | `PLATFORM_PUBLISH_LAUNCHER` | 设为 `false` 则不发布启动器自更新 |
 | `STEAM_BUILD_ID` | 缓存键，默认 `24436778` |
 | `PLATFORM_ORIGIN_IP` | 源站真实 IP，可带端口如 `203.0.113.10:8080`。填写后 CI 直连该地址，Host 仍用 `mods.aic.la`，绕过 Cloudflare 质询 |

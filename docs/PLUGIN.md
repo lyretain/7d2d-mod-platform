@@ -4,7 +4,7 @@
 
 ## 1. Current verified environment
 
-- 7 Days to Die: `V 3.10.14`
+- 7 Days to Die: `V 3.1.0`
 - Steam Build: `24436778`
 - Game directory: `G:\SteamLibrary\steamapps\common\7 Days To Die`
 - Unity: `2022.3.62f2`
@@ -61,7 +61,7 @@ The build script prefers a modern .NET SDK. If none is installed it uses the Win
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File .\deploy\build-plugins.ps1 `
   -GameManagedDir "G:\SteamLibrary\steamapps\common\7 Days To Die\7DaysToDie_Data\Managed" `
-  -GameVersion "3.10.14"
+  -GameVersion "3.1.0"
 ```
 
 Output:

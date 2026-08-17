@@ -44,7 +44,7 @@ const client = computed(() => payload.value.plugins?.find((item) => item.id === 
 const server = computed(() => payload.value.plugins?.find((item) => item.id === 'mod-platform-server') || null);
 const gameLabel = computed(() => {
   void i18n.lang;
-  return t('about.game', { v: payload.value.gameVersion || '3.10.14' });
+  return t('about.game', { v: payload.value.gameVersion || '3.1.0' });
 });
 
 onMounted(async () => {

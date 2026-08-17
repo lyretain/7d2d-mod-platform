@@ -228,7 +228,7 @@ Back up at least:
 
 ## 10. GitHub Actions
 
-`.github/workflows/ci.yml` runs `npm test` on every push and pull request. The Windows plugin compile, GitHub Release, and platform upload run only when the plugin version changes on `main` (`deploy/build-plugins.ps1` `pluginVersion` or `plugins/*/ModInfo.xml`), or on manual `workflow_dispatch`. That job then:
+`.github/workflows/ci.yml` runs `npm run check` (metadata validation plus Node tests) on every push and pull request. The Windows plugin compile, GitHub Release, and platform upload run only when the plugin version changes on `main` (`project-versions.json` `pluginVersion` or `plugins/*/ModInfo.xml`), or on manual `workflow_dispatch`. That job then:
 
 1. Caches the 7DTD reference assemblies (SteamCMD dedicated server on a cache miss)
 2. Builds client/server plugins and the portable launcher
@@ -252,7 +252,7 @@ Repository **variables** (optional):
 |---|---|
 | `PLATFORM_PACK_ID` | If set, CI updates this Pack and publishes a Release |
 | `PLATFORM_PACK_NAME` | Name used when creating that Pack |
-| `PLATFORM_GAME_VERSION` | Default `3.10.14` |
+| `PLATFORM_GAME_VERSION` | Default `3.1.0` |
 | `PLATFORM_PUBLISH_LAUNCHER` | Set `false` to skip launcher self-update |
 | `STEAM_BUILD_ID` | Cache key; default `24436778` |
 | `PLATFORM_ORIGIN_IP` | Origin public IP, optionally with a port such as `203.0.113.10:8080`. CI connects here and still sends `Host: mods.aic.la`, skipping Cloudflare challenges |

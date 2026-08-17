@@ -8,6 +8,8 @@ data/uploads/*
 *.log
 .env
 node_modules/
+**/bin/
+**/obj/
 coverage/
 dist/
 artifacts/

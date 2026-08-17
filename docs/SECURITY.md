@@ -2,6 +2,8 @@
 
 [English](SECURITY.md) · [简体中文](SECURITY.zh.md)
 
+This document describes engineering controls. To report a vulnerability privately, follow the repository-root [Security Policy](../SECURITY.md); do not open a public issue.
+
 ## Enforced in this MVP
 
 - Manifests are Ed25519-signed
@@ -34,7 +36,7 @@
 - Sessions expire in 7 days and are revoked immediately on logout
 - Enable `ALLOW_BOOTSTRAP_ADMIN=true` only for emergency recovery
 
-Public deploys should still add password reset, 2FA, an account-disable UI, and durable distributed rate limits where those are not already on.
+Password reset, 2FA, recovery codes, account disablement, session revocation, and persistent rate limiting are implemented. Public deployments should still validate proxy IP handling, the 2FA recovery procedure, and audit retention.
 
 ## Key trust
 
@@ -73,25 +75,19 @@ Do not upload full logs by default. Clients should send a short window around th
 - IPv4 addresses
 - Steam/EOS player ids
 
-Public deploys should also provide:
+Telemetry controls, diagnostic retention, user deletion, and audited administrative access are implemented. A public community operator should still provide:
 
-- a telemetry switch
-- a retention period
-- a user data-deletion path
 - a privacy notice
-- audit of admin access to diagnostics
+- the public instance operator and contact channel
+- a third-party Mod complaint, takedown, and data-request process
 
 ## Still required before public production
 
-- HTTPS
-- KMS/HSM-backed signing
-- PostgreSQL and object storage
-- Admin accounts, RBAC, and audit logs
-- Malware scan and human review of uploaded DLLs
-- Rate limits on diagnostics, downloads, and login
-- Signing-key rotation and a release-revoke UI
 - Code-signed client updater
-- Redistribution-license review for hosted Mods
-- Full online and security tests on the current game version
+- Listen-server host mode and Linux dedicated-server validation
+- PostgreSQL integration, browser end-to-end, and concurrent load-test gates
+- Operator drills for restore, rollback, key compromise, and emergency distribution stop
+- Actual production enablement of HTTPS, formal signing, rate limiting, malware scanning, and redistribution review on each public instance
+- A published privacy notice and third-party content complaint/takedown process
 
 Never silently install a DLL from a manifest that was not verified against a pinned key. EAC compatibility is outside this project; DLL/Harmony Mods generally require EAC off.

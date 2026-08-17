@@ -6,6 +6,8 @@
 
 Plugin folders and assemblies stay `ModPlatform*` so existing installs keep working.
 
+The current plugins target 7DTD `V 3.1.0` / Steam Build `24436778` and have passed a live join with the Windows client and Windows dedicated server. Listen-server host mode and Linux dedicated server validation remain open. See [`project-versions.json`](project-versions.json) for authoritative version metadata.
+
 ## Included
 
 - Browser-based administration page (`apps/web` Vue SPA, with `/legacy` fallback).
@@ -114,19 +116,21 @@ Copy each built DLL, its `ModInfo.xml`, `ModPlatform.Shared.dll`, and the rename
 
 Bumping the plugin version on `main` runs `.github/workflows/ci.yml`, which rebuilds those folders and can upload them to the management platform. Configure the secrets listed in [Deployment](docs/DEPLOYMENT.md#10-github-actions).
 
-Plugins are compiled against 7DTD `V 3.10.14` / Steam build `24436778`. They poll assignments, send diagnostics, and run handshake protocol v1 over the platform HTTP API so unsynced clients are rejected before world entry without registering a custom NetPackage. Launcher preflight is still required to install files before the game loads DLLs. Live join tests on this machine are still outstanding.
+Plugins are compiled against 7DTD `V 3.1.0` / Steam Build `24436778`. They poll assignments, send diagnostics, and run handshake protocol v1 over the platform HTTP API so unsynced clients are rejected before world entry without registering a custom NetPackage. Launcher preflight is still required to install files before the game loads DLLs.
 
 ## Test
 
 ```powershell
-node --test apps/api/test/*.test.js apps/updater/test/*.test.js
+npm --prefix apps/web ci
+npm run check
+npm run build:web
 ```
 
 The tests cover signed release publication, tamper rejection, diagnostic redaction and aggregation, full updater installation, ZIP integrity checks, traversal rejection and case-insensitive duplicate rejection.
 
 ## Production status
 
-This is a working single-node MVP, not yet a public multi-tenant Mod marketplace. Before public deployment, complete the production checklist in `docs/SECURITY.md`, especially HTTPS, KMS-backed signing, rate limiting, malware scanning, signed updater packaging and a target-game integration test.
+This is a working self-hosted community platform, not a public multi-tenant Mod marketplace. Windows client and dedicated-server integration is validated. Public production still requires Authenticode signing for the launcher, listen-server and Linux dedicated-server validation, PostgreSQL/browser/load-test gates, and operator drills for backup, rollback, revocation, and emergency distribution stops. See [Production TODO](docs/PRODUCTION-TODO.md).
 
 ## Credits
 
@@ -177,3 +181,11 @@ Index: [docs/README.md](docs/README.md)
 - [HTTP API](docs/API.md) · [中文](docs/API.zh.md)
 - [Security](docs/SECURITY.md) · [中文](docs/SECURITY.zh.md)
 - [Protocol v1](docs/PROTOCOL.md) · [中文](docs/PROTOCOL.zh.md)
+
+## Community
+
+- [Contributing](CONTRIBUTING.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+- [Support](SUPPORT.md)
+- [Security reporting](SECURITY.md)
+- [Governance](GOVERNANCE.md)

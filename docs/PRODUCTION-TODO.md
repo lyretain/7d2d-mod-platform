@@ -291,7 +291,7 @@ Accept: restore API, files, and signing on a clean box inside the RTO.
 4. Listen-server host mode and Linux dedicated server
 5. Rebuild plugins automatically after a game update
 6. Human drill of backup, restore, rollback, and emergency revoke
-7. Console split and i18n, plus Postgres / browser / load-test gates
+7. Postgres, browser, and load-test gates
 
 ## First production milestone
 

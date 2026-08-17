@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/lyretain/7d2d-mod-platform/security/advisories/new
+    about: Report vulnerabilities privately; do not create a public Issue.
+  - name: Documentation
+    url: https://github.com/lyretain/7d2d-mod-platform/tree/main/docs
+    about: Read the deployment, user, plugin, protocol, and security documentation first.

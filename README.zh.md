@@ -6,7 +6,7 @@
 
 插件目录和程序集仍叫 `ModPlatform*`，已安装的服不必改文件夹名。
 
-当前插件已针对七日杀 `V 3.10.14`、Steam Build `24436778` 重新编译。真实进服验证仍需在本机启动一次客户端和专用服务器。
+当前插件已针对七日杀 `V 3.1.0`、Steam Build `24436778` 重新编译，并已通过 Windows 客户端与 Windows 专用服务器真实进服验证。本地主机模式和 Linux 专用服务器仍待验证。权威版本信息见 [`project-versions.json`](project-versions.json)。
 
 ## 已实现功能
 
@@ -146,8 +146,10 @@ node apps/agent/src/guardian.js --config deploy/guardian.config.json
 ## 测试
 
 ```powershell
-cd E:\Project
-npm.cmd test
+cd 7d2d-mod-platform
+npm --prefix apps/web ci
+npm run check
+npm run build:web
 ```
 
 当前测试覆盖：
@@ -163,12 +165,12 @@ npm.cmd test
 
 ## 当前边界
 
-- 当前是单节点 MVP，不是多租户公共 Mod 市场。
+- 当前定位是社区自托管平台，不是多租户公共 Mod 市场；多实例部署必须使用 PostgreSQL 和共享对象存储。
 - 可靠流程是启动器在进入游戏前完成同步。
-- 游戏内握手已按 Build `24436778` 编译，仍需真实进服确认踢人和重连。
+- 游戏内握手已在 Windows 客户端与专用服务器通过真实进服验证；本地主机模式和 Linux 专用服务器仍待验证。
 - 带 DLL/Harmony 的 Mod 通常需要关闭 EAC，并在安装后重启游戏。
 - Docker CLI 已安装，但部署前需要确保 Docker Desktop 后台正在运行。
-- 对外开放前必须配置 HTTPS、限流、恶意文件扫描和正式密钥管理。
+- 对外开放前必须实际启用并验收 HTTPS、限流、恶意文件扫描、正式密钥管理和备份恢复流程。
 
 ## 引用与致谢
 
@@ -219,3 +221,11 @@ npm.cmd test
 - [API 说明](docs/API.zh.md) · [English](docs/API.md)
 - [安全说明](docs/SECURITY.zh.md) · [English](docs/SECURITY.md)
 - [协议 v1](docs/PROTOCOL.zh.md) · [English](docs/PROTOCOL.md)
+
+## 参与社区
+
+- [贡献指南](CONTRIBUTING.md)
+- [行为准则](CODE_OF_CONDUCT.md)
+- [支持说明](SUPPORT.md)
+- [安全漏洞报告](SECURITY.md)
+- [项目治理](GOVERNANCE.md)

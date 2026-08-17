@@ -2,10 +2,15 @@ param(
   [Parameter(Mandatory=$true)][string]$GameManagedDir,
   [string]$Configuration = "Release",
   [string]$SteamBuildId = "",
-  [string]$GameVersion = "3.1.0"
+  [string]$GameVersion = ""
 )
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
+$projectVersions = Get-Content -LiteralPath (Join-Path $root "project-versions.json") -Raw | ConvertFrom-Json
+$pluginVersion = [string]$projectVersions.pluginVersion
+$protocolVersion = [int]$projectVersions.protocolVersion
+if (-not $GameVersion) { $GameVersion = [string]$projectVersions.gameVersion }
+if (-not $SteamBuildId) { $SteamBuildId = [string]$projectVersions.steamBuildId }
 $output = Join-Path $root "artifacts\plugins"
 $serverOutput = Join-Path $output "ModPlatformServer"
 $clientOutput = Join-Path $output "ModPlatformClient"
@@ -25,15 +30,15 @@ if (-not $SteamBuildId) {
     }
   }
 }
-if (-not $SteamBuildId) { $SteamBuildId = "24436778" }
+if (-not $SteamBuildId) { throw "SteamBuildId is not configured in project-versions.json or the command line." }
 
 $identity = @"
 namespace ModPlatform.Shared
 {
     public static class PluginIdentity
     {
-        public const string PluginVersion = "0.2.12";
-        public const int ProtocolVersion = 1;
+        public const string PluginVersion = "$pluginVersion";
+        public const int ProtocolVersion = $protocolVersion;
         public const string TargetGameVersion = "$GameVersion";
         public const string TargetSteamBuild = "$SteamBuildId";
     }
@@ -41,10 +46,10 @@ namespace ModPlatform.Shared
 "@
 Set-Content -LiteralPath (Join-Path $root "plugins\shared\PluginIdentity.cs") -Value $identity -Encoding UTF8
 
-# Bump pluginVersion (and plugins/*/ModInfo.xml) to trigger the Windows CI publish on main.
+# Bump pluginVersion in project-versions.json and plugins/*/ModInfo.xml to trigger the Windows CI publish on main.
 $versionInfo = @{
-  pluginVersion = "0.2.12"
-  protocolVersion = 1
+  pluginVersion = $pluginVersion
+  protocolVersion = $protocolVersion
   targetGameVersion = $GameVersion
   targetSteamBuild = $SteamBuildId
   compiledAt = [DateTime]::UtcNow.ToString("o")

@@ -68,7 +68,7 @@ export function pluginVersionFromFiles(files, rootName) {
   return String(match[1]).replace(/(\.0)+$/, '') || String(match[1]);
 }
 
-export function pluginSpecFromZip(id, zip, gameVersion = '3.10.14') {
+export function pluginSpecFromZip(id, zip, gameVersion = '3.1.0') {
   const meta = platformPluginMod(id);
   if (!meta) throw new Error(`Unknown platform plugin id: ${id}`);
   const files = unzipStoredFiles(zip);
@@ -170,7 +170,7 @@ export function parseArgs(argv = process.argv.slice(2), env = process.env) {
     password: env.PLATFORM_PASSWORD || '',
     packId: env.PLATFORM_PACK_ID || '',
     packName: env.PLATFORM_PACK_NAME || 'Hordepin Platform',
-    gameVersion: env.PLATFORM_GAME_VERSION || '3.10.14',
+    gameVersion: env.PLATFORM_GAME_VERSION || '3.1.0',
     publishLauncher: env.PLATFORM_PUBLISH_LAUNCHER !== 'false',
     clientDir: path.join(ROOT, 'artifacts', 'plugins', 'ModPlatformClient'),
     serverDir: path.join(ROOT, 'artifacts', 'plugins', 'ModPlatformServer'),

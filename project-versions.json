@@ -1,0 +1,13 @@
+{
+  "platformVersion": "0.3.0",
+  "pluginVersion": "0.2.12",
+  "protocolVersion": 1,
+  "gameVersion": "3.1.0",
+  "steamBuildId": "24436778",
+  "validated": {
+    "windowsClient": true,
+    "windowsDedicatedServer": true,
+    "windowsListenServer": false,
+    "linuxDedicatedServer": false
+  }
+}

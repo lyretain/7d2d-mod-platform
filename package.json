@@ -10,6 +10,8 @@
     "dev": "node --watch apps/api/src/server.js",
     "dev:web": "npm --prefix apps/web run dev",
     "build:web": "npm --prefix apps/web run build",
+    "check:metadata": "node scripts/check-project-metadata.js",
+    "check": "npm run check:metadata && npm test",
     "test": "node --test apps/api/test/*.test.js apps/updater/test/*.test.js apps/launcher/test/*.test.js",
     "updater": "node apps/updater/src/cli.js",
     "launcher": "node apps/launcher/src/cli.js",

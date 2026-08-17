@@ -1,0 +1,60 @@
+name: Bug report
+description: Report a reproducible Hordepin defect
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: "Do not report security vulnerabilities here. Use Security → Report a vulnerability. Redact all secrets and player data."
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Platform, plugin, game version, and Steam Build
+      placeholder: "platform 0.3.0; plugin 0.2.12; game V 3.1.0; Steam 24436778"
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options: [API, Web UI, Launcher, Updater, Agent, Client plugin, Server plugin, Docker or deployment, Documentation]
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction
+      description: Provide the smallest reliable sequence. Use a clean profile where possible.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, deployment mode, database/object store, EAC state, and relevant configuration with secrets removed
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Redacted logs
+      render: shell
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched existing Issues.
+          required: true
+        - label: I removed credentials, player identifiers, private paths, private Mods, and proprietary game files.
+          required: true
+        - label: This is not a security vulnerability.
+          required: true

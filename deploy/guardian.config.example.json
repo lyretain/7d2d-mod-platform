@@ -1,7 +1,7 @@
 {
   "baseUrl": "https://mods.aic.la",
   "side": "server",
-  "gameVersion": "3.10.14",
+  "gameVersion": "3.1.0",
   "packId": "production-pack",
   "serverId": "srv_replace",
   "serverToken": "replace",
