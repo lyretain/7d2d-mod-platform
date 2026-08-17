@@ -2,7 +2,7 @@
 
 [English](DEPLOYMENT.md) · [简体中文](DEPLOYMENT.zh-CN.md)
 
-最后更新：2026-08-16。管理后台已拆成 `apps/web` Vue SPA；API 仍是零运行时依赖。
+最后更新：2026-08-17。管理后台已拆成 `apps/web` Vue SPA；API 仍是零运行时依赖。
 
 ## 一、部署模式
 
@@ -223,4 +223,43 @@ docker compose up --build -d
 - 已取得所有托管 Mod 的再分发许可；
 - 客户端更新器使用固定公钥；
 - 已进行恢复演练；
-- 已在目标七日杀版本上测试客户端和服务端插件。
+- 已在目标七日杀版本上测试客户端和服务端插件；
+- 若希望 CI 自动上传插件 ZIP，已配置 GitHub Actions 密钥。
+
+## 十、GitHub Actions
+
+`.github/workflows/ci.yml` 在每次 push 和 pull request 上跑 `npm test`。`main`（以及手动 `workflow_dispatch`）还会在 Windows 任务里：
+
+1. 缓存 7DTD 引用程序集（缓存未命中时用 SteamCMD 拉专用服）
+2. 编译客户端/服务端插件和便携启动器
+3. 打包 `ModPlatformClient` / `ModPlatformServer`，并上传为 GitHub Actions artifacts
+4. 若配置了仓库密钥，则把 ZIP 上传到管理平台、自动通过平台插件审核、登记 `mod-platform-client` / `mod-platform-server`、发布启动器自更新，并可选写入 Pack Release
+
+仓库 **secrets**：
+
+| 密钥 | 用途 |
+|---|---|
+| `PLATFORM_BASE_URL` | API 地址，默认 `https://mods.aic.la` |
+| `PLATFORM_TOKEN` | 超级管理员会话令牌（也可用用户名密码） |
+| `PLATFORM_USERNAME` | 超级管理员登录名；该账户不能开 TOTP |
+| `PLATFORM_PASSWORD` | 超级管理员密码 |
+
+仓库 **variables**（可选）：
+
+| 变量 | 用途 |
+|---|---|
+| `PLATFORM_PACK_ID` | 若填写，CI 会更新该 Pack 并发布 Release |
+| `PLATFORM_PACK_NAME` | 新建该 Pack 时用的名称 |
+| `PLATFORM_GAME_VERSION` | 默认 `3.10.14` |
+| `PLATFORM_PUBLISH_LAUNCHER` | 设为 `false` 则不发布启动器自更新 |
+| `STEAM_BUILD_ID` | 缓存键，默认 `24436778` |
+
+CI 账户必须是超级管理员（`platform.manage`）。本地等价命令：
+
+```powershell
+npm run publish-platform -- --pack-only
+$env:PLATFORM_BASE_URL = "https://mods.aic.la"
+$env:PLATFORM_USERNAME = "ci-bot"
+$env:PLATFORM_PASSWORD = "..."
+npm run publish-platform
+```

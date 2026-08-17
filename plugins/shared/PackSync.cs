@@ -148,7 +148,8 @@ namespace ModPlatform.Shared
                 var roots = (mod.InstallRoots == null || mod.InstallRoots.Count == 0) ? new List<string> { mod.Id } : mod.InstallRoots;
                 foreach (var root in roots)
                 {
-                    if (!SafeRoot.IsMatch(root) || IsProtected(root)) throw new InvalidOperationException("Refusing to install into protected or unsafe root: " + root);
+                    if (!SafeRoot.IsMatch(root)) throw new InvalidOperationException("Refusing to install into protected or unsafe root: " + root);
+                    if (IsProtected(root) && !AllowsOfficialPlugin(mod, root)) throw new InvalidOperationException("Refusing to install into protected or unsafe root: " + root);
                     if (desired.ContainsKey(root)) throw new InvalidOperationException("Multiple artifacts own the same install root: " + root);
                     desired[root] = new ManagedRoot
                     {
@@ -590,6 +591,14 @@ namespace ModPlatform.Shared
             using (var sha = SHA256.Create())
             using (var stream = File.OpenRead(path))
                 return BitConverter.ToString(sha.ComputeHash(stream)).Replace("-", "").ToLowerInvariant();
+        }
+
+        static bool AllowsOfficialPlugin(ManifestMod mod, string root)
+        {
+            if (mod == null || string.IsNullOrEmpty(mod.Id) || string.IsNullOrEmpty(root)) return false;
+            if (root.Equals("ModPlatformClient", StringComparison.OrdinalIgnoreCase) && mod.Id.Equals("mod-platform-client", StringComparison.OrdinalIgnoreCase)) return true;
+            if (root.Equals("ModPlatformServer", StringComparison.OrdinalIgnoreCase) && mod.Id.Equals("mod-platform-server", StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
         }
 
         static bool IsProtected(string root)

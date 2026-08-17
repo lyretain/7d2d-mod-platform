@@ -14,7 +14,8 @@
     "updater": "node apps/updater/src/cli.js",
     "launcher": "node apps/launcher/src/cli.js",
     "agent": "node apps/agent/src/guardian.js",
-    "server-sync": "node apps/agent/src/cli-sync.js"
+    "server-sync": "node apps/agent/src/cli-sync.js",
+    "publish-platform": "node deploy/publish-platform.js"
   },
   "engines": {
     "node": ">=22"

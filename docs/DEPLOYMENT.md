@@ -2,7 +2,7 @@
 
 [English](DEPLOYMENT.md) · [简体中文](DEPLOYMENT.zh-CN.md)
 
-Last updated: 2026-08-16. The admin console is the `apps/web` Vue SPA. The API still has zero npm runtime dependencies.
+Last updated: 2026-08-17. The admin console is the `apps/web` Vue SPA. The API still has zero npm runtime dependencies.
 
 ## 1. Modes
 
@@ -224,3 +224,42 @@ Back up at least:
 - Client updater uses a pinned public key
 - Restore drill completed
 - Client and server plugins tested on the target 7 Days to Die version
+- GitHub Actions secrets for platform publish are set if you want CI to upload plugin ZIPs
+
+## 10. GitHub Actions
+
+`.github/workflows/ci.yml` runs `npm test` on every push and pull request. On `main` (and `workflow_dispatch`) a Windows job then:
+
+1. Caches the 7DTD reference assemblies (SteamCMD dedicated server on a cache miss)
+2. Builds client/server plugins and the portable launcher
+3. Zips `ModPlatformClient` / `ModPlatformServer` and stores GitHub Actions artifacts
+4. If repository secrets are present, uploads those ZIPs to the management platform, auto-approves the first-party review, registers `mod-platform-client` / `mod-platform-server`, publishes the launcher self-update, and optionally adds them to a Pack Release
+
+Repository **secrets**:
+
+| Secret | Purpose |
+|---|---|
+| `PLATFORM_BASE_URL` | API origin; defaults to `https://mods.aic.la` |
+| `PLATFORM_TOKEN` | Session bearer for a superadmin (optional if username/password are set) |
+| `PLATFORM_USERNAME` | Superadmin login; the account must not use TOTP |
+| `PLATFORM_PASSWORD` | Superadmin password |
+
+Repository **variables** (optional):
+
+| Variable | Purpose |
+|---|---|
+| `PLATFORM_PACK_ID` | If set, CI updates this Pack and publishes a Release |
+| `PLATFORM_PACK_NAME` | Name used when creating that Pack |
+| `PLATFORM_GAME_VERSION` | Default `3.10.14` |
+| `PLATFORM_PUBLISH_LAUNCHER` | Set `false` to skip launcher self-update |
+| `STEAM_BUILD_ID` | Cache key; default `24436778` |
+
+The CI user must be a superadmin (`platform.manage`). Local equivalent:
+
+```powershell
+npm run publish-platform -- --pack-only
+$env:PLATFORM_BASE_URL = "https://mods.aic.la"
+$env:PLATFORM_USERNAME = "ci-bot"
+$env:PLATFORM_PASSWORD = "..."
+npm run publish-platform
+```

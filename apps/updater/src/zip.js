@@ -18,6 +18,49 @@ function crcTable() {
 }
 const CRC_TABLE = crcTable();
 
+export function buildStoredZip(files) {
+  const locals = [];
+  const centrals = [];
+  let offset = 0;
+  const names = Object.keys(files);
+  for (const name of names) {
+    const fileName = Buffer.from(String(name).replaceAll('\\', '/'));
+    const content = Buffer.isBuffer(files[name]) ? files[name] : Buffer.from(files[name] ?? '');
+    const crc = crc32(content);
+    const local = Buffer.alloc(30);
+    local.writeUInt32LE(LOCAL, 0);
+    local.writeUInt16LE(20, 4);
+    local.writeUInt16LE(0x800, 6);
+    local.writeUInt32LE(crc, 14);
+    local.writeUInt32LE(content.length, 18);
+    local.writeUInt32LE(content.length, 22);
+    local.writeUInt16LE(fileName.length, 26);
+    locals.push(local, fileName, content);
+
+    const central = Buffer.alloc(46);
+    central.writeUInt32LE(CENTRAL, 0);
+    central.writeUInt16LE(20, 4);
+    central.writeUInt16LE(20, 6);
+    central.writeUInt16LE(0x800, 8);
+    central.writeUInt32LE(crc, 16);
+    central.writeUInt32LE(content.length, 20);
+    central.writeUInt32LE(content.length, 24);
+    central.writeUInt16LE(fileName.length, 28);
+    central.writeUInt32LE(offset, 42);
+    centrals.push(central, fileName);
+    offset += local.length + fileName.length + content.length;
+  }
+  const localData = Buffer.concat(locals);
+  const centralData = Buffer.concat(centrals);
+  const eocd = Buffer.alloc(22);
+  eocd.writeUInt32LE(EOCD, 0);
+  eocd.writeUInt16LE(names.length, 8);
+  eocd.writeUInt16LE(names.length, 10);
+  eocd.writeUInt32LE(centralData.length, 12);
+  eocd.writeUInt32LE(localData.length, 16);
+  return Buffer.concat([localData, centralData, eocd]);
+}
+
 export function crc32(buffer) {
   let crc = 0xffffffff;
   for (const byte of buffer) crc = CRC_TABLE[(crc ^ byte) & 0xff] ^ (crc >>> 8);

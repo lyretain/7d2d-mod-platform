@@ -125,7 +125,7 @@ artifacts/plugins/ModPlatformClient
 artifacts/plugins/ModPlatformServer
 ```
 
-插件编译和安装参见 [插件构建与安装指南](docs/PLUGIN.zh-CN.md)（[English](docs/PLUGIN.md)）。
+插件编译和安装参见 [插件构建与安装指南](docs/PLUGIN.zh-CN.md)（[English](docs/PLUGIN.md)）。推到 `main` 时 `.github/workflows/ci.yml` 会重新编译，并可上传到管理平台；密钥见 [部署](docs/DEPLOYMENT.zh-CN.md#十github-actions)。
 
 ## 故障守护程序
 

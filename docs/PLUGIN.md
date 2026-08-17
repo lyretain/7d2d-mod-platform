@@ -70,6 +70,8 @@ E:\Project\artifacts\plugins
 
 After every 7 Days to Die update, rebuild against the new `Assembly-CSharp.dll` and test again.
 
+GitHub Actions on `main` does this rebuild, zips the plugin folders, and can upload them to the management platform as `mod-platform-client` / `mod-platform-server`. See [Deployment](DEPLOYMENT.md#10-github-actions).
+
 ## 4. Server config
 
 Example `server.config.json`:
@@ -160,7 +162,7 @@ The plugins already do:
 - the server claims that handshake by Steam/EOS/name and rejects unsynced, version-mismatched, or timed-out players on `PlayerLogin` / `PlayerSpawning`, with a kick reason that includes the launcher URL. Handshake wait is at least 120s (180s while a `syncing` hello is in flight) so a large content overlay cannot lose the race to the old 15s default
 - sync claims same-name folders the Pack already declared; the server cache lives in `ModPlatformServer/.modplatform`
 
-Upgrade client and server plugins together to `0.2.12`. Side-aware auto-update only installs server or client mods on the matching side; older plugins still install everything. Handshake fingerprints ignore server-only and client-only artifacts, so mixed packs need this plugin version.
+Upgrade client and server plugins together to `0.2.12`. Side-aware auto-update only installs server or client mods on the matching side; older plugins still install everything. Handshake fingerprints ignore server-only and client-only artifacts, so mixed packs need this plugin version. Official `mod-platform-client` / `mod-platform-server` entries in a Pack can update the matching plugin folders.
 
 ```powershell
 npm run launcher -- join --base-url http://localhost:8080 --address game.example.com:26900

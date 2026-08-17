@@ -203,6 +203,8 @@ POST /api/v1/artifacts/<sha256>/uploads/<uploadId>/complete
 
 `installSide` 为 `both`（默认）、`server` 或 `client`。专用服自动更新服务端与两端模组，玩家自动更新客户端与两端模组。握手指纹只包含 `both`。
 
+`mod-platform-client` 和 `mod-platform-server` 是平台插件保留 ID，只有 `platform.manage`（超级管理员 / CI）可以登记。Pack 同步可以更新对应的 `ModPlatformClient` / `ModPlatformServer` 目录；其它 Pack 仍不能覆盖这两个根目录。
+
 `dependsOn` 是已登记的前置 Mod ID 列表。创建或发布 Pack 时会自动展开这些前置（含传递依赖）写入 `entries`，更新器会一起下载。前置排在依赖它们的 Mod 前面。
 
 `contentSlots` 是安装目录下的可选子目录，例如 `Z_CustomAvatars` 上的 `Avatars`、`Dances`。上传 ZIP 后也会根据子目录和 ModInfo 介绍给出建议。内容是面向该 Mod 的可复用目录，不再是「每槽一份 ZIP」：

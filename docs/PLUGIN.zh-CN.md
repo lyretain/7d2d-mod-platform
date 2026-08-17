@@ -70,6 +70,8 @@ E:\Project\artifacts\plugins
 
 每次七日杀更新后都应使用新版本的 `Assembly-CSharp.dll` 重新编译并测试。
 
+`main` 上的 GitHub Actions 会做这次编译，打出插件 ZIP，并可以登记为管理平台上的 `mod-platform-client` / `mod-platform-server`。见 [部署](DEPLOYMENT.zh-CN.md#十github-actions)。
+
 ## 四、服务端配置
 
 `server.config.json` 示例：
@@ -160,7 +162,7 @@ E:\Project\artifacts\plugins
 - 服务端按玩家 Steam/EOS/名称认领该握手，并在 `PlayerLogin` / `PlayerSpawning` 拒绝未同步、版本不符或超时的玩家，踢出原因包含启动器地址。等待下限 120 秒（正在同步时 180 秒），避免大体积 overlay 还没下完就被旧的 15 秒超时踢掉。
 - 同步时会认领 Pack 已声明且已存在的同名目录；服务端缓存写在 `ModPlatformServer/.modplatform`。
 
-客户端和服务端插件建议一起升级到 `0.2.12`。按安装端自动更新后，专用服只装服务端与两端模组，玩家只装客户端与两端模组；旧插件仍会全装。握手指纹不再计入仅服务端/仅客户端制品，混装 Pack 需要这对插件。
+客户端和服务端插件建议一起升级到 `0.2.12`。按安装端自动更新后，专用服只装服务端与两端模组，玩家只装客户端与两端模组；旧插件仍会全装。握手指纹不再计入仅服务端/仅客户端制品，混装 Pack 需要这对插件。Pack 里的官方 `mod-platform-client` / `mod-platform-server` 可以更新对应插件目录。
 
 ```powershell
 npm run launcher -- join --base-url http://localhost:8080 --address game.example.com:26900

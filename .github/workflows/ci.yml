@@ -1,0 +1,90 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm test
+      - name: fail closed
+        if: failure()
+        run: |
+          echo "Tests failed; do not publish a production release."
+          exit 1
+
+  publish:
+    needs: test
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: windows-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    env:
+      PLATFORM_BASE_URL: ${{ secrets.PLATFORM_BASE_URL }}
+      PLATFORM_TOKEN: ${{ secrets.PLATFORM_TOKEN }}
+      PLATFORM_USERNAME: ${{ secrets.PLATFORM_USERNAME }}
+      PLATFORM_PASSWORD: ${{ secrets.PLATFORM_PASSWORD }}
+      PLATFORM_PACK_ID: ${{ vars.PLATFORM_PACK_ID }}
+      PLATFORM_PACK_NAME: ${{ vars.PLATFORM_PACK_NAME }}
+      PLATFORM_GAME_VERSION: ${{ vars.PLATFORM_GAME_VERSION }}
+      PLATFORM_PUBLISH_LAUNCHER: ${{ vars.PLATFORM_PUBLISH_LAUNCHER }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Cache 7DTD managed references
+        uses: actions/cache@v4
+        with:
+          path: .ci/7dtd-managed
+          key: 7dtd-managed-${{ vars.STEAM_BUILD_ID || '24436778' }}
+      - name: Fetch game references
+        shell: pwsh
+        run: |
+          ./deploy/fetch-game-managed.ps1 -OutDir ".ci/7dtd-managed" -SteamBuildId "${{ vars.STEAM_BUILD_ID || '24436778' }}"
+      - name: Build plugins
+        shell: pwsh
+        run: |
+          ./deploy/build-plugins.ps1 `
+            -GameManagedDir (Resolve-Path ".ci/7dtd-managed").Path `
+            -GameVersion "${{ vars.PLATFORM_GAME_VERSION || '3.10.14' }}" `
+            -SteamBuildId "${{ vars.STEAM_BUILD_ID || '24436778' }}"
+      - name: Build launcher
+        shell: pwsh
+        run: ./deploy/build-launcher.ps1
+      - name: Pack plugin zips
+        shell: pwsh
+        run: node deploy/publish-platform.js --pack-only
+      - name: Upload GitHub Actions artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: hordepin-platform-${{ github.sha }}
+          path: |
+            artifacts/plugins/**
+            artifacts/*.zip
+            artifacts/launcher/**
+          if-no-files-found: error
+      - name: Publish to management platform
+        shell: pwsh
+        run: |
+          if (-not $env:PLATFORM_TOKEN -and -not ($env:PLATFORM_USERNAME -and $env:PLATFORM_PASSWORD)) {
+            Write-Host "Skipping platform upload: set PLATFORM_TOKEN or PLATFORM_USERNAME/PASSWORD repository secrets."
+            exit 0
+          }
+          if (-not $env:PLATFORM_BASE_URL) { $env:PLATFORM_BASE_URL = "https://mods.aic.la" }
+          node deploy/publish-platform.js

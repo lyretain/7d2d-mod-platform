@@ -205,6 +205,8 @@ The API hashes the assembled file. A URL hash that does not match never enters t
 
 `installSide` is `both` (default), `server`, or `client`. Dedicated servers auto-update server and shared mods; players auto-update client and shared mods. Handshake fingerprints only include `both`.
 
+`mod-platform-client` and `mod-platform-server` are reserved first-party plugin IDs. Only `platform.manage` (superadmin / CI) may register them. Pack sync may update the matching `ModPlatformClient` / `ModPlatformServer` folders; other packs still cannot overwrite those roots.
+
 `dependsOn` is a list of registered Mod IDs. Creating or publishing a Pack expands those prerequisites (including transitive ones) into `entries` so the updater downloads them automatically. Prerequisites are listed before the mods that need them.
 
 `contentSlots` is an optional list of subfolders on the install root, for example `Avatars` and `Dances` on `Z_CustomAvatars`. The API also suggests slots from ZIP child folders and the ModInfo description. Content is a reusable catalog per mod, not one ZIP per slot:

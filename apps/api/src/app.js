@@ -7,7 +7,7 @@ import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { prepareDiagnostic } from './diagnostics.js';
 import { createAuthService } from './auth.js';
-import { activeRelease, handshakePolicy, normalizeInstallSide, recordAudit, releaseDiff } from './protocol.js';
+import { activeRelease, handshakePolicy, normalizeInstallSide, platformPluginMod, recordAudit, releaseDiff } from './protocol.js';
 import { bearer, decodeHeaderFileName, id, isSafeId, json, now, problem, readJson, requireFields } from './util.js';
 import { analyzeZipFile, scanFile } from './analyze.js';
 import { ingestDiagnostic, shouldBlockInstalls } from './compatibility.js';
@@ -417,10 +417,10 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
       }
 
       if (req.method === 'POST' && pathname === '/api/v1/mods') {
-        if (!requirePerm(req, res, 'catalog.write')) return;
         const body = await readJson(req);
         requireFields(body, ['id', 'name', 'version', 'artifactSha']);
         if (!isSafeId(body.id) || !isSafeId(body.version) || !/^[a-f0-9]{64}$/.test(body.artifactSha)) throw Object.assign(new Error('Invalid id, version, or SHA-256'), { code: 'VALIDATION' });
+        if (!requirePerm(req, res, platformPluginMod(body.id) ? 'platform.manage' : 'catalog.write')) return;
         const artifact = path.join(objectDir, body.artifactSha);
         const artifactInfo = await stat(artifact);
         const review = store.snapshot().reviews?.[body.artifactSha];

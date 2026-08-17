@@ -3,6 +3,15 @@ import { handshakeVersionsCompatible } from './game-version.js';
 export const PROTOCOL_VERSION = 1;
 export const PLUGIN_VERSION = '0.2.0';
 
+export const PLATFORM_PLUGIN_MODS = {
+  'mod-platform-client': { name: 'Mod Platform Client', root: 'ModPlatformClient', side: 'client' },
+  'mod-platform-server': { name: 'Mod Platform Server', root: 'ModPlatformServer', side: 'server' }
+};
+
+export function platformPluginMod(id) {
+  return PLATFORM_PLUGIN_MODS[String(id || '').trim().toLowerCase()] || null;
+}
+
 export const HANDSHAKE_REASON = {
   OK: 'OK',
   MISSING_PLUGIN: 'MISSING_PLUGIN',
