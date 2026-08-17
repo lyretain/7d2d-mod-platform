@@ -72,7 +72,7 @@ E:\Project\artifacts\plugins
 
 每次七日杀更新后都应使用新版本的 `Assembly-CSharp.dll` 重新编译并测试。
 
-`main` 上的 GitHub Actions 会做这次编译，打出插件 ZIP，并可以登记为管理平台上的 `mod-platform-client` / `mod-platform-server`。见 [部署](DEPLOYMENT.zh.md#10-github-actions)。
+`main` 上只有插件版本号变化时，GitHub Actions 才会做这次编译、打出插件 ZIP，并可以登记为管理平台上的 `mod-platform-client` / `mod-platform-server`。见 [部署](DEPLOYMENT.zh.md#10-github-actions)。
 
 ## 四、服务端配置
 

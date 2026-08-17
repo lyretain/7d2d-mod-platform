@@ -72,7 +72,7 @@ E:\Project\artifacts\plugins
 
 After every 7 Days to Die update, rebuild against the new `Assembly-CSharp.dll` and test again.
 
-GitHub Actions on `main` does this rebuild, zips the plugin folders, and can upload them to the management platform as `mod-platform-client` / `mod-platform-server`. See [Deployment](DEPLOYMENT.md#10-github-actions).
+GitHub Actions rebuilds and zips those folders when the plugin version changes on `main`, and can upload them to the management platform as `mod-platform-client` / `mod-platform-server`. See [Deployment](DEPLOYMENT.md#10-github-actions).
 
 ## 4. Server config
 

@@ -24,9 +24,58 @@ jobs:
           echo "Tests failed; do not publish a production release."
           exit 1
 
-  publish:
-    needs: test
+  mod-version:
+    runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    outputs:
+      changed: ${{ steps.detect.outputs.changed }}
+      version: ${{ steps.detect.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - id: detect
+        shell: bash
+        run: |
+          set -euo pipefail
+          extract_ps1() {
+            grep -E 'pluginVersion[[:space:]]*=[[:space:]]*"' "$1" | head -n 1 | sed -E 's/.*pluginVersion[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/'
+          }
+          extract_xml() {
+            grep -oE 'Version value="[^"]+"' "$1" | head -n 1
+          }
+          current="$(extract_ps1 deploy/build-plugins.ps1)"
+          if [ -z "$current" ]; then
+            echo "Could not read pluginVersion from deploy/build-plugins.ps1"
+            exit 1
+          fi
+          echo "version=$current" >> "$GITHUB_OUTPUT"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Manual dispatch: publishing plugin $current"
+            exit 0
+          fi
+          if ! git rev-parse --verify HEAD^ >/dev/null 2>&1; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "No parent commit: publishing plugin $current"
+            exit 0
+          fi
+          prev="$(git show HEAD^:deploy/build-plugins.ps1 | grep -E 'pluginVersion[[:space:]]*=[[:space:]]*"' | head -n 1 | sed -E 's/.*pluginVersion[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/' || true)"
+          client_now="$(extract_xml plugins/client/ModInfo.xml)"
+          server_now="$(extract_xml plugins/server/ModInfo.xml)"
+          client_prev="$(git show HEAD^:plugins/client/ModInfo.xml 2>/dev/null | grep -oE 'Version value="[^"]+"' | head -n 1 || true)"
+          server_prev="$(git show HEAD^:plugins/server/ModInfo.xml 2>/dev/null | grep -oE 'Version value="[^"]+"' | head -n 1 || true)"
+          if [ "$current" != "$prev" ] || [ "$client_now" != "$client_prev" ] || [ "$server_now" != "$server_prev" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Plugin version changed: ${prev:-none} -> $current"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Plugin version unchanged ($current); skipping Windows publish."
+          fi
+
+  publish:
+    needs: [test, mod-version]
+    if: needs.mod-version.outputs.changed == 'true'
     runs-on: windows-latest
     timeout-minutes: 120
     permissions:
@@ -100,11 +149,12 @@ jobs:
           })
           if (-not $zips.Count) { throw "No plugin ZIP was packed." }
           $files = @($zips | ForEach-Object { $_.FullName })
-          $tag = "ci-${{ github.run_number }}"
-          $title = "Hordepin mods ${{ github.run_number }}"
+          $tag = "v${{ needs.mod-version.outputs.version }}"
+          $title = "Hordepin mods ${{ needs.mod-version.outputs.version }}"
           $notes = @(
             'Official 7 Days to Die client and server plugin mods.',
             '',
+            "- Version: ${{ needs.mod-version.outputs.version }}",
             "- Commit: ${{ github.sha }}",
             "- Game: ${{ vars.PLATFORM_GAME_VERSION || '3.10.14' }} (Steam ${{ vars.STEAM_BUILD_ID || '24436778' }})",
             '- Extract ModPlatformClient into %APPDATA%\7DaysToDie\Mods\',

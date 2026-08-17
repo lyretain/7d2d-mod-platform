@@ -41,6 +41,7 @@ namespace ModPlatform.Shared
 "@
 Set-Content -LiteralPath (Join-Path $root "plugins\shared\PluginIdentity.cs") -Value $identity -Encoding UTF8
 
+# Bump pluginVersion (and plugins/*/ModInfo.xml) to trigger the Windows CI publish on main.
 $versionInfo = @{
   pluginVersion = "0.2.12"
   protocolVersion = 1

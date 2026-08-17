@@ -228,7 +228,7 @@ Back up at least:
 
 ## 10. GitHub Actions
 
-`.github/workflows/ci.yml` runs `npm test` on every push and pull request. On `main` (and `workflow_dispatch`) a Windows job then:
+`.github/workflows/ci.yml` runs `npm test` on every push and pull request. The Windows plugin compile, GitHub Release, and platform upload run only when the plugin version changes on `main` (`deploy/build-plugins.ps1` `pluginVersion` or `plugins/*/ModInfo.xml`), or on manual `workflow_dispatch`. That job then:
 
 1. Caches the 7DTD reference assemblies (SteamCMD dedicated server on a cache miss)
 2. Builds client/server plugins and the portable launcher

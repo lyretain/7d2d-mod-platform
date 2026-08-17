@@ -228,7 +228,7 @@ docker compose up --build -d
 
 ## 10. GitHub Actions
 
-`.github/workflows/ci.yml` 在每次 push 和 pull request 上跑 `npm test`。`main`（以及手动 `workflow_dispatch`）还会在 Windows 任务里：
+`.github/workflows/ci.yml` 在每次 push 和 pull request 上跑 `npm test`。Windows 编译、GitHub Release 和管理平台上传只在 `main` 上**插件版本号变化**时运行（`deploy/build-plugins.ps1` 的 `pluginVersion` 或 `plugins/*/ModInfo.xml`），或手动 `workflow_dispatch`。该任务会：
 
 1. 缓存 7DTD 引用程序集（缓存未命中时用 SteamCMD 拉专用服）
 2. 编译客户端/服务端插件和便携启动器

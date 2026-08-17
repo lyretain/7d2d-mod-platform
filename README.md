@@ -112,7 +112,7 @@ On the development machine, both plugins were successfully compiled against 7DTD
 
 Copy each built DLL, its `ModInfo.xml`, `ModPlatform.Shared.dll`, and the renamed example configuration into the matching `Mods/ModPlatformServer` or `Mods/ModPlatformClient` directory.
 
-Pushes to `main` also run `.github/workflows/ci.yml`, which rebuilds those folders and can upload them to the management platform. Configure the secrets listed in [Deployment](docs/DEPLOYMENT.md#10-github-actions).
+Bumping the plugin version on `main` runs `.github/workflows/ci.yml`, which rebuilds those folders and can upload them to the management platform. Configure the secrets listed in [Deployment](docs/DEPLOYMENT.md#10-github-actions).
 
 Plugins are compiled against 7DTD `V 3.10.14` / Steam build `24436778`. They poll assignments, send diagnostics, and run handshake protocol v1 over the platform HTTP API so unsynced clients are rejected before world entry without registering a custom NetPackage. Launcher preflight is still required to install files before the game loads DLLs. Live join tests on this machine are still outstanding.
 
