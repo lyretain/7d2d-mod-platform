@@ -12,6 +12,39 @@ export function platformPluginMod(id) {
   return PLATFORM_PLUGIN_MODS[String(id || '').trim().toLowerCase()] || null;
 }
 
+export function artifactApproved(snapshot, sha256, requireReview = false) {
+  const hash = String(sha256 || '').toLowerCase();
+  if (!hash) return false;
+  if (snapshot?.bannedHashes?.[hash]) return false;
+  if (!requireReview) return true;
+  const review = snapshot?.reviews?.[hash];
+  return review?.status === 'approved' && review.licenseConfirmed === true;
+}
+
+export function platformPluginDownloads(snapshot, { artifactUrl, requireReview = false } = {}) {
+  const plugins = [];
+  for (const [id, meta] of Object.entries(PLATFORM_PLUGIN_MODS)) {
+    const versions = Object.values(snapshot?.mods?.[id]?.versions || {})
+      .filter((item) => artifactApproved(snapshot, item.artifactSha, requireReview))
+      .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+    const latest = versions[0];
+    if (!latest) continue;
+    plugins.push({
+      id,
+      name: snapshot?.mods?.[id]?.name || meta.name,
+      root: meta.root,
+      installSide: meta.side,
+      version: latest.version,
+      sha256: latest.artifactSha,
+      size: Number(latest.artifactSize) || 0,
+      gameVersions: latest.gameVersions || [],
+      url: typeof artifactUrl === 'function' ? artifactUrl(latest.artifactSha) : null,
+      fileName: `${meta.root}-${latest.version}.zip`
+    });
+  }
+  return plugins;
+}
+
 export const HANDSHAKE_REASON = {
   OK: 'OK',
   MISSING_PLUGIN: 'MISSING_PLUGIN',

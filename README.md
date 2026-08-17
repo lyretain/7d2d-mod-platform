@@ -44,7 +44,7 @@ npm run dev
 npm run dev:web
 ```
 
-Player and host tutorial: [docs/USER.md](docs/USER.md) / [中文](docs/USER.zh-CN.md), or `/guide` and `/guide?lang=en` on a running instance.
+Player and host tutorial: [docs/USER.md](docs/USER.md) / [中文](docs/USER.zh-CN.md), or `/guide` and `/guide?lang=en` on a running instance. Install steps and official downloads: `/about`.
 
 ### Run with Docker
 

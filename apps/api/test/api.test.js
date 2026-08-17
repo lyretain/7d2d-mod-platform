@@ -354,10 +354,15 @@ test('regular users can register a game server and open the user guide', async (
 
   const guide = await fetch(`${base}/guide`);
   assert.equal(guide.status, 200);
-  assert.match(await guide.text(), /玩家与服主教程/);
+  const guideHtml = await guide.text();
+  assert.match(guideHtml, /玩家与服主教程/);
+  assert.match(guideHtml, /href="\/about"/);
   const guideEn = await fetch(`${base}/guide?lang=en`);
   assert.equal(guideEn.status, 200);
   assert.match(await guideEn.text(), /Player and host guide/);
+  const platform = await jsonRequest(`${base}/api/v1/public/platform`);
+  assert.deepEqual(platform.plugins, []);
+  assert.equal(platform.launcher, null);
 });
 
 test('client can deposit a handshake and the dedicated server claims it once', async (t) => {

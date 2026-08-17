@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Boxes, LayoutGrid, Package, Server, Settings, Store, UserRound } from 'lucide-vue-next';
+import { Boxes, CircleHelp, LayoutGrid, Package, Server, Settings, Store, UserRound } from 'lucide-vue-next';
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { useSidebar } from '../composables/useSidebar';
@@ -18,7 +18,8 @@ const items = computed(() => {
     { path: '/packs', name: t('nav.packs'), icon: Boxes, show: true },
     { path: '/servers', name: t('nav.servers'), icon: Server, show: true },
     { path: '/ops', name: t('nav.ops'), icon: Settings, show: can('ops.read') },
-    { path: '/account', name: t('nav.account'), icon: UserRound, show: true }
+    { path: '/account', name: t('nav.account'), icon: UserRound, show: true },
+    { path: '/about', name: t('nav.about'), icon: CircleHelp, show: true }
   ].filter((item) => item.show);
 });
 

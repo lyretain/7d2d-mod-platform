@@ -4,6 +4,8 @@
 
 平台地址：[https://mods.aic.la](https://mods.aic.la)
 
+安装流程和官方插件、启动器下载：[https://mods.aic.la/about](https://mods.aic.la/about)
+
 当前适配游戏：`V 3.10.14`（Steam Build `24436778`）。含 DLL 的 Mod 需要关闭 EAC。
 
 这篇文档面向两类人：
@@ -120,7 +122,7 @@ node apps/updater/src/cli.js --base-url https://mods.aic.la --pack-id your-pack 
 }
 ```
 
-插件包可向服主或社区管理员索取，仓库里的现成目录是 `artifacts/plugins/ModPlatformClient`。
+插件包可从 [关于页](https://mods.aic.la/about) 下载，也可向服主或社区管理员索取。仓库里的现成目录是 `artifacts/plugins/ModPlatformClient`。
 
 ### 2. 进服时自动同步
 

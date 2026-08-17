@@ -16,4 +16,4 @@ Every guide has a matching English and Simplified Chinese file.
 | Security model | [SECURITY.md](SECURITY.md) | [SECURITY.zh-CN.md](SECURITY.zh-CN.md) |
 | Protocol v1 | [PROTOCOL.md](PROTOCOL.md) | [PROTOCOL.zh-CN.md](PROTOCOL.zh-CN.md) |
 
-A running instance also serves the player guide at `/guide` (Chinese) and `/guide?lang=en` (English).
+A running instance also serves the player guide at `/guide` (Chinese) and `/guide?lang=en` (English), and the install / download page at `/about`.

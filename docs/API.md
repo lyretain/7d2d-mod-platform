@@ -88,6 +88,7 @@ Session routes use the login Bearer token instead. Server-token routes use the o
 | GET | `/api/v1/diagnostics/summary` | Signed-in | Aggregated fingerprints |
 | GET | `/api/v1/public/packs/{id}/latest` | Public | Latest signed manifest |
 | GET | `/api/v1/public/launcher/latest?platform=win32` | Public | Signed launcher self-update manifest |
+| GET | `/api/v1/public/platform` | Public | Official client/server plugin and launcher download links for the About page |
 | POST | `/api/v1/admin/launcher` | Admin | Publish a launcher ZIP already stored as an artifact |
 | POST | `/api/v1/admin/launcher/revoke` | Admin | Revoke the current launcher for a platform |
 | GET | `/api/v1/admin/launcher` | Admin | Published launcher channels |

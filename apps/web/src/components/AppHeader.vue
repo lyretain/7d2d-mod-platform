@@ -45,6 +45,7 @@ async function logout() {
       </div>
       <div class="flex items-center gap-2">
         <LangSwitch />
+        <router-link to="/about" class="btn-secondary hidden sm:inline-flex">{{ t('nav.about') }}</router-link>
         <a href="/guide" class="btn-secondary hidden sm:inline-flex">{{ t('guide') }}</a>
         <button type="button" class="btn-secondary" @click="logout">{{ t('logout') }}</button>
       </div>

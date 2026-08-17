@@ -14,6 +14,8 @@
 
 ## 二、使用现成插件包
 
+线上可从 [https://mods.aic.la/about](https://mods.aic.la/about) 下载官方客户端、服务端插件和启动器。本地构建产物在：
+
 客户端插件：
 
 ```text

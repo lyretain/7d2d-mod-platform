@@ -126,6 +126,11 @@ test('CI can upload first-party plugins and developers cannot register those ids
   const latest = await jsonRequest(`${base}/api/v1/public/packs/hordepin-platform/latest`);
   assert.deepEqual(latest.mods.map((mod) => mod.id).sort(), ['mod-platform-client', 'mod-platform-server']);
   assert.equal(latest.mods.find((mod) => mod.id === 'mod-platform-client').installSide, 'client');
+  const platform = await jsonRequest(`${base}/api/v1/public/platform`);
+  assert.equal(platform.plugins.length, 2);
+  assert.ok(platform.plugins.every((item) => String(item.url).includes('/api/v1/public/artifacts/')));
+  assert.equal(platform.plugins.find((item) => item.id === 'mod-platform-client').root, 'ModPlatformClient');
+  assert.equal(platform.launcher, null);
 
   const invitation = await jsonRequest(`${base}/api/v1/invites`, { method: 'POST', headers: admin, body: JSON.stringify({ role: 'developer', maxUses: 1, expiresInHours: 24 }) });
   await jsonRequest(`${base}/api/v1/auth/register`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'Modder', password: 'developer password', inviteCode: invitation.code }) });

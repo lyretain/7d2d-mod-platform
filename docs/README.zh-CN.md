@@ -16,4 +16,4 @@
 | 安全模型 | [SECURITY.md](SECURITY.md) | [SECURITY.zh-CN.md](SECURITY.zh-CN.md) |
 | 协议 v1 | [PROTOCOL.md](PROTOCOL.md) | [PROTOCOL.zh-CN.md](PROTOCOL.zh-CN.md) |
 
-运行中的实例也会在 `/guide` 提供中文教程，`/guide?lang=en` 提供英文。
+运行中的实例也会在 `/guide` 提供中文教程，`/guide?lang=en` 提供英文，并在 `/about` 提供安装流程与官方插件下载。

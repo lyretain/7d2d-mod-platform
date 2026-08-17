@@ -67,7 +67,7 @@ export function renderUserGuide(markdown, lang = 'zh') {
 </head>
 <body>
   <main>
-    <nav><a href="/">${home}</a><a href="/guide">简体中文</a><a href="/guide?lang=en">English</a></nav>
+    <nav><a href="/">${home}</a><a href="/about">${isEn ? 'About' : '关于'}</a><a href="/guide">简体中文</a><a href="/guide?lang=en">English</a></nav>
     ${renderBlocks(markdown)}
     <footer>
       <span>© 2026 Lyretain</span>

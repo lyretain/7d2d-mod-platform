@@ -6,6 +6,7 @@ const router = createRouter({
   routes: [
     { path: '/setup', component: () => import('../views/SetupView.vue'), meta: { public: true } },
     { path: '/signin', component: () => import('../views/SignInView.vue'), meta: { public: true } },
+    { path: '/about', component: () => import('../views/AboutView.vue'), meta: { public: true, titleKey: 'page.about.title', hintKey: 'page.about.hint' } },
     {
       path: '/',
       component: () => import('../layouts/AdminShell.vue'),

@@ -4,6 +4,8 @@
 
 Platform: [https://mods.aic.la](https://mods.aic.la)
 
+Install steps and official plugin / launcher downloads: [https://mods.aic.la/about](https://mods.aic.la/about)
+
 Current game target: `V 3.10.14` (Steam Build `24436778`). Mods that contain DLLs need EAC off.
 
 This guide is for two audiences:
@@ -120,7 +122,7 @@ Default `client.config.json`:
 }
 ```
 
-Ask the host or a community admin for the plugin pack. The repo copy lives in `artifacts/plugins/ModPlatformClient`.
+Download the plugin pack from the [About page](https://mods.aic.la/about), or ask the host or a community admin. The repo copy lives in `artifacts/plugins/ModPlatformClient`.
 
 ### 2. Auto-sync when you join
 

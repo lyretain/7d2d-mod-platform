@@ -14,6 +14,8 @@
 
 ## 2. Use a prebuilt pack
 
+Official client/server plugins and the launcher are on [https://mods.aic.la/about](https://mods.aic.la/about). Local build output lives in:
+
 Client plugin:
 
 ```text

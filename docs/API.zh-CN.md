@@ -86,6 +86,7 @@ Authorization: Bearer <ADMIN_TOKEN>
 | GET | `/api/v1/diagnostics/summary` | 登录用户 | 查看故障聚合结果 |
 | GET | `/api/v1/public/packs/{id}/latest` | 公开 | 获取最新签名 manifest |
 | GET | `/api/v1/public/launcher/latest?platform=win32` | 公开 | 获取已签名的启动器自更新 manifest |
+| GET | `/api/v1/public/platform` | 公开 | 关于页用的官方客户端/服务端插件与启动器下载地址 |
 | POST | `/api/v1/admin/launcher` | 管理员 | 把已入库的启动器 ZIP 发布为自更新通道 |
 | POST | `/api/v1/admin/launcher/revoke` | 管理员 | 吊销某平台当前启动器 |
 | GET | `/api/v1/admin/launcher` | 管理员 | 查看已发布的启动器通道 |

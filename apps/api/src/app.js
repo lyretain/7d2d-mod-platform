@@ -7,7 +7,7 @@ import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { prepareDiagnostic } from './diagnostics.js';
 import { createAuthService } from './auth.js';
-import { activeRelease, handshakePolicy, normalizeInstallSide, platformPluginMod, recordAudit, releaseDiff } from './protocol.js';
+import { activeRelease, handshakePolicy, normalizeInstallSide, platformPluginDownloads, platformPluginMod, recordAudit, releaseDiff } from './protocol.js';
 import { bearer, decodeHeaderFileName, id, isSafeId, json, now, problem, readJson, requireFields } from './util.js';
 import { analyzeZipFile, scanFile } from './analyze.js';
 import { ingestDiagnostic, shouldBlockInstalls } from './compatibility.js';
@@ -730,6 +730,28 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
         const release = pack && activeRelease(snapshot, pack);
         if (!release) return problem(res, 404, 'RELEASE_NOT_FOUND', 'No active release was found');
         return json(res, 200, release.manifest, cloudflareCacheHeaders('manifest'));
+      }
+
+      if (req.method === 'GET' && pathname === '/api/v1/public/platform') {
+        const snapshot = store.snapshot();
+        const plugins = platformPluginDownloads(snapshot, {
+          artifactUrl: (sha) => artifactPublicUrl(sha, config, artifactBase),
+          requireReview
+        });
+        const launcher = currentLauncher(snapshot, url.searchParams.get('platform') || 'win32');
+        return json(res, 200, {
+          gameVersion: plugins.find((item) => item.gameVersions?.length)?.gameVersions?.[0] || null,
+          plugins,
+          launcher: launcher?.manifest ? {
+            version: launcher.manifest.version,
+            platform: launcher.manifest.platform,
+            sha256: launcher.manifest.sha256,
+            size: launcher.manifest.size,
+            fileName: launcher.manifest.fileName,
+            url: launcher.manifest.url,
+            notes: launcher.manifest.notes || null
+          } : null
+        }, cloudflareCacheHeaders('manifest'));
       }
 
       if (req.method === 'GET' && pathname === '/api/v1/public/launcher/latest') {

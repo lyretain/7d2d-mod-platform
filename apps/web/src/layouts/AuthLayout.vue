@@ -19,7 +19,10 @@ defineProps<{ title: string; lead?: string }>();
             <span class="text-sm text-gray-500">{{ t('gate.f' + n + 'd') }}</span>
           </li>
         </ul>
-        <a href="/guide" class="mt-8 text-sm text-brand-500">{{ t('gate.guide') }}</a>
+        <div class="mt-8 flex flex-wrap gap-x-4 gap-y-2">
+          <a href="/about" class="text-sm text-brand-500">{{ t('nav.about') }}</a>
+          <a href="/guide" class="text-sm text-brand-500">{{ t('gate.guide') }}</a>
+        </div>
       </div>
       <div class="flex flex-1 items-center justify-center px-5 py-10">
         <div class="w-full max-w-md">
