@@ -74,9 +74,24 @@ Manifest download URLs become `https://cdn.example.com/objects/<sha256>`. Hash b
 ## WAF and security
 
 - Managed rules plus rate limits on `/api/v1/auth/login`, `/api/v1/auth/register`, `/api/v1/diagnostics`.
+- Do **not** put Bot Fight / managed challenges on `/api/v1/*`. GitHub Actions, the launcher, and the game plugins cannot pass a “Just a moment…” page.
 - Admin host `admin.example.com` can add IP Access or Zero Trust.
 - Allow only Cloudflare IPs to the origin, or use Authenticated Origin Pulls.
 - Free/Pro plans cap a single upload at 100 MB. The admin UI chunks ZIP files larger than 8 MiB (8 MiB each). Player downloads are not affected.
+
+### Let CI through Cloudflare
+
+GitHub egress IPs often get a 403 HTML challenge. Use either:
+
+1. **Recommended: turn off bot challenges on the API**  
+   Cloudflare Dashboard → **Security** → **WAF** → **Custom rules** → **Create rule**  
+   - If `URI Path` starts with `/api/v1/`  
+   - Action: **Skip** Bot Fight Mode, Super Bot Fight Mode, and Managed Challenge  
+   Or a **Configuration rule** that disables Bot Fight for `/api/v1/*` and sets Security Level to Essentially Off.
+
+2. **Skip on a custom header**  
+   Custom rule: `(http.request.uri.path wildcard r"/api/v1/*" and any(http.request.headers["x-hordepin-ci"][*] eq "your-random-token"))`  
+   Same Skip action. Store the token as repository secret `PLATFORM_CF_SKIP_TOKEN`. The publish script sends `x-hordepin-ci`.
 
 ## Traffic notes
 

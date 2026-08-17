@@ -244,6 +244,7 @@ docker compose up --build -d
 | `PLATFORM_USERNAME` | 超级管理员登录名；该账户不能开 TOTP |
 | `PLATFORM_PASSWORD` | 超级管理员密码 |
 | `GAME_MANAGED_URL` | 可选。包含 `Assembly-CSharp.dll`、`LogLibrary.dll`、`UnityEngine.CoreModule.dll` 的 ZIP 下载地址。SteamCMD 匿名拉专用服失败时用它 |
+| `PLATFORM_CF_SKIP_TOKEN` | 可选。与 Cloudflare WAF 跳过规则中的 `x-hordepin-ci` 相同；用来避开「Just a moment…」质询 |
 
 仓库 **variables**（可选）：
 

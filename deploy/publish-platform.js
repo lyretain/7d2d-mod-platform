@@ -82,6 +82,25 @@ export function pluginSpecFromZip(id, zip, gameVersion = '3.10.14') {
   };
 }
 
+export function requestHeaders(env = process.env) {
+  const headers = {
+    'user-agent': 'HordepinCI/1.0 (+https://github.com/lyretain/7d2d-mod-platform)'
+  };
+  const skip = env.PLATFORM_CF_SKIP_TOKEN || env.CF_SKIP_TOKEN;
+  if (skip) headers['x-hordepin-ci'] = skip;
+  if (env.CF_ACCESS_CLIENT_ID) headers['cf-access-client-id'] = env.CF_ACCESS_CLIENT_ID;
+  if (env.CF_ACCESS_CLIENT_SECRET) headers['cf-access-client-secret'] = env.CF_ACCESS_CLIENT_SECRET;
+  return headers;
+}
+
+export function describeApiError(status, text) {
+  const body = String(text || '');
+  if (/just a moment|cf-mitigated|challenges\.cloudflare\.com/i.test(body)) {
+    return `Cloudflare blocked this CI request (${status}). Skip Bot Fight Mode for /api/v1/*, or add a WAF skip for header x-hordepin-ci and set secret PLATFORM_CF_SKIP_TOKEN.`;
+  }
+  return body.slice(0, 500) || `HTTP ${status}`;
+}
+
 export function parseArgs(argv = process.argv.slice(2), env = process.env) {
   const options = {
     baseUrl: env.PLATFORM_BASE_URL || env.PUBLIC_BASE_URL || 'https://mods.aic.la',
@@ -114,6 +133,7 @@ async function api(baseUrl, token, pathname, { method = 'GET', headers = {}, bod
   const response = await fetch(`${String(baseUrl).replace(/\/$/, '')}${pathname}`, {
     method,
     headers: {
+      ...requestHeaders(process.env),
       ...(token ? { authorization: `Bearer ${token}` } : {}),
       ...headers
     },
@@ -123,8 +143,8 @@ async function api(baseUrl, token, pathname, { method = 'GET', headers = {}, bod
   let parsed = null;
   try { parsed = text ? JSON.parse(text) : null; } catch { parsed = { raw: text }; }
   if (!response.ok) {
-    const message = parsed?.error?.message || parsed?.error?.code || text || `HTTP ${response.status}`;
-    throw Object.assign(new Error(message), { status: response.status, body: parsed });
+    const message = parsed?.error?.message || parsed?.error?.code || describeApiError(response.status, text);
+    throw Object.assign(new Error(message), { status: response.status, body: parsed?.error ? parsed : { raw: String(text || '').slice(0, 200) } });
   }
   return parsed;
 }

@@ -9,7 +9,7 @@ import { SigningService } from '../src/signing.js';
 import { JsonStore } from '../src/store.js';
 import { sha256 } from '../src/util.js';
 import { createStoredZip } from '../../updater/test/zip-helper.js';
-import { packArtifacts, pluginSpecFromZip, pluginVersionFromFiles, publishPlatform, zipPluginFolder } from '../../../deploy/publish-platform.js';
+import { describeApiError, packArtifacts, pluginSpecFromZip, pluginVersionFromFiles, publishPlatform, requestHeaders, zipPluginFolder } from '../../../deploy/publish-platform.js';
 
 async function fixture(t, extra = {}) {
   const dataDir = await mkdtemp(path.join(os.tmpdir(), 'mod-platform-publish-'));
@@ -48,6 +48,11 @@ function pluginZip(root, version = '0.2.12') {
     [`${root}/ModPlatform.Shared.dll`]: 'dll'
   });
 }
+
+test('detects Cloudflare challenge pages and sends the skip header', () => {
+  assert.match(describeApiError(403, '<title>Just a moment...</title> https://challenges.cloudflare.com'), /Cloudflare blocked/);
+  assert.equal(requestHeaders({ PLATFORM_CF_SKIP_TOKEN: 'ci-secret' })['x-hordepin-ci'], 'ci-secret');
+});
 
 test('plugin zip version is read from plugin-version.json', () => {
   const zip = pluginZip('ModPlatformClient', '0.2.12');

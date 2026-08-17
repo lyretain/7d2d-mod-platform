@@ -244,6 +244,7 @@ Repository **secrets**:
 | `PLATFORM_USERNAME` | Superadmin login; the account must not use TOTP |
 | `PLATFORM_PASSWORD` | Superadmin password |
 | `GAME_MANAGED_URL` | Optional. Direct URL to a ZIP that contains `Assembly-CSharp.dll`, `LogLibrary.dll`, and `UnityEngine.CoreModule.dll`. Used if SteamCMD cannot anonymously install the dedicated server |
+| `PLATFORM_CF_SKIP_TOKEN` | Optional. Same value as the Cloudflare WAF skip for header `x-hordepin-ci`; avoids the “Just a moment…” challenge |
 
 Repository **variables** (optional):
 

@@ -74,9 +74,24 @@ manifest 中的下载地址会变成 `https://cdn.example.com/objects/<sha256>`�
 ## WAF 与安全
 
 - 对 `/api/v1/auth/login`、`/api/v1/auth/register`、`/api/v1/diagnostics` 加托管规则 + 速率限制。
+- **不要**对 `/api/v1/*` 开 Bot Fight / 托管质询。GitHub Actions、启动器和游戏插件都不会做「Just a moment…」页面。
 - 管理主机 `admin.example.com` 可再加 IP Access 或 Zero Trust。
 - 源站只允许 Cloudflare IP，或用 Authenticated Origin Pulls。
 - 免费/专业版单次上传上限 100MB。管理后台对大于 8MiB 的 ZIP 会自动切片（每片 8MiB），玩家下载不受此限制。
+
+### 让 CI 穿过 Cloudflare
+
+GitHub 出口 IP 常被 Bot Fight 拦成 403 HTML。任选一种：
+
+1. **推荐：关闭 API 上的机器人质询**  
+   Cloudflare Dashboard → **Security** → **WAF** → **Custom rules** → **Create rule**  
+   - 条件：`URI Path` starts with `/api/v1/`  
+   - 动作：**Skip** → 勾选 Bot Fight Mode、Super Bot Fight Mode、Managed Challenge  
+   或用 **Configuration rules**：对 `/api/v1/*` 关闭 Bot Fight，Security Level 设为 Essentially Off。
+
+2. **自定义请求头跳过**  
+   自定义规则：`(http.request.uri.path wildcard r"/api/v1/*" and any(http.request.headers["x-hordepin-ci"][*] eq "你的随机串"))`  
+   动作同样 Skip Bot Fight。仓库 Secret `PLATFORM_CF_SKIP_TOKEN` 填同一串。CI 发布脚本会带上 `x-hordepin-ci`。
 
 ## 流量估算要点
 

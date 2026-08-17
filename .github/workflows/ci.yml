@@ -41,6 +41,9 @@ jobs:
       PLATFORM_GAME_VERSION: ${{ vars.PLATFORM_GAME_VERSION }}
       PLATFORM_PUBLISH_LAUNCHER: ${{ vars.PLATFORM_PUBLISH_LAUNCHER }}
       GAME_MANAGED_URL: ${{ secrets.GAME_MANAGED_URL }}
+      PLATFORM_CF_SKIP_TOKEN: ${{ secrets.PLATFORM_CF_SKIP_TOKEN }}
+      CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+      CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
