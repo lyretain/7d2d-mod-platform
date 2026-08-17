@@ -15,6 +15,15 @@ if ($have -notcontains $false) {
   exit 0
 }
 
+function Test-GameManagedDll([string]$managed, [string]$name) {
+  if ([string]::IsNullOrWhiteSpace($managed)) { return $false }
+  try {
+    return [System.IO.File]::Exists([System.IO.Path]::Combine($managed, $name))
+  } catch {
+    return $false
+  }
+}
+
 $candidates = @(
   $env:GAME_MANAGED_DIR,
   "G:\SteamLibrary\steamapps\common\7 Days To Die\7DaysToDie_Data\Managed",
@@ -23,16 +32,15 @@ $candidates = @(
 ) | Where-Object { $_ }
 
 foreach ($managed in $candidates) {
-  if (Test-Path -LiteralPath (Join-Path $managed "Assembly-CSharp.dll")) {
-    foreach ($name in $needed) {
-      $source = Join-Path $managed $name
-      if (-not (Test-Path -LiteralPath $source)) { throw "Missing $name in $managed" }
-      Copy-Item $source -Destination (Join-Path $OutDir $name) -Force
-    }
-    Write-Host "Copied game references from $managed"
-    Write-Output $OutDir
-    exit 0
+  if (-not (Test-GameManagedDll $managed "Assembly-CSharp.dll")) { continue }
+  foreach ($name in $needed) {
+    $source = [System.IO.Path]::Combine($managed, $name)
+    if (-not (Test-GameManagedDll $managed $name)) { throw "Missing $name in $managed" }
+    Copy-Item $source -Destination (Join-Path $OutDir $name) -Force
   }
+  Write-Host "Copied game references from $managed"
+  Write-Output $OutDir
+  exit 0
 }
 
 $steamRoot = Join-Path $root ".ci\steamcmd"
