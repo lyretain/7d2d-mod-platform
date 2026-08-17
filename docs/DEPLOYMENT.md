@@ -243,6 +243,7 @@ Repository **secrets**:
 | `PLATFORM_TOKEN` | Session bearer for a superadmin (optional if username/password are set) |
 | `PLATFORM_USERNAME` | Superadmin login; the account must not use TOTP |
 | `PLATFORM_PASSWORD` | Superadmin password |
+| `GAME_MANAGED_URL` | Optional. Direct URL to a ZIP that contains `Assembly-CSharp.dll`, `LogLibrary.dll`, and `UnityEngine.CoreModule.dll`. Used if SteamCMD cannot anonymously install the dedicated server |
 
 Repository **variables** (optional):
 

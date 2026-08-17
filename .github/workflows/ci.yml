@@ -40,6 +40,7 @@ jobs:
       PLATFORM_PACK_NAME: ${{ vars.PLATFORM_PACK_NAME }}
       PLATFORM_GAME_VERSION: ${{ vars.PLATFORM_GAME_VERSION }}
       PLATFORM_PUBLISH_LAUNCHER: ${{ vars.PLATFORM_PUBLISH_LAUNCHER }}
+      GAME_MANAGED_URL: ${{ secrets.GAME_MANAGED_URL }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

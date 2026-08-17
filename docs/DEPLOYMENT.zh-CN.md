@@ -243,6 +243,7 @@ docker compose up --build -d
 | `PLATFORM_TOKEN` | 超级管理员会话令牌（也可用用户名密码） |
 | `PLATFORM_USERNAME` | 超级管理员登录名；该账户不能开 TOTP |
 | `PLATFORM_PASSWORD` | 超级管理员密码 |
+| `GAME_MANAGED_URL` | 可选。包含 `Assembly-CSharp.dll`、`LogLibrary.dll`、`UnityEngine.CoreModule.dll` 的 ZIP 下载地址。SteamCMD 匿名拉专用服失败时用它 |
 
 仓库 **variables**（可选）：
 

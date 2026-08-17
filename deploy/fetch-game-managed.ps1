@@ -8,12 +8,6 @@ $root = Split-Path -Parent $PSScriptRoot
 if (-not $OutDir) { $OutDir = Join-Path $root ".ci\7dtd-managed" }
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 $needed = @("Assembly-CSharp.dll", "LogLibrary.dll", "UnityEngine.CoreModule.dll")
-$have = $needed | ForEach-Object { Test-Path -LiteralPath (Join-Path $OutDir $_) }
-if ($have -notcontains $false) {
-  Write-Host "Using cached game references in $OutDir"
-  Write-Output $OutDir
-  exit 0
-}
 
 function Test-GameManagedDll([string]$managed, [string]$name) {
   if ([string]::IsNullOrWhiteSpace($managed)) { return $false }
@@ -24,6 +18,29 @@ function Test-GameManagedDll([string]$managed, [string]$name) {
   }
 }
 
+function Find-ManagedDir([string]$searchRoot) {
+  if ([string]::IsNullOrWhiteSpace($searchRoot) -or -not (Test-Path -LiteralPath $searchRoot)) { return $null }
+  $dll = Get-ChildItem -LiteralPath $searchRoot -Recurse -Filter "Assembly-CSharp.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
+  if ($dll) { return $dll.DirectoryName }
+  return $null
+}
+
+function Copy-ManagedRefs([string]$managed, [string]$sourceLabel) {
+  foreach ($name in $needed) {
+    if (-not (Test-GameManagedDll $managed $name)) { throw "Missing $name in $managed" }
+    Copy-Item ([System.IO.Path]::Combine($managed, $name)) -Destination (Join-Path $OutDir $name) -Force
+  }
+  Write-Host "Copied game references from $sourceLabel ($managed)"
+  Write-Output $OutDir
+  exit 0
+}
+
+if (($needed | ForEach-Object { Test-Path -LiteralPath (Join-Path $OutDir $_) }) -notcontains $false) {
+  Write-Host "Using cached game references in $OutDir"
+  Write-Output $OutDir
+  exit 0
+}
+
 $candidates = @(
   $env:GAME_MANAGED_DIR,
   "G:\SteamLibrary\steamapps\common\7 Days To Die\7DaysToDie_Data\Managed",
@@ -32,15 +49,23 @@ $candidates = @(
 ) | Where-Object { $_ }
 
 foreach ($managed in $candidates) {
-  if (-not (Test-GameManagedDll $managed "Assembly-CSharp.dll")) { continue }
-  foreach ($name in $needed) {
-    $source = [System.IO.Path]::Combine($managed, $name)
-    if (-not (Test-GameManagedDll $managed $name)) { throw "Missing $name in $managed" }
-    Copy-Item $source -Destination (Join-Path $OutDir $name) -Force
+  if (Test-GameManagedDll $managed "Assembly-CSharp.dll") {
+    Copy-ManagedRefs $managed $managed
   }
-  Write-Host "Copied game references from $managed"
-  Write-Output $OutDir
-  exit 0
+}
+
+if ($env:GAME_MANAGED_URL) {
+  Write-Host "Downloading game references from GAME_MANAGED_URL"
+  $bundleDir = Join-Path $root ".ci\managed-url"
+  New-Item -ItemType Directory -Force -Path $bundleDir | Out-Null
+  $bundleZip = Join-Path $bundleDir "managed.zip"
+  Invoke-WebRequest -Uri $env:GAME_MANAGED_URL -OutFile $bundleZip
+  Expand-Archive -LiteralPath $bundleZip -DestinationPath $bundleDir -Force
+  $fromUrl = Find-ManagedDir $bundleDir
+  if ($fromUrl -and (Test-GameManagedDll $fromUrl "Assembly-CSharp.dll")) {
+    Copy-ManagedRefs $fromUrl "GAME_MANAGED_URL"
+  }
+  Write-Host "GAME_MANAGED_URL did not contain Assembly-CSharp.dll; falling back to SteamCMD"
 }
 
 $steamRoot = Join-Path $root ".ci\steamcmd"
@@ -52,15 +77,48 @@ if (-not (Test-Path -LiteralPath $steamCmd)) {
   Invoke-WebRequest -Uri "https://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip" -OutFile $zip
   Expand-Archive -LiteralPath $zip -DestinationPath $steamRoot -Force
 }
-Write-Host "Downloading 7 Days to Die Dedicated Server (app $AppId) via SteamCMD"
-& $steamCmd '+@ShutdownOnFailedCommand' '1' '+@NoPromptForPassword' '1' '+force_install_dir' $gameRoot '+login' 'anonymous' '+app_update' "$AppId" 'validate' '+quit'
-$found = Get-ChildItem -LiteralPath $gameRoot -Recurse -Filter "Assembly-CSharp.dll" | Select-Object -First 1
-if (-not $found) { throw "SteamCMD finished but Assembly-CSharp.dll was not found under $gameRoot" }
-$managed = $found.DirectoryName
-foreach ($name in $needed) {
-  $source = Join-Path $managed $name
-  if (-not (Test-Path -LiteralPath $source)) { throw "Missing $name in $managed" }
-  Copy-Item $source -Destination (Join-Path $OutDir $name) -Force
+
+function Invoke-SteamCmd {
+  param([Parameter(ValueFromRemainingArguments = $true)][string[]]$CmdArgs)
+  $previous = $ErrorActionPreference
+  $ErrorActionPreference = "Continue"
+  & $steamCmd @CmdArgs
+  $code = $LASTEXITCODE
+  $ErrorActionPreference = $previous
+  return $code
 }
-Write-Host "Copied game references from SteamCMD $managed (build $SteamBuildId)"
-Write-Output $OutDir
+
+Write-Host "Bootstrapping SteamCMD self-update"
+Invoke-SteamCmd '+quit' | Out-Null
+Invoke-SteamCmd '+quit' | Out-Null
+
+$installScript = Join-Path $steamRoot "install-7dtd.txt"
+$installDir = ($gameRoot -replace '\\', '/')
+@(
+  "@ShutdownOnFailedCommand 0",
+  "@NoPromptForPassword 1",
+  "@sSteamCmdForcePlatformType windows",
+  "force_install_dir $installDir",
+  "login anonymous",
+  "app_update $AppId validate",
+  "quit"
+) | Set-Content -LiteralPath $installScript -Encoding ASCII
+
+$foundDir = $null
+for ($attempt = 1; $attempt -le 4; $attempt += 1) {
+  Write-Host "SteamCMD app_update $AppId attempt $attempt"
+  Invoke-SteamCmd '+runscript' $installScript | Out-Null
+  $foundDir = Find-ManagedDir $gameRoot
+  if ($foundDir) { break }
+  Start-Sleep -Seconds 8
+}
+
+if (-not $foundDir) {
+  throw @"
+SteamCMD finished but Assembly-CSharp.dll was not found under $gameRoot.
+Anonymous install of app $AppId failed (often 'Missing configuration' on the first SteamCMD self-update).
+Zip Assembly-CSharp.dll, LogLibrary.dll, and UnityEngine.CoreModule.dll from 7DaysToDie_Data\Managed, host the zip, and set repository secret GAME_MANAGED_URL.
+"@
+}
+
+Copy-ManagedRefs $foundDir "SteamCMD build $SteamBuildId"
