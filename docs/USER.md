@@ -8,7 +8,7 @@ Install steps and official plugin / launcher downloads: [https://mods.aic.la/abo
 
 Current game target: `V 3.10.14` (Steam Build `24436778`). Mods that contain DLLs need EAC off.
 
-This guide is for two audiences:
+Hordepin is a 7 Days to Die mod distribution and sync platform. This guide is for two audiences:
 
 - **Hosts**: register a 7 Days to Die dedicated server so players install the same ModPack from the address they join.
 - **Players**: sync Mods from that address, then join.
@@ -42,7 +42,7 @@ Registering a server does not install the dedicated server for you. It only tell
    - **Pack**: a published Pack.
    - **Addresses (optional)**: one per line, for example LAN `192.168.3.42:26900` and public `play.example.com:26900`. You can leave this empty. Handshake and Pack resolve use **Server ID**; addresses only help players who join by IP. Dynamic IPs, LAN-only, and split public/private addresses are all fine.
 3. Click Register server.
-4. The page shows a full `server.config.json` with the same fields as the plugin: `BaseUrl`, `ServerId`, `ServerToken`, `GameVersion`, `RefreshSeconds`, `HandshakeTimeoutSeconds`. The token is shown once. Paste it over the plugin file immediately. If you lose it, delete and re-register, or ask an admin.
+4. The page shows a full `server.config.json` with the same fields as the plugin: `BaseUrl`, `ServerId`, `ServerToken`, `GameVersion`, `RefreshSeconds`, `HandshakeTimeoutSeconds`. The token is shown once. Paste it over the plugin file immediately. If you lose it, open Servers and click **Reset ServerToken**; the old token stops working immediately.
 
 Several servers may share the same address (for example all `192.168.1.100:26900`). Resolve-by-address picks the one that was online most recently; use Server ID when you need an exact match. To change the Pack or addresses later, select the row, edit, then Update binding. You can only edit servers you registered. Once the server plugin is online it merges the addresses it is actually listening on.
 
@@ -180,7 +180,7 @@ Handshake uses platform HTTP. The address the player joins must match a public a
 - **Unknown packId when registering**: the dropdown has no published Pack, or it was deleted. Confirm a Release on the Packs page.
 - **Address already in use**: pick another public address, or ask the original owner to change the binding.
 - **Player resolve fails**: the address must match exactly, including the port.
-- **Lost token**: regular users cannot see it again. Register a new server, or ask a superadmin.
+- **Lost token**: select the server under Servers and click **Reset ServerToken**, then overwrite the dedicated-server plugin `server.config.json`. The old token stops working immediately.
 - **No plugin logs**: the whole folder must sit under `Mods`, with `ModInfo.xml`, the main DLL, and `ModPlatform.Shared.dll`. EAC must be off.
 - **Want to upload your own Mod**: activate with a developer invite, or register with one. Publishing a Pack still needs a community admin.
 

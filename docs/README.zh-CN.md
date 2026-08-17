@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-每篇指南都有对应的英文和简体中文。
+Hordepin 是七日杀 Mod 的分发与同步平台。每篇指南都有对应的英文和简体中文。
 
 | 主题 | English | 简体中文 |
 |---|---|---|

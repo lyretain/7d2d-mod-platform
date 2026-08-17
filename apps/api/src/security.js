@@ -86,5 +86,6 @@ export function routeLimit(pathname, method) {
   if (method === 'POST' && /^\/api\/v1\/artifacts\/[a-f0-9]{64}\/uploads$/.test(pathname)) return { key: 'artifact-upload', limit: 40, windowMs: 60_000 };
   if (method === 'GET' && pathname === '/api/v1/public/launcher/latest') return { key: 'launcher', limit: 120, windowMs: 60_000 };
   if (method === 'GET' && pathname === '/api/v1/public/platform') return { key: 'platform', limit: 120, windowMs: 60_000 };
+  if (method === 'POST' && /\/api\/v1\/servers\/[^/]+\/reset-token$/.test(pathname)) return { key: 'server-reset-token', limit: 20, windowMs: 15 * 60_000 };
   return null;
 }

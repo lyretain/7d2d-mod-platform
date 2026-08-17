@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-Every guide has a matching English and Simplified Chinese file.
+Hordepin is a 7 Days to Die mod distribution and sync platform. Every guide has a matching English and Simplified Chinese file.
 
 | Topic | English | 简体中文 |
 |---|---|---|

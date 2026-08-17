@@ -2,7 +2,7 @@
 
 [English](README.md) · 简体中文 · [MIT 许可证](LICENSE)
 
-**Hordepin** 是一个可部署的单节点平台，用于给七日杀私服的 ModPack 签名、分发，并收集客户端与服务端故障信息。名字取 horde（尸潮）与 pin（钉死）：平台公钥 TOFU 钉死，进服握手再把玩家钉在当前 Pack 上。
+**Hordepin** 是七日杀（7 Days to Die）Mod 的分发与同步平台：服主发布已签名的 ModPack，玩家进服后自动下载并与服务器保持同一套模组。名字取 horde（尸潮）与 pin（钉死）：平台公钥 TOFU 钉死，进服握手再把玩家钉在当前 Pack 上。
 
 插件目录和程序集仍叫 `ModPlatform*`，已安装的服不必改文件夹名。
 

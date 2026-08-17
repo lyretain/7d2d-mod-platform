@@ -215,10 +215,10 @@
     <div class="hero">
       <div class="lang-switch" data-lang-switch></div>
       <h1 data-i18n="gate.title">Hordepin</h1>
-      <p data-i18n="gate.lead">面向服主与玩家的验签分发平台。普通用户可直接注册并登记服务器，更新器只安装已签名的 Pack。</p>
+      <p data-i18n="gate.lead">七日杀 Mod 的分发与同步平台。服主登记服务器并发布 Pack，玩家进服后自动安装同一套已签名模组。</p>
       <p><a href="/guide" style="color:var(--accent)" data-i18n="gate.guide">阅读玩家与服主教程</a></p>
       <ul>
-        <li><strong data-i18n="gate.f1t">验签分发</strong><span data-i18n="gate.f1d">Ed25519 签名的不可变 Release，防止被篡改的 ZIP 进服。</span></li>
+        <li><strong data-i18n="gate.f1t">Mod 分发</strong><span data-i18n="gate.f1d">Ed25519 签名的不可变 Release，防止被篡改的 ZIP 进服。</span></li>
         <li><strong data-i18n="gate.f2t">服务器同步</strong><span data-i18n="gate.f2d">按 Server ID 或地址解析当前 Pack，玩家与专用服保持同一版本。</span></li>
         <li><strong data-i18n="gate.f3t">工坊浏览</strong><span data-i18n="gate.f3d">登录后像创意工坊一样查找 Mod，浏览时加入已有 Pack 或创建新 Pack。</span></li>
         <li><strong data-i18n="gate.f4t">邀请制社区</strong><span data-i18n="gate.f4d">管理员邀请服主或只读成员，审核、停发和回滚都留审计。</span></li>
@@ -257,7 +257,7 @@
   </footer>
 </section>
 <aside class="sidebar">
-  <div class="brand"><strong data-i18n="nav.brand">Hordepin</strong><span data-i18n="nav.sub">七日杀验签分发</span></div>
+  <div class="brand"><strong data-i18n="nav.brand">Hordepin</strong><span data-i18n="nav.sub">七日杀 Mod 分发同步</span></div>
   <nav>
     <button class="active" data-tab="workshop" onclick="showTab('workshop')" data-i18n="nav.workshop">工坊</button>
     <button data-tab="mods" onclick="showTab('mods')" data-i18n="nav.mods">Mod</button>
@@ -478,13 +478,14 @@
         <div class="actions">
           <button onclick="createServer()" data-i18n="srv.create">登记服务器</button>
           <button class="secondary" onclick="updateServer()" data-i18n="srv.update">更新绑定</button>
+          <button class="secondary" onclick="resetServerToken()" data-i18n="srv.resetToken">重置 ServerToken</button>
           <button onclick="deleteServer()" data-i18n="srv.delete">删除服务器</button>
           <button class="secondary" onclick="loadServers()" data-i18n="srv.refresh">刷新状态</button>
         </div>
         <div class="actions">
           <button class="secondary" onclick="copyServerConfig()" data-i18n="srv.copy">复制 server.config.json</button>
         </div>
-        <pre id="serverTokenResult" data-i18n="srv.tokenIdle">登记成功后，这里会给出可直接覆盖到插件目录的 server.config.json。</pre>
+        <pre id="serverTokenResult" data-i18n="srv.tokenIdle">登记或重置成功后，这里会给出可直接覆盖到插件目录的 server.config.json。</pre>
       </article>
       <article class="card stretch">
         <div class="card-head"><h2 data-i18n="srv.list">服务器</h2><span class="hint" data-i18n="mod.clickFill">点击一行可回填</span></div>
@@ -1877,6 +1878,16 @@ async function updateServer() {
   try {
     show(await request('/api/v1/servers/' + encodeURIComponent(serverId.value), { method: 'PATCH', headers: headers(), body: JSON.stringify({ packId: serverPackId.value || undefined, publicAddresses: serverAddress.value }) }), { message: t('srv.updated') });
     await loadServers({ silent: true });
+  } catch (e) { show(e.message); }
+}
+
+async function resetServerToken() {
+  try {
+    if (!serverId.value) throw new Error(t('srv.needSelect'));
+    if (!confirm(t('srv.confirmReset'))) throw new Error(t('cancelled'));
+    const result = await request('/api/v1/servers/' + encodeURIComponent(serverId.value) + '/reset-token', { method: 'POST', headers: headers() });
+    showServerPluginConfig(result);
+    show(result, { message: t('srv.tokenReset') });
   } catch (e) { show(e.message); }
 }
 

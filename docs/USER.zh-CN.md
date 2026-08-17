@@ -8,7 +8,7 @@
 
 当前适配游戏：`V 3.10.14`（Steam Build `24436778`）。含 DLL 的 Mod 需要关闭 EAC。
 
-这篇文档面向两类人：
+Hordepin 是七日杀 Mod 的分发与同步平台。这篇文档面向两类人：
 
 - **服主**：在平台登记自己的七日杀服务器，让玩家按地址自动安装同一套 ModPack。
 - **玩家**：按服务器地址同步 Mod，再进游戏。
@@ -42,7 +42,7 @@
    - **Pack**：下拉选择已发布的 Pack。
    - **地址（可选）**：每行一条，例如局域网 `192.168.3.42:26900` 和公网 `play.example.com:26900`。可以留空。握手和 Pack 解析以 **Server ID** 为准；地址只是方便玩家按 IP 进服时自动找到这台服。动态 IP、只开局域网、公网和内网同时存在都可以。
 3. 点「登记服务器」。
-4. 页面会给出完整的 `server.config.json`，字段与插件一致：`BaseUrl`、`ServerId`、`ServerToken`、`GameVersion`、`RefreshSeconds`、`HandshakeTimeoutSeconds`。令牌只显示这一次，立刻复制覆盖到插件目录。丢了只能删掉重登，或请管理员协助。
+4. 页面会给出完整的 `server.config.json`，字段与插件一致：`BaseUrl`、`ServerId`、`ServerToken`、`GameVersion`、`RefreshSeconds`、`HandshakeTimeoutSeconds`。令牌只显示这一次，立刻复制覆盖到插件目录。丢了可在「服务器」页点「重置 ServerToken」，旧令牌立即失效。
 
 同一地址可以被多台服使用（例如都是 `192.168.1.100:26900`）。按地址解析时，平台会选最近在线的那一台；要精确指定请用 Server ID。以后要换 Pack 或改地址：点表格里的那一行，改完后点「更新绑定」。你只能改自己登记的服务器。服务端插件在线后会自动把本机监听地址补进列表。
 
@@ -180,7 +180,7 @@ node apps/updater/src/cli.js --base-url https://mods.aic.la --server-address pla
 - **登记时提示 Unknown packId**：下拉列表里没有可用 Pack，或该 Pack 已被删除。到「Pack」页确认已发布。
 - **登记时提示地址已被占用**：换一个公开地址，或让原登记人改绑定。
 - **玩家 resolve 失败**：地址必须和登记时完全一致（端口也要有）。
-- **令牌丢了**：普通用户无法再看原文。重新登记一个新服务器，或请超级管理员协助。
+- **令牌丢了**：在「服务器」里选中该服，点「重置 ServerToken」，把新的 `server.config.json` 覆盖到专用服插件目录。旧令牌立即失效。
 - **插件没有日志**：确认整个文件夹在 `Mods` 下，且 `ModInfo.xml`、主 DLL、`ModPlatform.Shared.dll` 都在；EAC 已关。
 - **想上传自己的 Mod**：先用开发者邀请码激活，或注册时带上开发者邀请码。发布 Pack 需要社区管理员。
 

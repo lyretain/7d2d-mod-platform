@@ -20,6 +20,7 @@ const packId = ref('');
 const addresses = ref('');
 const configText = ref('');
 const configJson = ref('');
+const configServerId = ref('');
 const servers = ref<Record<string, unknown>[]>([]);
 
 const currentId = computed(() => (creating.value ? '' : String(route.params.id || '')));
@@ -55,6 +56,7 @@ function showConfig(created: any) {
   const json = JSON.stringify(pluginConfig(created), null, 2);
   configJson.value = json;
   configText.value = t('srv.configPrefix') + json;
+  configServerId.value = String(created?.serverId || created?.config?.ServerId || serverId.value || '');
 }
 
 function resetForm() {
@@ -63,6 +65,7 @@ function resetForm() {
   packId.value = '';
   addresses.value = '';
   configJson.value = '';
+  configServerId.value = '';
   configText.value = t('srv.tokenIdle');
 }
 
@@ -74,6 +77,10 @@ function fillForm(row: Record<string, unknown>) {
     ? row.publicAddresses
     : (row.publicAddress ? [row.publicAddress] : []);
   addresses.value = list.join('\n');
+  if (configServerId.value !== String(row.id || '')) {
+    configJson.value = '';
+    configText.value = t('srv.tokenIdle');
+  }
 }
 
 async function loadServers(opts?: { silent?: boolean }) {
@@ -132,10 +139,22 @@ async function updateServer() {
   }
 }
 
-function canDeleteSelected() {
+function canManageSelected() {
   const row = current.value;
   if (!row || !serverId.value) return false;
   return can('server.manage') || row.ownerId === session.user?.id;
+}
+
+async function resetServerToken() {
+  try {
+    if (!serverId.value) throw new Error(t('srv.needSelect'));
+    if (!window.confirm(t('srv.confirmReset'))) throw new Error(t('cancelled'));
+    const result = await api<any>(`/api/v1/servers/${encodeURIComponent(serverId.value)}/reset-token`, { method: 'POST' });
+    showConfig(result);
+    ok(result, t('srv.tokenReset'));
+  } catch (error) {
+    fail(error);
+  }
 }
 
 async function deleteServer() {
@@ -223,7 +242,8 @@ onMounted(async () => {
         <div class="mt-3 flex flex-wrap gap-2">
           <button v-if="creating" type="button" class="btn-primary" @click="createServer">{{ t('srv.create') }}</button>
           <button v-else type="button" class="btn-secondary" @click="updateServer">{{ t('srv.update') }}</button>
-          <button v-if="!creating" type="button" class="btn-danger" :disabled="!canDeleteSelected()" @click="deleteServer">{{ t('srv.delete') }}</button>
+          <button v-if="!creating" type="button" class="btn-secondary" :disabled="!canManageSelected()" @click="resetServerToken">{{ t('srv.resetToken') }}</button>
+          <button v-if="!creating" type="button" class="btn-danger" :disabled="!canManageSelected()" @click="deleteServer">{{ t('srv.delete') }}</button>
           <button type="button" class="btn-secondary" @click="loadServers()">{{ t('srv.refresh') }}</button>
           <button type="button" class="btn-secondary" @click="copyConfig">{{ t('srv.copy') }}</button>
         </div>

@@ -2,7 +2,7 @@
 
 [简体中文文档](README.zh-CN.md) · English · [MIT License](LICENSE)
 
-**Hordepin** is a deployable, dependency-light platform for signing, distributing, and diagnosing 7 Days to Die ModPacks on private servers. The name is *horde* (the game’s signature night) plus *pin* (pinned platform keys and a join handshake that locks clients to the server’s pack).
+**Hordepin** is a 7 Days to Die mod distribution and sync platform: hosts publish signed ModPacks, and players automatically download the same mods when they join. The name is *horde* (the game’s signature night) plus *pin* (pinned platform keys and a join handshake that locks clients to the server’s pack).
 
 Plugin folders and assemblies stay `ModPlatform*` so existing installs keep working.
 

@@ -348,6 +348,15 @@ test('regular users can register a game server and open the user guide', async (
   const other = await jsonRequest(`${base}/api/v1/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'otheruser', password: 'other user password' }) });
   assert.equal((await fetch(`${base}/api/v1/servers/${created.serverId}`, { method: 'PATCH', headers: { authorization: `Bearer ${other.token}`, 'content-type': 'application/json' }, body: JSON.stringify({ name: 'Stolen' }) })).status, 403);
   assert.equal((await fetch(`${base}/api/v1/servers/${created.serverId}`, { method: 'DELETE', headers: { authorization: `Bearer ${other.token}` } })).status, 403);
+  assert.equal((await fetch(`${base}/api/v1/servers/${created.serverId}/reset-token`, { method: 'POST', headers: { authorization: `Bearer ${other.token}` } })).status, 403);
+  const reset = await jsonRequest(`${base}/api/v1/servers/${created.serverId}/reset-token`, { method: 'POST', headers: hostHeaders });
+  assert.ok(reset.token);
+  assert.notEqual(reset.token, created.token);
+  assert.equal(reset.config.ServerId, created.serverId);
+  assert.equal(reset.config.ServerToken, reset.token);
+  assert.equal((await fetch(`${base}/api/v1/servers/${created.serverId}/assignment`, { headers: { authorization: `Bearer ${created.token}` } })).status, 401);
+  const assignedAfterReset = await jsonRequest(`${base}/api/v1/servers/${created.serverId}/assignment`, { headers: { authorization: `Bearer ${reset.token}` } });
+  assert.equal(assignedAfterReset.serverId, created.serverId);
   const removed = await jsonRequest(`${base}/api/v1/servers/${noAddr.serverId}`, { method: 'DELETE', headers: hostHeaders });
   assert.equal(removed.deleted, true);
   assert.equal((await fetch(`${base}/api/v1/public/servers/resolve?serverId=${encodeURIComponent(noAddr.serverId)}`)).status, 404);

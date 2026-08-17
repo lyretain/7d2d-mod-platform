@@ -1010,6 +1010,35 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
         return json(res, 200, result);
       }
 
+      const resetTokenMatch = pathname.match(/^\/api\/v1\/servers\/([^/]+)\/reset-token$/);
+      if (req.method === 'POST' && resetTokenMatch) {
+        const principal = requireUser(req, res);
+        if (!principal) return;
+        const current = store.snapshot().servers[resetTokenMatch[1]];
+        if (!current) return problem(res, 404, 'SERVER_NOT_FOUND', 'Server was not found');
+        if (!can(principal, 'server.manage') && current.ownerId !== principal.id) {
+          return problem(res, 403, 'FORBIDDEN', 'You can only reset tokens for your own servers');
+        }
+        const token = randomBytes(32).toString('base64url');
+        const pack = store.snapshot().packs[current.packId];
+        const pluginConfig = pluginServerConfig({
+          baseUrl: publicBaseUrl,
+          serverId: current.id,
+          token,
+          gameVersion: pack?.gameVersion
+        });
+        const result = await store.mutate((draft) => {
+          const server = draft.servers[resetTokenMatch[1]];
+          if (!server) return null;
+          server.tokenHash = tokenHash(token);
+          server.updatedAt = now();
+          recordAudit(draft, { actor: principal.username || principal.id, action: 'server.reset_token', target: server.id, details: { packId: server.packId } });
+          return { serverId: server.id, packId: server.packId, ...publicAddressView(server) };
+        });
+        if (!result) return problem(res, 404, 'SERVER_NOT_FOUND', 'Server was not found');
+        return json(res, 200, { ...result, token, config: pluginConfig });
+      }
+
       const addressesMatch = pathname.match(/^\/api\/v1\/servers\/([^/]+)\/addresses$/);
       if (req.method === 'PUT' && addressesMatch) {
         const snapshot = store.snapshot();
