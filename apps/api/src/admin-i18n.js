@@ -129,6 +129,7 @@
     'about.guide': '阅读完整教程',
     'about.signin': '登录平台',
     'about.home': '进入工坊',
+    'about.githubReleases': 'GitHub Releases 历史版本',
 
     'account.title': '邀请与身份',
     'account.hint': '超级管理员邀请社区管理员；社区管理员绑定 GitHub 后可邀请开发者。普通用户开放注册，开发者用邀请码激活。',
@@ -705,6 +706,7 @@
     'about.guide': 'Read the full guide',
     'about.signin': 'Sign in',
     'about.home': 'Open the workshop',
+    'about.githubReleases': 'GitHub Releases archive',
 
     'account.title': 'Invites and identity',
     'account.hint': 'Superadmins invite community admins. Community admins bind GitHub before inviting developers. Regular users register openly; developers activate with an invite.',

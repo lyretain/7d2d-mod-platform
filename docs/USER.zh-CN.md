@@ -4,7 +4,7 @@
 
 平台地址：[https://mods.aic.la](https://mods.aic.la)
 
-安装流程和官方插件、启动器下载：[https://mods.aic.la/about](https://mods.aic.la/about)
+安装流程和官方插件、启动器下载：[https://mods.aic.la/about](https://mods.aic.la/about) · [GitHub Releases](https://github.com/lyretain/7d2d-mod-platform/releases/latest)
 
 当前适配游戏：`V 3.10.14`（Steam Build `24436778`）。含 DLL 的 Mod 需要关闭 EAC。
 

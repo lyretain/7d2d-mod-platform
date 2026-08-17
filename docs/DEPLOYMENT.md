@@ -232,7 +232,7 @@ Back up at least:
 
 1. Caches the 7DTD reference assemblies (SteamCMD dedicated server on a cache miss)
 2. Builds client/server plugins and the portable launcher
-3. Zips `ModPlatformClient` / `ModPlatformServer` and stores GitHub Actions artifacts
+3. Zips `ModPlatformClient` / `ModPlatformServer`, stores GitHub Actions artifacts, and on `main` publishes a GitHub Release with those ZIPs
 4. If repository secrets are present, uploads those ZIPs to the management platform, auto-approves the first-party review, registers `mod-platform-client` / `mod-platform-server`, publishes the launcher self-update, and optionally adds them to a Pack Release
 
 Repository **secrets**:

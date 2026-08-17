@@ -78,7 +78,7 @@ npm run dev:web
 
 首个用户注册后，`ADMIN_TOKEN` 默认停止作为后台身份使用。只有设置 `ALLOW_BOOTSTRAP_ADMIN=true` 才能继续使用它，建议仅在账户恢复时临时启用。
 
-玩家进服与服主登记服务器，参见 [玩家与服主教程](docs/USER.zh-CN.md)（[English](docs/USER.md)）。线上也可打开 `https://mods.aic.la/guide` 或 `https://mods.aic.la/guide?lang=en`，安装与官方下载见 `https://mods.aic.la/about`。
+玩家进服与服主登记服务器，参见 [玩家与服主教程](docs/USER.zh-CN.md)（[English](docs/USER.md)）。线上也可打开 `https://mods.aic.la/guide` 或 `https://mods.aic.la/guide?lang=en`，安装与官方下载见 `https://mods.aic.la/about`，CI 编译产物见 [GitHub Releases](https://github.com/lyretain/7d2d-mod-platform/releases)。
 
 ## 客户端同步
 

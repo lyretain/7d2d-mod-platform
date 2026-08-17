@@ -105,6 +105,9 @@ function shaLabel(value?: string) {
             <span v-else class="btn-secondary mt-4 cursor-not-allowed opacity-60">{{ t('about.download') }}</span>
           </article>
         </div>
+        <p class="text-sm text-gray-500">
+          <a href="https://github.com/lyretain/7d2d-mod-platform/releases/latest" target="_blank" rel="noreferrer" class="text-brand-500 hover:underline">{{ t('about.githubReleases') }}</a>
+        </p>
       </UiCard>
 
       <UiCard :title="t('about.flow')">

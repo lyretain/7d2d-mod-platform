@@ -30,7 +30,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 120
     permissions:
-      contents: read
+      contents: write
     env:
       PLATFORM_BASE_URL: ${{ secrets.PLATFORM_BASE_URL }}
       PLATFORM_TOKEN: ${{ secrets.PLATFORM_TOKEN }}
@@ -88,6 +88,34 @@ jobs:
             artifacts/*.zip
             artifacts/launcher/**
           if-no-files-found: error
+      - name: Create GitHub Release
+        if: github.ref == 'refs/heads/main'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $zips = @(Get-ChildItem -Path artifacts -Filter *.zip -File)
+          if (-not $zips.Count) { throw "No plugin or launcher ZIP was packed." }
+          $files = @($zips | ForEach-Object { $_.FullName })
+          $tag = "ci-${{ github.run_number }}"
+          $title = "Hordepin build ${{ github.run_number }}"
+          $notes = @(
+            'Official 7 Days to Die plugin and launcher build.',
+            '',
+            "- Commit: ${{ github.sha }}",
+            "- Game: ${{ vars.PLATFORM_GAME_VERSION || '3.10.14' }} (Steam ${{ vars.STEAM_BUILD_ID || '24436778' }})",
+            '- Extract ModPlatformClient into %APPDATA%\7DaysToDie\Mods\',
+            '- Extract ModPlatformServer into the dedicated server Mods folder'
+          ) -join "`n"
+          gh release view $tag *>$null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag @files --clobber
+            gh release edit $tag --title $title --notes $notes --latest
+          } else {
+            gh release create $tag @files --title $title --notes $notes --latest
+          }
+          if ($LASTEXITCODE -ne 0) { throw "GitHub Release failed." }
       - name: Publish to management platform
         shell: pwsh
         run: |

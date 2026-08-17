@@ -232,7 +232,7 @@ docker compose up --build -d
 
 1. 缓存 7DTD 引用程序集（缓存未命中时用 SteamCMD 拉专用服）
 2. 编译客户端/服务端插件和便携启动器
-3. 打包 `ModPlatformClient` / `ModPlatformServer`，并上传为 GitHub Actions artifacts
+3. 打包 `ModPlatformClient` / `ModPlatformServer`，上传为 GitHub Actions artifacts，并在 `main` 上创建 GitHub Release（附 ZIP）
 4. 若配置了仓库密钥，则把 ZIP 上传到管理平台、自动通过平台插件审核、登记 `mod-platform-client` / `mod-platform-server`、发布启动器自更新，并可选写入 Pack Release
 
 仓库 **secrets**：
