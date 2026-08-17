@@ -1,19 +1,38 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { api } from '../api/client';
-import UiCard from '../components/UiCard.vue';
+import HierarchyItem from '../components/HierarchyItem.vue';
+import HierarchyShell from '../components/HierarchyShell.vue';
 import { i18n, t } from '../i18n';
 import { fail, ok, setRaw } from '../lib/feedback';
 import { refreshSession, session } from '../stores/session';
 import { ensureAdult, isAdultVerified } from '../stores/adult';
 import { showToast } from '../stores/toast';
 
+const route = useRoute();
+const router = useRouter();
 const activateCode = ref('');
 const bootstrapToken = ref('');
 const inviteRole = ref('community');
 const inviteUses = ref(1);
 const inviteHours = ref(168);
 const inviteResult = ref('');
+
+const section = computed(() => String(route.params.section || 'age'));
+const sections = computed(() => [
+  { id: 'age', title: t('account.navAge'), hint: isAdultVerified() ? t('r18.verified') : t('r18.notVerified') },
+  { id: 'identity', title: t('account.navIdentity'), hint: t('account.title') },
+  { id: 'invite', title: t('account.navInvite'), hint: t('account.createInvite') }
+]);
+
+function selectSection(id: string) {
+  if (id === 'age') {
+    if (route.params.section) router.push('/account');
+    return;
+  }
+  if (route.params.section !== id) router.push(`/account/${id}`);
+}
 
 async function activateDeveloper() {
   try {
@@ -82,35 +101,56 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="space-y-6" :data-lang="i18n.lang">
-    <UiCard :title="t('r18.accountTitle')" :desc="t('r18.accountHint')">
-      <p class="mb-3 text-sm text-gray-600 dark:text-gray-300">{{ isAdultVerified() ? t('r18.verified') : t('r18.notVerified') }}</p>
-      <button v-if="!session.user?.adultVerified" type="button" class="btn-primary" @click="ensureAdult()">{{ t('r18.enter') }}</button>
-    </UiCard>
-    <UiCard :title="t('account.title')" :desc="t('account.hint')">
-      <div class="flex flex-wrap gap-2">
-        <button type="button" class="btn-secondary" @click="bindGithub">{{ t('account.bindGithub') }}</button>
+  <div :data-lang="i18n.lang">
+    <HierarchyShell>
+      <template #list>
+        <HierarchyItem
+          v-for="item in sections"
+          :key="item.id"
+          :title="item.title"
+          :hint="item.hint"
+          :active="section === item.id"
+          @click="selectSection(item.id)"
+        />
+      </template>
+
+      <div v-if="section === 'age'" class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+        <p class="mb-3 text-theme-xs font-medium uppercase tracking-wide text-gray-400">{{ t('account.navAge') }}</p>
+        <p class="mb-3 text-sm text-gray-500">{{ t('r18.accountHint') }}</p>
+        <p class="mb-3 text-sm text-gray-600 dark:text-gray-300">{{ isAdultVerified() ? t('r18.verified') : t('r18.notVerified') }}</p>
+        <button v-if="!session.user?.adultVerified" type="button" class="btn-primary" @click="ensureAdult()">{{ t('r18.enter') }}</button>
       </div>
-      <label class="field">{{ t('account.devCode') }}</label>
-      <input v-model="activateCode" class="input" :placeholder="t('account.phActivate')">
-      <button type="button" class="btn-secondary" @click="activateDeveloper">{{ t('account.activate') }}</button>
-    </UiCard>
-    <UiCard :title="t('account.createInvite')" :desc="t('account.inviteHint')">
-      <label class="field">{{ t('account.bootstrap') }}</label>
-      <input v-model="bootstrapToken" class="input" type="password" :placeholder="t('account.phBootstrap')">
-      <div class="grid gap-3 sm:grid-cols-3">
-        <div>
-          <label class="field">{{ t('account.role') }}</label>
-          <select v-model="inviteRole" class="input">
-            <option value="community">{{ t('account.roleCommunity') }}</option>
-            <option value="developer">{{ t('account.roleDeveloper') }}</option>
-          </select>
+
+      <div v-if="section === 'identity'" class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+        <p class="mb-3 text-theme-xs font-medium uppercase tracking-wide text-gray-400">{{ t('account.navIdentity') }}</p>
+        <p class="mb-3 text-sm text-gray-500">{{ t('account.hint') }}</p>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" class="btn-secondary" @click="bindGithub">{{ t('account.bindGithub') }}</button>
         </div>
-        <div><label class="field">{{ t('account.uses') }}</label><input v-model.number="inviteUses" class="input" type="number" min="1" max="100"></div>
-        <div><label class="field">{{ t('account.hours') }}</label><input v-model.number="inviteHours" class="input" type="number" min="1" max="8760"></div>
+        <label class="field">{{ t('account.devCode') }}</label>
+        <input v-model="activateCode" class="input" :placeholder="t('account.phActivate')">
+        <button type="button" class="btn-secondary mt-3" @click="activateDeveloper">{{ t('account.activate') }}</button>
       </div>
-      <button type="button" class="btn-primary" @click="createInvite">{{ t('account.createInvite') }}</button>
-      <pre class="max-h-56 overflow-auto rounded-lg bg-gray-950 p-3 text-theme-xs text-gray-300">{{ inviteResult }}</pre>
-    </UiCard>
+
+      <div v-if="section === 'invite'" class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+        <p class="mb-3 text-theme-xs font-medium uppercase tracking-wide text-gray-400">{{ t('account.navInvite') }}</p>
+        <p class="mb-3 text-sm text-gray-500">{{ t('account.inviteHint') }}</p>
+        <label class="field">{{ t('account.bootstrap') }}</label>
+        <input v-model="bootstrapToken" class="input" type="password" :placeholder="t('account.phBootstrap')">
+        <div class="grid gap-3 sm:grid-cols-3">
+          <div>
+            <label class="field">{{ t('account.role') }}</label>
+            <select v-model="inviteRole" class="input">
+              <option value="community">{{ t('account.roleCommunity') }}</option>
+              <option value="developer">{{ t('account.roleDeveloper') }}</option>
+            </select>
+          </div>
+          <div><label class="field">{{ t('account.uses') }}</label><input v-model.number="inviteUses" class="input" type="number" min="1" max="100"></div>
+          <div><label class="field">{{ t('account.hours') }}</label><input v-model.number="inviteHours" class="input" type="number" min="1" max="8760"></div>
+        </div>
+        <button type="button" class="btn-primary mt-3" @click="createInvite">{{ t('account.createInvite') }}</button>
+        <pre class="mt-4 max-h-56 overflow-auto rounded-lg bg-gray-950 p-3 text-theme-xs text-gray-300">{{ inviteResult }}</pre>
+      </div>
+    </HierarchyShell>
   </div>
 </template>

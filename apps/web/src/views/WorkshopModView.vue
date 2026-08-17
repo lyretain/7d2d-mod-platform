@@ -4,7 +4,6 @@ import { useRoute, useRouter } from 'vue-router';
 import { api } from '../api/client';
 import { uploadContentZips, zipFilesFrom } from '../lib/content-upload';
 import type { UploadProgress } from '../api/client';
-import UiCard from '../components/UiCard.vue';
 import UiModal from '../components/UiModal.vue';
 import UiProgress from '../components/UiProgress.vue';
 import ContentFileList from '../components/ContentFileList.vue';
@@ -169,31 +168,34 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="space-y-6" :data-lang="i18n.lang">
-    <div class="flex flex-wrap items-center justify-between gap-3">
-      <div>
-        <h2 class="text-lg font-semibold text-gray-800 dark:text-white/90">
-          {{ mod?.name || route.params.id }}
-          <R18Badge v-if="isAdultMod(mod)" class="ml-2 align-middle" />
-        </h2>
-        <p class="text-theme-xs text-gray-500">{{ mod?.author || t('ws.unknownAuthor') }} · v{{ mod?.latestVersion || '—' }} · {{ prettyBytes(mod?.artifactSize || 0) }}</p>
-      </div>
-      <button type="button" class="btn-secondary" @click="router.push('/workshop')">{{ t('ws.backWorkshop') }}</button>
-    </div>
-    <UiCard :title="t('ws.about')">
-      <p class="text-sm text-gray-600 dark:text-gray-300">{{ mod?.redacted ? t('r18.hidden') : (mod?.description || t('ws.noDesc')) }}</p>
+  <div class="space-y-4" :data-lang="i18n.lang">
+    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+      <p class="mb-3 text-theme-xs font-medium uppercase tracking-wide text-gray-400">{{ t('mod.levelMod') }}</p>
+      <h2 class="text-lg font-semibold text-gray-800 dark:text-white/90">
+        {{ mod?.name || route.params.id }}
+        <R18Badge v-if="isAdultMod(mod)" class="ml-2 align-middle" />
+      </h2>
+      <p class="text-theme-xs text-gray-500">{{ mod?.author || t('ws.unknownAuthor') }} · v{{ mod?.latestVersion || '—' }} · {{ prettyBytes(mod?.artifactSize || 0) }}</p>
+      <p class="mt-3 text-sm text-gray-600 dark:text-gray-300">{{ mod?.redacted ? t('r18.hidden') : (mod?.description || t('ws.noDesc')) }}</p>
       <p v-if="slotTotal" class="mt-2 text-theme-xs text-gray-500">{{ t('ws.slotCount', { n: slotTotal }) }}</p>
-    </UiCard>
-    <p v-if="!slots.length" class="text-sm text-gray-500">{{ t('mod.slotsEmpty') }}</p>
-    <UiCard v-for="slot in slots" :key="slot.id" :title="slot.label || slot.path" :desc="slot.path">
-      <ContentFileList
-        :items="itemsFor(slot.id)"
-        selectable
-        :selected-ids="picked[slot.id] || []"
-        @toggle="toggleContent(slot.id, $event)"
-      />
-    </UiCard>
-    <UiCard v-if="slots.length" :title="t('ws.uploadModel')" :desc="t('ws.uniqueHint')">
+    </div>
+    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+      <p class="mb-3 text-theme-xs font-medium uppercase tracking-wide text-gray-400">{{ t('mod.levelSlots') }}</p>
+      <p v-if="!slots.length" class="text-sm text-gray-500">{{ t('mod.slotsEmpty') }}</p>
+      <div v-for="slot in slots" :key="slot.id" class="mb-4 last:mb-0">
+        <h3 class="mb-1 text-sm font-medium text-gray-800 dark:text-white/90">{{ slot.label || slot.path }}</h3>
+        <p class="mb-2 text-theme-xs text-gray-400">{{ slot.path }}</p>
+        <ContentFileList
+          :items="itemsFor(slot.id)"
+          selectable
+          :selected-ids="picked[slot.id] || []"
+          @toggle="toggleContent(slot.id, $event)"
+        />
+      </div>
+    </div>
+    <div v-if="slots.length" class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+      <p class="mb-1 text-theme-xs font-medium uppercase tracking-wide text-gray-400">{{ t('ws.uploadModel') }}</p>
+      <p class="mb-3 text-theme-xs text-gray-500">{{ t('ws.uniqueHint') }}</p>
       <div class="grid gap-3 sm:grid-cols-2">
         <div>
           <label class="field">{{ t('mod.slots') }}</label>
@@ -216,7 +218,7 @@ onMounted(async () => {
         <span>{{ t('ws.submitContent') }}{{ busy ? ' …' : '' }}</span>
       </label>
       <UiProgress :active="progress.active" :value="progress.percent" :label="progress.label" />
-    </UiCard>
+    </div>
     <div v-if="can('pack.publish') && slots.length" class="flex flex-wrap gap-2">
       <button type="button" class="btn-primary" @click="openDialog('create')">{{ t('ws.joinAndPick') }}</button>
       <button type="button" class="btn-secondary" @click="openDialog('add')">{{ t('ws.addExisting') }}</button>

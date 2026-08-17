@@ -5,6 +5,8 @@ import { useRoute, useRouter } from 'vue-router';
 import { api } from '../api/client';
 import type { UploadProgress } from '../api/client';
 import ContentFileList from '../components/ContentFileList.vue';
+import HierarchyItem from '../components/HierarchyItem.vue';
+import HierarchyShell from '../components/HierarchyShell.vue';
 import UiProgress from '../components/UiProgress.vue';
 import { uploadContentZips, zipFilesFrom } from '../lib/content-upload';
 import { i18n, t } from '../i18n';
@@ -82,6 +84,12 @@ function versionsOf(modId: string) {
 
 function contentCount(entry: EntryState) {
   return Object.values(picked[entry.modId] || {}).reduce((sum, ids) => sum + ids.length, 0);
+}
+
+function packHint(item: PackRow) {
+  const parts = [item.gameVersion || '—', t('pack.entryCount', { n: item.entryCount || 0 })];
+  if (item.packVersion != null) parts.push(`v${item.packVersion}`);
+  return parts.join(' · ');
 }
 
 function packEntries() {
@@ -314,40 +322,25 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="flex min-h-[70vh] flex-col gap-4 lg:flex-row" :data-lang="i18n.lang">
-    <aside class="flex w-full shrink-0 flex-col rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03] lg:w-80">
-      <div class="flex items-center gap-2 border-b border-gray-100 p-4 dark:border-gray-800">
+  <div :data-lang="i18n.lang">
+    <HierarchyShell :empty="!creating && !currentId" :empty-text="t('pack.emptySelect')">
+      <template #toolbar>
         <input v-model="query" class="input" :placeholder="t('pack.search')">
         <button v-if="writable" type="button" class="btn-primary shrink-0 px-3" :title="t('pack.new')" @click="startCreate">
           <Plus :size="16" />
         </button>
-      </div>
-      <div class="no-scrollbar flex-1 overflow-y-auto p-2">
+      </template>
+      <template #list>
         <p v-if="!filteredPacks.length" class="px-3 py-8 text-center text-sm text-gray-500">{{ t('pack.nonePacks') }}</p>
-        <button
+        <HierarchyItem
           v-for="item in filteredPacks"
           :key="item.id"
-          type="button"
-          class="mb-1 flex w-full flex-col rounded-xl px-3 py-2.5 text-left transition"
-          :class="!creating && currentId === item.id ? 'bg-brand-50 dark:bg-brand-500/10' : 'hover:bg-gray-50 dark:hover:bg-white/5'"
+          :title="item.name || item.id"
+          :hint="packHint(item)"
+          :active="!creating && currentId === item.id"
           @click="selectPack(item.id)"
-        >
-          <span class="truncate text-sm font-medium text-gray-800 dark:text-white/90">{{ item.name || item.id }}</span>
-          <span class="text-theme-xs text-gray-500">
-            {{ item.gameVersion || '—' }}
-            · {{ t('pack.entryCount', { n: item.entryCount || 0 }) }}
-            <template v-if="item.packVersion != null"> · v{{ item.packVersion }}</template>
-          </span>
-        </button>
-      </div>
-    </aside>
-
-    <section class="min-w-0 flex-1 space-y-4">
-      <div v-if="!creating && !pack" class="flex h-full min-h-80 items-center justify-center rounded-2xl border border-dashed border-gray-200 text-sm text-gray-500 dark:border-gray-800">
-        {{ t('pack.emptySelect') }}
-      </div>
-
-      <template v-else>
+        />
+      </template>
         <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
           <p class="mb-3 text-theme-xs font-medium uppercase tracking-wide text-gray-400">{{ creating ? t('pack.creating') : t('pack.levelPack') }}</p>
           <div class="grid gap-3 sm:grid-cols-2">
@@ -483,7 +476,6 @@ onMounted(async () => {
             <button v-if="!creating && selectedRelease" type="button" class="btn-danger" @click="rollbackRelease">{{ t('pack.rollback') }}</button>
           </div>
         </div>
-      </template>
-    </section>
+    </HierarchyShell>
   </div>
 </template>

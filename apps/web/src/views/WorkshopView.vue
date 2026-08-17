@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { api } from '../api/client';
+import HierarchyShell from '../components/HierarchyShell.vue';
 import UiModal from '../components/UiModal.vue';
+import WorkshopModView from './WorkshopModView.vue';
 import { i18n, localeTag, t } from '../i18n';
 import { fail, ok } from '../lib/feedback';
 import { prettyBytes } from '../lib/format';
@@ -12,6 +14,7 @@ import { ensureAdult, isAdultMod, isAdultVerified } from '../stores/adult';
 import { showToast } from '../stores/toast';
 import R18Badge from '../components/R18Badge.vue';
 
+const route = useRoute();
 const router = useRouter();
 const query = ref('');
 const game = ref('');
@@ -27,6 +30,7 @@ const packId = ref('');
 const publish = ref(true);
 const r18Filter = ref('all');
 let timer: ReturnType<typeof setTimeout> | undefined;
+const currentId = computed(() => String(route.params.id || ''));
 
 const sorted = computed(() => {
   const rows = mods.value.filter((mod) => {
@@ -176,68 +180,64 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="space-y-4 pb-28" :data-lang="i18n.lang">
-    <div class="flex flex-wrap items-end gap-3">
-      <div class="min-w-56 flex-1">
-        <label class="field">{{ t('ws.search') }}</label>
+  <div class="pb-28" :data-lang="i18n.lang">
+    <HierarchyShell :empty="!currentId" :empty-text="t('ws.emptySelect')">
+      <template #toolbar>
         <input v-model="query" class="input" :placeholder="t('ws.phSearch')" @input="scheduleSearch">
-      </div>
-      <div class="w-40">
-        <label class="field">{{ t('ws.game') }}</label>
-        <input v-model="game" class="input" :placeholder="t('ws.phGame')" @input="scheduleSearch">
-      </div>
-      <div class="w-36">
-        <label class="field">{{ t('ws.type') }}</label>
-        <select v-model="dll" class="input" @change="load({ silent: true })">
-          <option value="">{{ t('ws.all') }}</option>
-          <option value="yes">{{ t('ws.dllYes') }}</option>
-          <option value="no">{{ t('ws.dllNo') }}</option>
-        </select>
-      </div>
-      <div class="w-36">
-        <label class="field">{{ t('ws.sort') }}</label>
-        <select v-model="sort" class="input">
-          <option value="name">{{ t('ws.sortName') }}</option>
-          <option value="downloads">{{ t('ws.sortDownloads') }}</option>
-          <option value="updated">{{ t('ws.sortUpdated') }}</option>
-        </select>
-      </div>
-      <div class="w-36">
-        <label class="field">{{ t('r18.filter') }}</label>
-        <select v-model="r18Filter" class="input">
-          <option value="all">{{ t('ws.all') }}</option>
-          <option value="hide">{{ t('r18.hide') }}</option>
-          <option value="only">{{ t('r18.only') }}</option>
-        </select>
-      </div>
-      <button type="button" class="btn-secondary" @click="load()">{{ t('refresh') }}</button>
-    </div>
-    <p class="text-sm text-gray-500">{{ sorted.length ? t('ws.found', { n: sorted.length }) : t('ws.none') }}</p>
-    <p v-if="!sorted.length" class="rounded-2xl border border-gray-200 px-4 py-10 text-center text-sm text-gray-500 dark:border-gray-800">{{ t('ws.noneHint') }}</p>
-    <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
-      <article v-for="mod in sorted" :key="mod.id" class="mod-card" :class="{ picked: picked(mod.id) }">
-        <div class="mb-3 flex h-16 items-center justify-center rounded-lg bg-linear-to-br from-brand-500/20 to-gray-800 text-lg font-bold text-brand-500">
-          {{ (mod.name || mod.id).slice(0, 2).toUpperCase() }}
+        <button type="button" class="btn-secondary shrink-0 px-3" @click="load()">{{ t('refresh') }}</button>
+      </template>
+      <template #list>
+        <div class="mb-2 grid grid-cols-2 gap-2 px-1">
+          <div>
+            <label class="field">{{ t('ws.game') }}</label>
+            <input v-model="game" class="input" :placeholder="t('ws.phGame')" @input="scheduleSearch">
+          </div>
+          <div>
+            <label class="field">{{ t('ws.type') }}</label>
+            <select v-model="dll" class="input" @change="load({ silent: true })">
+              <option value="">{{ t('ws.all') }}</option>
+              <option value="yes">{{ t('ws.dllYes') }}</option>
+              <option value="no">{{ t('ws.dllNo') }}</option>
+            </select>
+          </div>
+          <div>
+            <label class="field">{{ t('ws.sort') }}</label>
+            <select v-model="sort" class="input">
+              <option value="name">{{ t('ws.sortName') }}</option>
+              <option value="downloads">{{ t('ws.sortDownloads') }}</option>
+              <option value="updated">{{ t('ws.sortUpdated') }}</option>
+            </select>
+          </div>
+          <div>
+            <label class="field">{{ t('r18.filter') }}</label>
+            <select v-model="r18Filter" class="input">
+              <option value="all">{{ t('ws.all') }}</option>
+              <option value="hide">{{ t('r18.hide') }}</option>
+              <option value="only">{{ t('r18.only') }}</option>
+            </select>
+          </div>
         </div>
-        <h3 class="text-base font-medium text-gray-800 dark:text-white/90">{{ mod.name || mod.id }}</h3>
-        <p class="mb-2 text-theme-xs text-gray-500">{{ mod.author || t('ws.unknownAuthor') }} · v{{ mod.latestVersion || '—' }} · {{ prettyBytes(mod.artifactSize || 0) }}</p>
-        <p class="mb-3 line-clamp-3 flex-1 text-sm text-gray-600 dark:text-gray-300">{{ mod.redacted ? t('r18.hidden') : (mod.description || t('ws.noDesc')) }}</p>
-        <div class="mb-3 flex flex-wrap gap-1.5">
-          <span class="rounded-full bg-gray-100 px-2 py-0.5 text-theme-xs text-gray-500 dark:bg-white/5">{{ (mod.gameVersions || []).join(' / ') || t('ws.noGame') }}</span>
-          <R18Badge v-if="isAdultMod(mod)" />
-          <span v-if="mod.containsDll" class="rounded-full bg-brand-500/15 px-2 py-0.5 text-theme-xs text-brand-500">{{ t('ws.hasDll') }}</span>
-          <span v-if="mod.dependsOn?.length" class="rounded-full bg-gray-100 px-2 py-0.5 text-theme-xs text-gray-500 dark:bg-white/5">{{ t('ws.needs', { mods: mod.dependsOn.join(', ') }) }}</span>
-          <span v-if="mod.downloads" class="rounded-full bg-gray-100 px-2 py-0.5 text-theme-xs text-gray-500 dark:bg-white/5">{{ t('ws.downloads', { n: mod.downloads }) }}</span>
-          <span v-if="mod.contentSlots?.length" class="rounded-full bg-gray-100 px-2 py-0.5 text-theme-xs text-gray-500 dark:bg-white/5">{{ t('ws.slotCount', { n: Object.values(mod.contentCounts || {}).reduce((sum, n) => sum + n, 0) }) }}</span>
-        </div>
-        <div class="mt-auto flex flex-wrap gap-2">
-          <router-link v-if="mod.contentSlots?.length" class="btn-secondary" :to="`/workshop/${encodeURIComponent(mod.id)}`" @click.prevent="openDetails(mod)">{{ t('ws.details') }}</router-link>
-          <button type="button" :class="picked(mod.id) ? 'btn-secondary' : 'btn-ok'" @click="toggle(mod.id)">
+        <p class="px-3 pb-2 text-theme-xs text-gray-500">{{ sorted.length ? t('ws.found', { n: sorted.length }) : t('ws.none') }}</p>
+        <p v-if="!sorted.length" class="px-3 py-8 text-center text-sm text-gray-500">{{ t('ws.noneMods') }}</p>
+        <div v-for="mod in sorted" :key="mod.id" class="mb-1 flex items-stretch rounded-xl" :class="currentId === mod.id ? 'bg-brand-50 dark:bg-brand-500/10' : 'hover:bg-gray-50 dark:hover:bg-white/5'">
+          <button type="button" class="min-w-0 flex-1 px-3 py-2.5 text-left" @click="openDetails(mod)">
+            <span class="flex items-center gap-2 truncate text-sm font-medium text-gray-800 dark:text-white/90">
+              {{ mod.name || mod.id }}
+              <R18Badge v-if="isAdultMod(mod)" />
+            </span>
+            <span class="text-theme-xs text-gray-500">
+              v{{ mod.latestVersion || '—' }}
+              · {{ prettyBytes(mod.artifactSize || 0) }}
+              <template v-if="mod.contentSlots?.length"> · {{ t('ws.slotCount', { n: Object.values(mod.contentCounts || {}).reduce((sum, n) => sum + n, 0) }) }}</template>
+            </span>
+          </button>
+          <button type="button" class="shrink-0 px-3 text-theme-xs" :class="picked(mod.id) ? 'text-brand-500' : 'text-gray-400'" @click.stop="toggle(mod.id)">
             {{ picked(mod.id) ? t('ws.remove') : t('ws.add') }}
           </button>
         </div>
-      </article>
-    </div>
+      </template>
+      <WorkshopModView v-if="currentId" :key="currentId" />
+    </HierarchyShell>
     <div class="sticky bottom-4 z-20 flex flex-col gap-3 rounded-2xl border border-brand-500/40 bg-white/95 p-4 shadow-theme-lg backdrop-blur dark:bg-gray-900/95 sm:flex-row sm:items-center sm:justify-between">
       <div class="min-w-0">
         <strong class="text-sm text-gray-800 dark:text-white/90">{{ cart.length ? t('ws.picked', { n: cart.length }) : t('ws.nonePicked') }}</strong>
