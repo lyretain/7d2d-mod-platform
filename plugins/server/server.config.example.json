@@ -1,1 +1,1 @@
-{"BaseUrl":"https://mods.aic.la","ServerId":"srv_replace","ServerToken":"replace","GameVersion":"3.1.0","RefreshSeconds":60,"HandshakeTimeoutSeconds":15,"AutoSync":true,"AutoRestart":false}
+{"BaseUrl":"https://mods.aic.la","ServerId":"srv_replace","ServerToken":"replace","GameVersion":"3.1.0","RefreshSeconds":60,"HandshakeTimeoutSeconds":180,"AutoSync":true,"AutoRestart":false}

@@ -31,6 +31,8 @@ public sealed class ModPlatformClientPlugin : IModApi
     static DateTime nextSyncAttempt;
     static bool restartPromptPending;
     static bool restartPromptShown;
+    static string syncProgressText;
+    static PackSyncProgress syncProgress;
 
     static ModPlatformClientPlugin()
     {
@@ -63,9 +65,70 @@ public sealed class ModPlatformClientPlugin : IModApi
 
     internal static string PackStatusText()
     {
+        if (syncProgress != null) return SyncUiStatus();
+        if (!string.IsNullOrEmpty(syncProgressText)) return syncProgressText;
         var state = LocalState.ReadPackState(modsDirectory);
-        if (state == null || string.IsNullOrEmpty(state.PackId)) return "Pack: (none)";
-        return "Pack: " + state.PackId + " v" + state.PackVersion;
+        if (state == null || string.IsNullOrEmpty(state.PackId)) return Loc("xuiModPlatformPackNone");
+        return Loc("xuiModPlatformPackReady", state.PackId, state.PackVersion);
+    }
+
+    internal static string SyncUiTitle()
+    {
+        return Loc("xuiModPlatformDownloading");
+    }
+
+    internal static string SyncUiSubtitle()
+    {
+        return Loc("xuiModPlatformDownloadWait");
+    }
+
+    internal static string SyncUiStatus()
+    {
+        var progress = syncProgress;
+        if (progress == null) return syncProgressText ?? Loc("xuiModPlatformDownloadWait");
+        if (progress.Phase == "start")
+            return Loc("xuiModPlatformDownloadStart", progress.PackFiles, progress.Total, PackSyncProgress.FormatBytes(progress.BytesTotal));
+        if (progress.Phase == "complete")
+            return Loc("xuiModPlatformDownloadDoneFile", progress.Index, progress.Total, progress.Name ?? "");
+        return Loc("xuiModPlatformDownloadFile", Math.Max(1, progress.Index), Math.Max(1, progress.Total), progress.Name ?? "");
+    }
+
+    internal static string SyncUiBytes()
+    {
+        var progress = syncProgress;
+        if (progress == null || progress.Phase == "start") return "";
+        var percent = progress.BytesTotal > 0 ? (int)(progress.BytesReceived * 100 / progress.BytesTotal) : 0;
+        return Loc("xuiModPlatformDownloadBytes", PackSyncProgress.FormatBytes(progress.BytesReceived), PackSyncProgress.FormatBytes(progress.BytesTotal), percent);
+    }
+
+    internal static string SyncUiProgressFill()
+    {
+        var progress = syncProgress;
+        if (progress == null || progress.BytesTotal <= 0) return progress != null && progress.Phase == "complete" ? "1" : "0";
+        var fill = progress.BytesReceived / (double)progress.BytesTotal;
+        if (fill < 0) fill = 0;
+        if (fill > 1) fill = 1;
+        return fill.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    static string Loc(string key, params object[] args)
+    {
+        var text = key;
+        try { text = Localization.Get(key); } catch { }
+        if (string.IsNullOrEmpty(text) || text == key)
+        {
+            if (key == "xuiModPlatformDownloading") text = "Downloading mods";
+            else if (key == "xuiModPlatformDownloadWait") text = "Please wait while the server ModPack is installed.";
+            else if (key == "xuiModPlatformDownloadStart") text = "{0} files in pack, downloading {1} ({2})";
+            else if (key == "xuiModPlatformDownloadFile") text = "Downloading {0}/{1}: {2}";
+            else if (key == "xuiModPlatformDownloadBytes") text = "{0} / {1} ({2}%)";
+            else if (key == "xuiModPlatformDownloadDoneFile") text = "Finished {0}/{1}: {2}";
+            else if (key == "xuiModPlatformPackNone") text = "No ModPack installed";
+            else if (key == "xuiModPlatformPackReady") text = "Installed pack {0} v{1}";
+        }
+        if (args == null || args.Length == 0) return text;
+        try { return string.Format(text, args); }
+        catch { return text; }
     }
 
     internal static void ApplyFromUi(string baseUrl, bool autoSync, bool autoRestart, bool diagnostics)
@@ -155,6 +218,7 @@ public sealed class ModPlatformClientPlugin : IModApi
         TrySyncPack();
         TrySendHandshake();
         TryShowRestartPrompt();
+        TryUpdateSyncUi();
     }
 
     static void TrySyncPack()
@@ -180,7 +244,9 @@ public sealed class ModPlatformClientPlugin : IModApi
             if (resolved.Handshake != null && resolved.Handshake.DistributionPaused)
                 throw new InvalidOperationException("Mod distribution is paused.");
             var manifest = await platform.GetLatestPackAsync(resolved.PackId, CancellationToken.None).ConfigureAwait(false);
-            var result = await PackSync.SyncAsync(modsDirectory, config.BaseUrl, manifest, CancellationToken.None).ConfigureAwait(false);
+            syncProgress = new PackSyncProgress { Phase = "start", PackFiles = manifest == null || manifest.Mods == null ? 0 : manifest.Mods.Count };
+            syncProgressText = Loc("xuiModPlatformDownloading");
+            var result = await PackSync.SyncAsync(modsDirectory, config.BaseUrl, manifest, CancellationToken.None, OnPackSyncProgress).ConfigureAwait(false);
             if (result.Changed) Log.Out("[ModPlatform] Client pack sync " + manifest.PackId + " v" + manifest.PackVersion + " installed=" + result.Installed + " updated=" + result.Updated + " unchanged=" + result.Unchanged);
             else Log.Out("[ModPlatform] Client pack already current " + manifest.PackId + " v" + manifest.PackVersion);
             syncedAddress = address;
@@ -202,12 +268,43 @@ public sealed class ModPlatformClientPlugin : IModApi
         catch (Exception error)
         {
             syncReady = false;
+            syncProgressText = null;
+            syncProgress = null;
             Log.Warning("[ModPlatform] Client pack sync failed: " + error.Message);
             Ignore(SendAsync("pack_sync_failed", error));
         }
         finally
         {
+            syncProgressText = null;
+            syncProgress = null;
             syncBusy = false;
+        }
+    }
+
+    static void OnPackSyncProgress(PackSyncProgress progress)
+    {
+        if (progress == null) return;
+        syncProgress = progress;
+        var line = progress.ToLogLine();
+        syncProgressText = line;
+        Log.Out("[ModPlatform] " + line);
+    }
+
+    static void TryUpdateSyncUi()
+    {
+        var xui = FindXui();
+        if (xui == null || xui.playerUI == null || xui.playerUI.windowManager == null) return;
+        var windows = xui.playerUI.windowManager;
+        var shouldOpen = syncBusy;
+        try
+        {
+            var open = windows.IsWindowOpen("modPlatformSync");
+            if (shouldOpen && !open) windows.Open("modPlatformSync", false);
+            else if (!shouldOpen && open) windows.Close("modPlatformSync");
+        }
+        catch (Exception error)
+        {
+            Log.Warning("[ModPlatform] Sync UI update failed: " + error.Message);
         }
     }
 

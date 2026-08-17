@@ -35,5 +35,17 @@
 			</rect>
 			<options_buttons />
 		</window>
+
+		<window name="modPlatformSync" depth="220" pos="-320,80" width="640" height="260" anchor="Center" controller="XUiC_ModPlatformSync, ModPlatform.Client" cursor_area="true">
+			<fullscreencollider depth="-2" color="20,20,20,160" />
+			<sprite depth="0" pos="0,0" width="640" height="260" sprite="menu_empty" color="18,18,18,235" type="sliced" />
+			<sprite depth="1" pos="0,0" width="640" height="260" sprite="menu_empty" color="228,18,21,255" type="sliced" fillcenter="false" />
+			<label pos="20,-18" width="600" height="40" font_size="32" color="228,18,21,255" justify="center" text="{title}" />
+			<label pos="24,-64" width="592" height="48" font_size="22" justify="center" overflow="resizeheight" text="{subtitle}" />
+			<label pos="24,-118" width="592" height="40" font_size="24" justify="center" text="{status}" />
+			<sprite pos="40,-168" width="560" height="22" sprite="menu_empty" color="50,50,50,255" type="sliced" />
+			<sprite pos="40,-168" width="560" height="22" sprite="menu_empty" color="228,18,21,255" type="filled" fillspritepad="true" fill="{progress}" />
+			<label pos="24,-198" width="592" height="36" font_size="22" justify="center" text="{bytes}" />
+		</window>
 	</append>
 </configs>

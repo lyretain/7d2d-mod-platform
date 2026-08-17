@@ -1,9 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configs>
 	<append xpath="/xui">
-		<window_group name="optionsModPlatform" defaultselected="content">
-			<window name="optionsModPlatform" />
-		</window_group>
 		<window_group name="modPlatformSync" actionset="false" always_update="true">
 			<window name="modPlatformSync" />
 		</window_group>

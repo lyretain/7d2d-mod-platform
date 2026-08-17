@@ -10,7 +10,7 @@
 - Unity: `2022.3.62f2`
 - Plugin target: `netstandard2.1`
 - Handshake protocol: `1`
-- Plugin version: `0.2.7`
+- Plugin version: `0.2.10`
 
 ## 2. Use a prebuilt pack
 
@@ -81,7 +81,7 @@ Example `server.config.json`:
   "ServerToken": "replace",
   "GameVersion": "3.0.1-b4",
   "RefreshSeconds": 60,
-  "HandshakeTimeoutSeconds": 15,
+  "HandshakeTimeoutSeconds": 180,
   "AutoSync": true,
   "AutoRestart": false
 }
@@ -155,10 +155,10 @@ The plugins already do:
 - assignment polling and diagnostic upload
 - handshake v1: the client posts Pack, version, signing key, and installed-file fingerprints over platform HTTP, not a custom NetPackage (so extra server-only Mods cannot shift package IDs)
 - the client downloads and installs the current Pack from the server address, then sends the handshake
-- the server claims that handshake by Steam/EOS/name and rejects unsynced, version-mismatched, or timed-out players on `PlayerLogin` / `PlayerSpawning`, with a kick reason that includes the launcher URL
+- the server claims that handshake by Steam/EOS/name and rejects unsynced, version-mismatched, or timed-out players on `PlayerLogin` / `PlayerSpawning`, with a kick reason that includes the launcher URL. Handshake wait is at least 120s (180s while a `syncing` hello is in flight) so a large content overlay cannot lose the race to the old 15s default
 - sync claims same-name folders the Pack already declared; the server cache lives in `ModPlatformServer/.modplatform`
 
-Upgrade client and server plugins together to `0.2.7`.
+Upgrade client and server plugins together to `0.2.10`. The dedicated server plugin is required for the longer handshake wait.
 
 ```powershell
 npm run launcher -- join --base-url http://localhost:8080 --address game.example.com:26900

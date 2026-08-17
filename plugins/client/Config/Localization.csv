@@ -1,13 +1,21 @@
-Key,File,Type,UsedInMainMenu,NoTranslate,KeepLoaded,english,Context / Alternate Text,german,spanish,french,italian,japanese,koreana,polish,brazilian,russian,turkish,schinese,tchinese
-xuiBtnOptionsModPlatform,UI,XUi OptionsMenu,x,,,Mod Platform,,,,,,,,,,,模组平台,模組平台
-xuiModPlatformBaseUrl,UI,XUi OptionsMenu,x,,,Platform URL,,,,,,,,,,,平台地址,平台位址
-xuiModPlatformBaseUrlTooltip,UI,XUi OptionsMenu,x,,,HTTPS address of the Mod Platform used to resolve and download packs.,,,,,,,,,,,用于解析并下载 Pack 的平台 HTTPS 地址。,用於解析並下載 Pack 的平台 HTTPS 位址。
-xuiModPlatformAutoSync,UI,XUi OptionsMenu,x,,,Auto download pack,,,,,,,,,,,自动下载 Pack,自動下載 Pack
-xuiModPlatformAutoSyncTooltip,UI,XUi OptionsMenu,x,,,When joining a registered server, download and install its current ModPack before handshake.,,,,,,,,,,,连上已登记服务器时，先下载并安装当前 Pack 再握手。,連上已登記伺服器時，先下載並安裝目前 Pack 再握手。
-xuiModPlatformAutoRestart,UI,XUi OptionsMenu,x,,,Restart after DLL pack,,,,,,,,,,,装完 DLL 后重启,裝完 DLL 後重啟
-xuiModPlatformAutoRestartTooltip,UI,XUi OptionsMenu,x,,,Quit and reconnect after a pack that contains DLL files is installed.,,,,,,,,,,,Pack 含 DLL 时装完后退出并自动重连。,Pack 含 DLL 時裝完後退出並自動重連。
-xuiModPlatformDiagnostics,UI,XUi OptionsMenu,x,,,Send diagnostics,,,,,,,,,,,发送诊断,傳送診斷
-xuiModPlatformDiagnosticsTooltip,UI,XUi OptionsMenu,x,,,Send plugin crash and sync events to the platform.,,,,,,,,,,,向平台发送插件崩溃和同步事件。,向平台傳送插件當機與同步事件。
-xuiModPlatformHelp,UI,XUi OptionsMenu,x,,,Change how the client plugin talks to the Mod Platform. Apply writes client.config.json and takes effect immediately.,,,,,,,,,,,在此修改客户端插件如何连接模组平台。点应用后写入 client.config.json，立即生效。,在此修改用戶端外掛如何連接模組平台。按套用後寫入 client.config.json，立即生效。
-xuiModPlatformRestartTitle,UI,XUi MainMenu,x,,,Restart required,,,,,,,,,,,需要重启游戏,需要重新啟動遊戲
-xuiModPlatformRestartText,UI,XUi MainMenu,x,,,The server pack installed files that only load after a restart. Confirm to close the game; it will reconnect next launch. Cancel to stay and restart later.,,,,,,,,,,,服务器 Pack 已装好，其中含有必须重启才能加载的文件。确定后关闭游戏，下次启动会自动重连。取消则留在游戏里，稍后请自行退出再进。,伺服器 Pack 已裝好，其中含有必須重新啟動才能載入的檔案。確定後關閉遊戲，下次啟動會自動重連。取消則留在遊戲裡，稍後請自行退出再進。
+﻿Key,File,Type,UsedInMainMenu,NoTranslate,KeepLoaded,english,Context / Alternate Text,german,spanish,french,italian,japanese,koreana,polish,brazilian,russian,turkish,schinese,tchinese
+xuiBtnOptionsModPlatform,UI,XUi OptionsMenu,x,,,Mod Platform,,,,,,,,,,,,模组平台,模組平台
+xuiModPlatformBaseUrl,UI,XUi OptionsMenu,x,,,Platform URL,,,,,,,,,,,,平台网址,平台網址
+xuiModPlatformBaseUrlTooltip,UI,XUi OptionsMenu,x,,,HTTPS address used to resolve and download the ModPack.,,,,,,,,,,,,用于解析并下载模组包的平台 HTTPS 地址。,用於解析並下載模組包的平台 HTTPS 位址。
+xuiModPlatformAutoSync,UI,XUi OptionsMenu,x,,,Download mods automatically,,,,,,,,,,,,自动下载模组,自動下載模組
+xuiModPlatformAutoSyncTooltip,UI,XUi OptionsMenu,x,,,"When you join a registered server, download and install its current ModPack before handshake.",,,,,,,,,,,,加入已登记的服务器时，先下载并安装当前模组包，再进行握手。,加入已登記的伺服器時，先下載並安裝目前模組包，再進行握手。
+xuiModPlatformAutoRestart,UI,XUi OptionsMenu,x,,,Restart after DLL mods,,,,,,,,,,,,含 DLL 时重启,含 DLL 時重啟
+xuiModPlatformAutoRestartTooltip,UI,XUi OptionsMenu,x,,,"If the pack contains DLL files, quit after install and reconnect on the next launch.",,,,,,,,,,,,模组包含 DLL 时，安装完成后退出游戏，下次启动会自动重连。,模組包含 DLL 時，安裝完成後退出遊戲，下次啟動會自動重連。
+xuiModPlatformDiagnostics,UI,XUi OptionsMenu,x,,,Send diagnostics,,,,,,,,,,,,发送诊断信息,傳送診斷資訊
+xuiModPlatformDiagnosticsTooltip,UI,XUi OptionsMenu,x,,,Send plugin crash and sync events to the platform.,,,,,,,,,,,,向平台发送插件崩溃和同步事件。,向平台傳送外掛當機與同步事件。
+xuiModPlatformHelp,UI,XUi OptionsMenu,x,,,Set how the client plugin talks to the Mod Platform. Apply writes client.config.json and takes effect immediately.,,,,,,,,,,,,在这里设置客户端插件如何连接模组平台。点击「应用」后会写入 client.config.json，并立即生效。,在這裡設定用戶端外掛如何連接模組平台。按「套用」後會寫入 client.config.json，並立即生效。
+xuiModPlatformRestartTitle,UI,XUi MainMenu,x,,,Restart required,,,,,,,,,,,,需要重启游戏,需要重新啟動遊戲
+xuiModPlatformRestartText,UI,XUi MainMenu,x,,,The server pack installed files that only load after a restart. Confirm to close the game; it will reconnect next launch. Cancel to stay and restart later.,,,,,,,,,,,,服务器模组包已装好，其中有必须重启才能加载的文件。确定后关闭游戏，下次启动会自动重连。取消则留在游戏里，稍后再自行退出。,伺服器模組包已裝好，其中有必須重新啟動才能載入的檔案。確定後關閉遊戲，下次啟動會自動重連。取消則留在遊戲裡，稍後再自行退出。
+xuiModPlatformDownloading,UI,XUi MainMenu,x,,,Downloading mods,,,,,,,,,,,,正在下载模组,正在下載模組
+xuiModPlatformDownloadWait,UI,XUi MainMenu,x,,,Please wait while the server ModPack is installed.,,,,,,,,,,,,正在从服务器安装模组包，请稍候。,正在從伺服器安裝模組包，請稍候。
+xuiModPlatformDownloadStart,UI,XUi MainMenu,x,,,"{0} files in pack, downloading {1} ({2})",,,,,,,,,,,,模组包共 {0} 个文件，正在下载 {1} 个（{2}）,模組包共 {0} 個檔案，正在下載 {1} 個（{2}）
+xuiModPlatformDownloadFile,UI,XUi MainMenu,x,,,Downloading {0}/{1}: {2},,,,,,,,,,,,正在下载第 {0}/{1} 个：{2},正在下載第 {0}/{1} 個：{2}
+xuiModPlatformDownloadBytes,UI,XUi MainMenu,x,,,{0} / {1} ({2}%),,,,,,,,,,,,{0} / {1}（{2}%）,{0} / {1}（{2}%）
+xuiModPlatformDownloadDoneFile,UI,XUi MainMenu,x,,,Finished {0}/{1}: {2},,,,,,,,,,,,已完成第 {0}/{1} 个：{2},已完成第 {0}/{1} 個：{2}
+xuiModPlatformPackNone,UI,XUi OptionsMenu,x,,,No ModPack installed,,,,,,,,,,,,尚未安装模组包,尚未安裝模組包
+xuiModPlatformPackReady,UI,XUi OptionsMenu,x,,,Installed pack {0} v{1},,,,,,,,,,,,已安装模组包 {0} v{1},已安裝模組包 {0} v{1}

@@ -73,8 +73,8 @@ public sealed class ModPlatformServerPlugin : IModApi
             clients[Key(client)] = new ClientHandshake { Verified = decision.Ok, Reason = decision.Reason, Message = decision.Message, JoinedAt = DateTime.UtcNow, Client = client };
         }
         Log.Out("[ModPlatform] Handshake from " + client.playerName + " => " + decision.Reason + " client=" + (hello == null ? "" : hello.GameVersion) + " pack=" + (policy == null ? "" : policy.GameVersion) + " server=" + DetectGameVersion());
-        if (!decision.Ok) Kick(client, decision.Reason, decision.Message);
-        else Ignore(SendAsync("handshake_ok", client, null, HandshakeReasons.Ok));
+        if (decision.Ok) Ignore(SendAsync("handshake_ok", client, null, HandshakeReasons.Ok));
+        else if (decision.Reason != HandshakeReasons.Syncing) Kick(client, decision.Reason, decision.Message);
     }
 
     static ModEvents.EModEventResult OnPlayerLogin(ref ModEvents.SPlayerLoginData data)
@@ -99,7 +99,7 @@ public sealed class ModPlatformServerPlugin : IModApi
                     : "Server is still installing the ModPack. Wait until sync finishes, then reconnect.");
                 Log.Warning("[ModPlatform] Reject " + (data.ClientInfo == null ? "?" : data.ClientInfo.playerName) + " " + reason + " " + (string.IsNullOrEmpty(acceptBlockReason) ? "accepting=False" : acceptBlockReason));
             }
-            else if (clients.TryGetValue(Key(data.ClientInfo), out var state) && !state.Verified)
+            else if (clients.TryGetValue(Key(data.ClientInfo), out var state) && !state.Verified && !ShouldWaitForHandshake(state))
             {
                 reason = state.Reason;
                 message = state.Message;
@@ -131,11 +131,10 @@ public sealed class ModPlatformServerPlugin : IModApi
         if (data.ClientInfo == null || IsLocalHost(data.ClientInfo)) return;
         ClientHandshake state;
         lock (gate) clients.TryGetValue(Key(data.ClientInfo), out state);
-        if (state == null || !state.Verified)
-        {
-            var reason = state == null ? HandshakeReasons.MissingPlugin : state.Reason;
-            Kick(data.ClientInfo, reason, state == null ? DenyMessage(reason, "Client plugin is missing.") : state.Message);
-        }
+        if (state != null && state.Verified) return;
+        if (ShouldWaitForHandshake(state)) return;
+        var reason = state == null ? HandshakeReasons.MissingPlugin : state.Reason;
+        Kick(data.ClientInfo, reason, state == null ? DenyMessage(reason, "Client plugin is missing.") : state.Message);
     }
 
     static void OnPlayerDisconnected(ref ModEvents.SPlayerDisconnectedData data)
@@ -146,14 +145,13 @@ public sealed class ModPlatformServerPlugin : IModApi
 
     static void OnGameUpdate(ref ModEvents.SGameUpdateData data)
     {
-        var timeout = TimeSpan.FromSeconds(Math.Max(8, config == null ? 15 : config.HandshakeTimeoutSeconds));
         List<ClientHandshake> expired = null;
         lock (gate)
         {
             foreach (var item in clients.Values)
             {
                 if (item.Verified || item.Client == null) continue;
-                if (DateTime.UtcNow - item.JoinedAt < timeout) continue;
+                if (ShouldWaitForHandshake(item)) continue;
                 if (expired == null) expired = new List<ClientHandshake>();
                 expired.Add(item);
             }
@@ -236,6 +234,20 @@ public sealed class ModPlatformServerPlugin : IModApi
         if (!ids.Exists(item => string.Equals(item, trimmed, StringComparison.OrdinalIgnoreCase))) ids.Add(trimmed);
     }
 
+    static bool ShouldWaitForHandshake(ClientHandshake state)
+    {
+        if (state == null || state.Verified) return false;
+        return DateTime.UtcNow - state.JoinedAt < HandshakeTimeout(state);
+    }
+
+    static TimeSpan HandshakeTimeout(ClientHandshake state)
+    {
+        var configured = config == null ? 180 : config.HandshakeTimeoutSeconds;
+        if (configured < 8) configured = 8;
+        if (state != null && state.Reason == HandshakeReasons.Syncing) return TimeSpan.FromSeconds(Math.Max(180, configured));
+        return TimeSpan.FromSeconds(Math.Max(120, configured));
+    }
+
     static Decision Evaluate(HandshakeHello hello)
     {
         HandshakePolicy current;
@@ -243,6 +255,12 @@ public sealed class ModPlatformServerPlugin : IModApi
         if (current == null) return Deny(HandshakeReasons.Revoked, "No active signed ModPack is assigned.");
         if (current.DistributionPaused) return Deny(HandshakeReasons.DistributionPaused, "Mod distribution is paused.");
         if (hello == null || hello.ProtocolVersion != PluginIdentity.ProtocolVersion) return Deny(HandshakeReasons.InvalidHello, "Unsupported handshake protocol.");
+        if (hello.Syncing)
+        {
+            if (!string.IsNullOrEmpty(hello.PackId) && !string.IsNullOrEmpty(current.PackId) && hello.PackId != current.PackId)
+                return Deny(HandshakeReasons.PackMismatch, "Client ModPack " + hello.PackId + " does not match required " + current.PackId + ".");
+            return new Decision { Ok = false, Reason = HandshakeReasons.Syncing, Message = DenyMessage(HandshakeReasons.Syncing, "Client is still downloading the ModPack.") };
+        }
         if (string.IsNullOrEmpty(current.PackId) || current.PackVersion == null || string.IsNullOrEmpty(current.ArtifactFingerprint)) return Deny(HandshakeReasons.Revoked, "The assigned release is missing or revoked.");
         var liveVersion = DetectGameVersion();
         if (!string.IsNullOrEmpty(hello.GameVersion) && !GameVersions.Compatible(hello.GameVersion, liveVersion) && !GameVersions.Compatible(hello.GameVersion, current.GameVersion))
@@ -306,7 +324,7 @@ public sealed class ModPlatformServerPlugin : IModApi
         try { await platform.SendSyncStatusAsync(config.ServerId, config.ServerToken, status, token).ConfigureAwait(false); } catch { }
         try
         {
-            var result = await PackSync.SyncAsync(modsDirectory, config.BaseUrl, assignment.Manifest, token).ConfigureAwait(false);
+            var result = await PackSync.SyncAsync(modsDirectory, config.BaseUrl, assignment.Manifest, token, progress => Log.Out("[ModPlatform] " + progress.ToLogLine())).ConfigureAwait(false);
             if (result.Changed) Log.Out("[ModPlatform] Pack sync " + assignment.PackId + " v" + assignment.Manifest.PackVersion + " installed=" + result.Installed + " updated=" + result.Updated + " unchanged=" + result.Unchanged);
             else Log.Out("[ModPlatform] Pack sync already current " + assignment.PackId + " v" + assignment.Manifest.PackVersion);
             if (result.RequiresRestart)
@@ -561,6 +579,6 @@ public sealed class ServerConfig
     public ServerConfig()
     {
         RefreshSeconds = 60;
-        HandshakeTimeoutSeconds = 15;
+        HandshakeTimeoutSeconds = 180;
     }
 }

@@ -30,7 +30,8 @@ export function sanitizeHello(hello) {
     packVersion: Number.isFinite(Number(hello.packVersion)) ? Number(hello.packVersion) : 0,
     keyId: String(hello.keyId || '').slice(0, 128),
     artifactFingerprint: String(hello.artifactFingerprint || '').slice(0, 4096),
-    sessionId: String(hello.sessionId || '').slice(0, 64)
+    sessionId: String(hello.sessionId || '').slice(0, 64),
+    syncing: Boolean(hello.syncing)
   };
 }
 

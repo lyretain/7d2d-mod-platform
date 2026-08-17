@@ -65,7 +65,7 @@
   "ServerToken": "...",
   "GameVersion": "3.10.14",
   "RefreshSeconds": 60,
-  "HandshakeTimeoutSeconds": 15,
+  "HandshakeTimeoutSeconds": 180,
   "AutoSync": true,
   "AutoRestart": false
 }

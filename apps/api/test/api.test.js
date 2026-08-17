@@ -300,7 +300,7 @@ test('regular users can register a game server and open the user guide', async (
   assert.equal(created.config.ServerToken, created.token);
   assert.equal(created.config.GameVersion, '3.10.14');
   assert.equal(created.config.RefreshSeconds, 60);
-  assert.equal(created.config.HandshakeTimeoutSeconds, 15);
+  assert.equal(created.config.HandshakeTimeoutSeconds, 180);
   const serverAuth = { authorization: `Bearer ${created.token}`, 'content-type': 'application/json' };
   let assigned = await jsonRequest(`${base}/api/v1/servers/${created.serverId}/assignment`, { headers: { authorization: `Bearer ${created.token}` } });
   assert.equal(assigned.acceptingPlayers, true);
@@ -371,7 +371,7 @@ test('client can deposit a handshake and the dedicated server claims it once', a
     body: JSON.stringify({
       address: '192.168.3.42:26900',
       playerIds: ['Steam_76561198000000000', 'CariYui'],
-      hello: { protocolVersion: 1, pluginVersion: '0.2.1', packId: 'hs-pack', packVersion: 1, artifactFingerprint: artifactSha }
+      hello: { protocolVersion: 1, pluginVersion: '0.2.1', packId: 'hs-pack', packVersion: 1, artifactFingerprint: artifactSha, syncing: true }
     })
   });
   assert.equal(deposited.accepted, true);
@@ -388,6 +388,7 @@ test('client can deposit a handshake and the dedicated server claims it once', a
   assert.equal(claimed.hello.packId, 'hs-pack');
   assert.equal(claimed.hello.packVersion, 1);
   assert.equal(claimed.hello.artifactFingerprint, artifactSha);
+  assert.equal(claimed.hello.syncing, true);
 
   assert.equal((await fetch(`${base}/api/v1/servers/${server.serverId}/pending-handshake/claim`, {
     method: 'POST',

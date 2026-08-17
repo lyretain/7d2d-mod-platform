@@ -43,6 +43,7 @@ namespace ModPlatform.Shared
         [DataMember(Name = "keyId")] public string KeyId { get; set; }
         [DataMember(Name = "artifactFingerprint")] public string ArtifactFingerprint { get; set; }
         [DataMember(Name = "sessionId")] public string SessionId { get; set; }
+        [DataMember(Name = "syncing")] public bool Syncing { get; set; }
     }
 
     [DataContract]

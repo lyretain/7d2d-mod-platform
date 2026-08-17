@@ -335,7 +335,7 @@ export function pluginServerConfig({ baseUrl, serverId, token, gameVersion }) {
     ServerToken: token,
     GameVersion: gameVersion || '3.1.0',
     RefreshSeconds: 60,
-    HandshakeTimeoutSeconds: 15,
+    HandshakeTimeoutSeconds: 180,
     AutoSync: true,
     AutoRestart: false
   };

@@ -23,6 +23,43 @@ namespace ModPlatform.Shared
         public int Unchanged;
     }
 
+    public sealed class PackSyncProgress
+    {
+        public string Phase;
+        public int Index;
+        public int Total;
+        public string Name;
+        public long BytesReceived;
+        public long BytesTotal;
+        public int PackFiles;
+        public int CachedFiles;
+
+        public string ToLogLine()
+        {
+            if (Phase == "start")
+            {
+                var extra = BytesTotal > 0 ? " (" + FormatBytes(BytesTotal) + ")" : "";
+                return "Pack sync " + PackFiles + " files, downloading " + Total + extra + (CachedFiles > 0 ? ", cached " + CachedFiles : "");
+            }
+            if (Phase == "download")
+            {
+                var pct = BytesTotal > 0 ? (int)(BytesReceived * 100 / BytesTotal) : 0;
+                return "Downloading " + Index + "/" + Total + " " + Name + " " + FormatBytes(BytesReceived) + " / " + FormatBytes(BytesTotal) + " (" + pct + "%)";
+            }
+            if (Phase == "complete") return "Downloaded " + Index + "/" + Total + " " + Name;
+            return "Pack sync " + (Phase ?? "progress");
+        }
+
+        public static string FormatBytes(long bytes)
+        {
+            if (bytes < 0) bytes = 0;
+            if (bytes < 1024) return bytes + " B";
+            if (bytes < 1024 * 1024) return (bytes / 1024.0).ToString("0.0") + " KB";
+            if (bytes < 1024L * 1024 * 1024) return (bytes / 1024.0 / 1024.0).ToString("0.0") + " MB";
+            return (bytes / 1024.0 / 1024.0 / 1024.0).ToString("0.00") + " GB";
+        }
+    }
+
     public static class PackSync
     {
         static readonly Regex SafeRoot = new Regex(@"^[^\\/:*?""<>|.][^\\/:*?""<>|]{0,127}$", RegexOptions.CultureInvariant);
@@ -78,6 +115,11 @@ namespace ModPlatform.Shared
 
         public static async Task<PackSyncResult> SyncAsync(string modsDir, string baseUrl, PackManifest manifest, CancellationToken token)
         {
+            return await SyncAsync(modsDir, baseUrl, manifest, token, null).ConfigureAwait(false);
+        }
+
+        public static async Task<PackSyncResult> SyncAsync(string modsDir, string baseUrl, PackManifest manifest, CancellationToken token, Action<PackSyncProgress> onProgress)
+        {
             if (string.IsNullOrEmpty(modsDir)) throw new InvalidOperationException("Mods directory is not configured.");
             if (manifest == null || manifest.Mods == null) throw new InvalidOperationException("Assignment is missing a signed manifest.");
             Directory.CreateDirectory(modsDir);
@@ -117,6 +159,9 @@ namespace ModPlatform.Shared
                 }
             }
 
+            var reporter = BuildReporter(manifest, modsDir, cacheDir, state, onProgress);
+            reporter.Start();
+
             foreach (var mod in manifest.Mods)
             {
                 var roots = (mod.InstallRoots == null || mod.InstallRoots.Count == 0) ? new List<string> { mod.Id } : mod.InstallRoots;
@@ -130,18 +175,18 @@ namespace ModPlatform.Shared
                     continue;
                 }
                 var cacheFile = Path.Combine(cacheDir, mod.Sha256.ToLowerInvariant() + ".zip");
-                if (!File.Exists(cacheFile) || (mod.Size > 0 && new FileInfo(cacheFile).Length != mod.Size) || Sha256File(cacheFile) != mod.Sha256.ToLowerInvariant())
+                if (NeedsFetch(cacheFile, mod.Sha256, mod.Size))
                 {
                     var url = string.IsNullOrEmpty(mod.Url)
                         ? (baseUrl ?? "").TrimEnd('/') + "/api/v1/public/artifacts/" + mod.Sha256.ToLowerInvariant()
                         : mod.Url;
-                    await DownloadAsync(url, cacheFile, mod.Sha256, mod.Size, token).ConfigureAwait(false);
+                    await DownloadAsync(url, cacheFile, mod.Sha256, mod.Size, token, reporter, DisplayName(mod.Id, null)).ConfigureAwait(false);
                 }
                 var stageDir = Path.Combine(controlDir, "stage-" + Guid.NewGuid().ToString("N"));
                 try
                 {
                     ExtractZip(cacheFile, stageDir);
-                    await ApplyOverlaysAsync(mod, roots, cacheDir, stageDir, baseUrl, token).ConfigureAwait(false);
+                    await ApplyOverlaysAsync(mod, roots, cacheDir, stageDir, baseUrl, token, reporter).ConfigureAwait(false);
                     foreach (var root in roots)
                     {
                         var staged = Path.Combine(stageDir, root);
@@ -209,7 +254,7 @@ namespace ModPlatform.Shared
                 .OrderBy(item => item, StringComparer.Ordinal));
         }
 
-        static async Task ApplyOverlaysAsync(ManifestMod mod, List<string> roots, string cacheDir, string stageDir, string baseUrl, CancellationToken token)
+        static async Task ApplyOverlaysAsync(ManifestMod mod, List<string> roots, string cacheDir, string stageDir, string baseUrl, CancellationToken token, DownloadReporter reporter)
         {
             if (mod.Overlays == null) return;
             var cleared = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -218,12 +263,12 @@ namespace ModPlatform.Shared
                 if (overlay == null || string.IsNullOrEmpty(overlay.Sha256) || string.IsNullOrEmpty(overlay.Path)) continue;
                 if (!SafeRoot.IsMatch(overlay.Path)) throw new InvalidOperationException("Unsafe content overlay path: " + overlay.Path);
                 var overlayFile = Path.Combine(cacheDir, overlay.Sha256.ToLowerInvariant() + ".zip");
-                if (!File.Exists(overlayFile) || (overlay.Size > 0 && new FileInfo(overlayFile).Length != overlay.Size) || Sha256File(overlayFile) != overlay.Sha256.ToLowerInvariant())
+                if (NeedsFetch(overlayFile, overlay.Sha256, overlay.Size))
                 {
                     var url = string.IsNullOrEmpty(overlay.Url)
                         ? (baseUrl ?? "").TrimEnd('/') + "/api/v1/public/artifacts/" + overlay.Sha256.ToLowerInvariant()
                         : overlay.Url;
-                    await DownloadAsync(url, overlayFile, overlay.Sha256, overlay.Size, token).ConfigureAwait(false);
+                    await DownloadAsync(url, overlayFile, overlay.Sha256, overlay.Size, token, reporter, DisplayName(mod.Id, overlay)).ConfigureAwait(false);
                 }
                 foreach (var root in roots)
                 {
@@ -286,26 +331,180 @@ namespace ModPlatform.Shared
             }
         }
 
-        static async Task DownloadAsync(string url, string target, string expectedSha, long expectedSize, CancellationToken token)
+        static async Task DownloadAsync(string url, string target, string expectedSha, long expectedSize, CancellationToken token, DownloadReporter reporter, string name)
         {
+            reporter?.BeginFile(name, expectedSize);
             var partial = target + ".partial";
             Directory.CreateDirectory(Path.GetDirectoryName(target));
             using (var response = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, token).ConfigureAwait(false))
             {
                 if (!response.IsSuccessStatusCode) throw new InvalidOperationException("Download failed (" + (int)response.StatusCode + "): " + url);
+                var total = expectedSize > 0 ? expectedSize : (response.Content.Headers.ContentLength ?? 0);
                 using (var input = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
                 using (var output = File.Create(partial))
-                    await input.CopyToAsync(output, 81920, token).ConfigureAwait(false);
+                {
+                    var buffer = new byte[81920];
+                    long received = 0;
+                    int read;
+                    while ((read = await input.ReadAsync(buffer, 0, buffer.Length, token).ConfigureAwait(false)) > 0)
+                    {
+                        await output.WriteAsync(buffer, 0, read, token).ConfigureAwait(false);
+                        received += read;
+                        reporter?.Bytes(name, received, total);
+                    }
+                }
             }
             var actual = Sha256File(partial);
             var size = new FileInfo(partial).Length;
             if (!string.Equals(actual, expectedSha, StringComparison.OrdinalIgnoreCase) || (expectedSize > 0 && size != expectedSize))
             {
                 File.Delete(partial);
-                throw new InvalidOperationException("Downloaded artifact failed integrity validation: " + expectedSha);
+                throw new InvalidOperationException("Downloaded artifact failed integrity validation: expected sha=" + expectedSha + " size=" + expectedSize + " actual sha=" + actual + " size=" + size);
             }
             if (File.Exists(target)) File.Delete(target);
             File.Move(partial, target);
+            reporter?.Finished(name, size);
+        }
+
+        static bool NeedsFetch(string cacheFile, string sha, long size)
+        {
+            if (string.IsNullOrEmpty(sha)) return false;
+            sha = sha.ToLowerInvariant();
+            if (!File.Exists(cacheFile)) return true;
+            if (size > 0 && new FileInfo(cacheFile).Length != size) return true;
+            return Sha256File(cacheFile) != sha;
+        }
+
+        static string DisplayName(string modId, ManifestOverlay overlay)
+        {
+            if (overlay == null) return string.IsNullOrEmpty(modId) ? "mod" : modId;
+            if (!string.IsNullOrEmpty(overlay.Id)) return overlay.Id;
+            if (!string.IsNullOrEmpty(overlay.Path)) return (modId ?? "mod") + "/" + overlay.Path;
+            return modId ?? "overlay";
+        }
+
+        static DownloadReporter BuildReporter(PackManifest manifest, string modsDir, string cacheDir, PackSyncState state, Action<PackSyncProgress> onProgress)
+        {
+            var queued = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var reporter = new DownloadReporter { Callback = onProgress };
+            foreach (var mod in manifest.Mods)
+            {
+                if (mod == null) continue;
+                reporter.PackFiles += 1;
+                if (mod.Overlays != null)
+                    reporter.PackFiles += mod.Overlays.Count(item => item != null && !string.IsNullOrEmpty(item.Sha256));
+                var roots = (mod.InstallRoots == null || mod.InstallRoots.Count == 0) ? new List<string> { mod.Id } : mod.InstallRoots;
+                var unchanged = roots.All(root =>
+                    state.ManagedRoots.TryGetValue(root, out var current)
+                    && RootMatches(current, mod)
+                    && Directory.Exists(Path.Combine(modsDir, root)));
+                if (unchanged) continue;
+                QueueFetch(reporter, queued, cacheDir, mod.Sha256, mod.Size);
+                if (mod.Overlays == null) continue;
+                foreach (var overlay in mod.Overlays)
+                {
+                    if (overlay == null || string.IsNullOrEmpty(overlay.Sha256)) continue;
+                    QueueFetch(reporter, queued, cacheDir, overlay.Sha256, overlay.Size);
+                }
+            }
+            return reporter;
+        }
+
+        static void QueueFetch(DownloadReporter reporter, HashSet<string> queued, string cacheDir, string sha, long size)
+        {
+            if (string.IsNullOrEmpty(sha) || !queued.Add(sha.ToLowerInvariant())) return;
+            var cacheFile = Path.Combine(cacheDir, sha.ToLowerInvariant() + ".zip");
+            if (!NeedsFetch(cacheFile, sha, size))
+            {
+                reporter.CachedFiles += 1;
+                return;
+            }
+            reporter.Total += 1;
+            if (size > 0) reporter.PlannedBytes += size;
+        }
+
+        sealed class DownloadReporter
+        {
+            public int Total;
+            public int Index;
+            public int PackFiles;
+            public int CachedFiles;
+            public long PlannedBytes;
+            public Action<PackSyncProgress> Callback;
+            DateTime lastEmit = DateTime.MinValue;
+            int lastPercent = -1;
+
+            public void Start()
+            {
+                Emit(new PackSyncProgress
+                {
+                    Phase = "start",
+                    Total = Total,
+                    PackFiles = PackFiles,
+                    CachedFiles = CachedFiles,
+                    BytesTotal = PlannedBytes
+                }, true);
+            }
+
+            public void BeginFile(string name, long size)
+            {
+                Index += 1;
+                lastPercent = -1;
+                lastEmit = DateTime.MinValue;
+                Emit(new PackSyncProgress
+                {
+                    Phase = "download",
+                    Index = Index,
+                    Total = Math.Max(Total, Index),
+                    Name = name,
+                    BytesReceived = 0,
+                    BytesTotal = size,
+                    PackFiles = PackFiles,
+                    CachedFiles = CachedFiles
+                }, true);
+            }
+
+            public void Bytes(string name, long received, long total)
+            {
+                var percent = total > 0 ? (int)(received * 100 / total) : 0;
+                var now = DateTime.UtcNow;
+                if (received < total && percent < lastPercent + 10 && (now - lastEmit).TotalSeconds < 5) return;
+                lastPercent = percent;
+                lastEmit = now;
+                Emit(new PackSyncProgress
+                {
+                    Phase = "download",
+                    Index = Index,
+                    Total = Math.Max(Total, Index),
+                    Name = name,
+                    BytesReceived = received,
+                    BytesTotal = total,
+                    PackFiles = PackFiles,
+                    CachedFiles = CachedFiles
+                }, false);
+            }
+
+            public void Finished(string name, long size)
+            {
+                Emit(new PackSyncProgress
+                {
+                    Phase = "complete",
+                    Index = Index,
+                    Total = Math.Max(Total, Index),
+                    Name = name,
+                    BytesReceived = size,
+                    BytesTotal = size,
+                    PackFiles = PackFiles,
+                    CachedFiles = CachedFiles
+                }, true);
+            }
+
+            void Emit(PackSyncProgress progress, bool force)
+            {
+                if (Callback == null) return;
+                if (!force && progress.Phase == "download" && (DateTime.UtcNow - lastEmit).TotalMilliseconds < 0) return;
+                Callback(progress);
+            }
         }
 
         static void ExtractZip(string zipPath, string destDir)

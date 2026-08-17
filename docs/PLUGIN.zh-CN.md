@@ -10,7 +10,7 @@
 - Unity：`2022.3.62f2`
 - 插件目标框架：`netstandard2.1`
 - 握手协议：`1`
-- 插件版本：`0.2.7`
+- 插件版本：`0.2.10`
 
 ## 二、使用现成插件包
 
@@ -81,7 +81,7 @@ E:\Project\artifacts\plugins
   "ServerToken": "replace",
   "GameVersion": "3.0.1-b4",
   "RefreshSeconds": 60,
-  "HandshakeTimeoutSeconds": 15,
+  "HandshakeTimeoutSeconds": 180,
   "AutoSync": true,
   "AutoRestart": false
 }
@@ -155,10 +155,10 @@ E:\Project\artifacts\plugins
 - 后台 assignment 轮询和诊断上报；
 - 握手协议 v1：客户端通过平台 HTTP 提交 Pack、版本、签名 Key 和已安装文件指纹，不再发送自定义 NetPackage（避免服务端多装了其它 Mod 后包 ID 错位）；
 - 客户端按服务器地址自动下载并安装当前 Pack，再发送握手；
-- 服务端按玩家 Steam/EOS/名称认领该握手，并在 `PlayerLogin` / `PlayerSpawning` 拒绝未同步、版本不符或超时的玩家，踢出原因包含启动器地址。
+- 服务端按玩家 Steam/EOS/名称认领该握手，并在 `PlayerLogin` / `PlayerSpawning` 拒绝未同步、版本不符或超时的玩家，踢出原因包含启动器地址。等待下限 120 秒（正在同步时 180 秒），避免大体积 overlay 还没下完就被旧的 15 秒超时踢掉。
 - 同步时会认领 Pack 已声明且已存在的同名目录；服务端缓存写在 `ModPlatformServer/.modplatform`。
 
-客户端和服务端插件建议一起升级到 `0.2.7`。
+客户端和服务端插件建议一起升级到 `0.2.10`。这次必须更新专用服插件，否则仍会 15 秒超时。
 
 ```powershell
 npm run launcher -- join --base-url http://localhost:8080 --address game.example.com:26900
