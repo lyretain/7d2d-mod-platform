@@ -1,13 +1,13 @@
 {
   "platformVersion": "0.3.1",
-  "pluginVersion": "0.2.13",
+  "pluginVersion": "0.2.14",
   "protocolVersion": 1,
-  "clientGameVersion": "3.1.0",
-  "serverGameVersion": "3.10.14",
-  "steamBuildId": "24436778",
+  "clientGameVersion": "3.2.0",
+  "serverGameVersion": "3.2.0",
+  "steamBuildId": "24994517",
   "validated": {
-    "windowsClient": true,
-    "windowsDedicatedServer": true,
+    "windowsClient": false,
+    "windowsDedicatedServer": false,
     "windowsListenServer": false,
     "linuxDedicatedServer": false
   }

@@ -6,7 +6,7 @@
 
 插件目录和程序集仍叫 `ModPlatform*`，已安装的服不必改文件夹名。
 
-当前客户端目标版本为七日杀 `V 3.1.0`，服务端目标版本为 `V 3.10.14`，对应 Steam Build `24436778`。Windows 客户端与 Windows 专用服务器已通过真实进服验证；本地主机模式和 Linux 专用服务器仍待验证。权威版本信息见 [`project-versions.json`](project-versions.json)。
+当前客户端目标版本为七日杀 `V 3.2.0`，服务端目标版本为 `V 3.2.0`，对应 Steam Build `24994517`。Windows 客户端与专用服务器在此 Build 上的真实进服验证仍待完成；本地主机模式和 Linux 专用服务器仍待验证。权威版本信息见 [`project-versions.json`](project-versions.json)。
 
 ## 已实现功能
 
@@ -167,7 +167,7 @@ npm run build:web
 
 - 当前定位是社区自托管平台，不是多租户公共 Mod 市场；多实例部署必须使用 PostgreSQL 和共享对象存储。
 - 可靠流程是启动器在进入游戏前完成同步。
-- 游戏内握手已在 Windows 客户端与专用服务器通过真实进服验证；本地主机模式和 Linux 专用服务器仍待验证。
+- 游戏内握手在 V 3.2.0 上的 Windows 真实进服验证仍待完成；本地主机模式和 Linux 专用服务器仍待验证。
 - 带 DLL/Harmony 的 Mod 通常需要关闭 EAC，并在安装后重启游戏。
 - Docker CLI 已安装，但部署前需要确保 Docker Desktop 后台正在运行。
 - 对外开放前必须实际启用并验收 HTTPS、限流、恶意文件扫描、正式密钥管理和备份恢复流程。

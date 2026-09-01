@@ -2,16 +2,16 @@
 
 [English](PLUGIN.md) · [简体中文](PLUGIN.zh.md)
 
-## 一、当前验证环境
+## 一、当前目标环境
 
-- 七日杀客户端：`V 3.1.0`
-- 七日杀服务端：`V 3.10.14`
-- Steam Build：`24436778`
+- 七日杀客户端：`V 3.2.0`
+- 七日杀服务端：`V 3.2.0`
+- Steam Build：`24994517`
 - 游戏目录：`G:\SteamLibrary\steamapps\common\7 Days To Die`
 - Unity：`2022.3.62f2`
 - 插件目标框架：`netstandard2.1`
 - 握手协议：`1`
-- 插件版本：`0.2.12`
+- 插件版本：`0.2.14`
 
 ## 二、使用现成插件包
 
@@ -62,8 +62,8 @@ E:\Project\artifacts\plugins\ModPlatformServer
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File .\deploy\build-plugins.ps1 `
   -GameManagedDir "G:\SteamLibrary\steamapps\common\7 Days To Die\7DaysToDie_Data\Managed" `
-  -ClientGameVersion "3.1.0" `
-  -ServerGameVersion "3.10.14"
+  -ClientGameVersion "3.2.0" `
+  -ServerGameVersion "3.2.0"
 ```
 
 输出目录：
@@ -166,7 +166,7 @@ E:\Project\artifacts\plugins
 - 服务端按玩家 Steam/EOS/名称认领该握手，并在 `PlayerLogin` / `PlayerSpawning` 拒绝未同步、版本不符或超时的玩家，踢出原因包含启动器地址。等待下限 120 秒（正在同步时 180 秒），避免大体积 overlay 还没下完就被旧的 15 秒超时踢掉。
 - 同步时会认领 Pack 已声明且已存在的同名目录；服务端缓存写在 `ModPlatformServer/.modplatform`。
 
-客户端和服务端插件建议一起升级到 `0.2.12`。按安装端自动更新后，专用服只装服务端与两端模组，玩家只装客户端与两端模组；旧插件仍会全装。握手指纹不再计入仅服务端/仅客户端制品，混装 Pack 需要这对插件。Pack 里的官方 `mod-platform-client` / `mod-platform-server` 可以更新对应插件目录。
+客户端和服务端插件建议一起升级到 `0.2.14`。按安装端自动更新后，专用服只装服务端与两端模组，玩家只装客户端与两端模组；旧插件仍会全装。握手指纹不再计入仅服务端/仅客户端制品，混装 Pack 需要这对插件。Pack 里的官方 `mod-platform-client` / `mod-platform-server` 可以更新对应插件目录。
 
 ```powershell
 npm run launcher -- join --base-url http://localhost:8080 --address game.example.com:26900

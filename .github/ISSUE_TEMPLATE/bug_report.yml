@@ -18,7 +18,7 @@ body:
     attributes:
       label: Versions
       description: Platform, plugin, client, server, and Steam Build versions
-      placeholder: "platform 0.3.1; plugin 0.2.13; client V 3.1.0; server V 3.10.14; Steam 24436778"
+      placeholder: "platform 0.3.1; plugin 0.2.14; client V 3.2.0; server V 3.2.0; Steam 24994517"
     validations:
       required: true
   - type: dropdown

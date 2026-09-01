@@ -19,6 +19,7 @@ namespace ModPlatform.Shared
             if (string.IsNullOrWhiteSpace(value)) return "";
             var text = BuildSuffix.Replace(Prefix.Replace(value.Trim(), ""), "").Trim();
             if (string.Equals(text, "3.10.14", StringComparison.OrdinalIgnoreCase)) return "3.1.0";
+            if (string.Equals(text, "3.20.0", StringComparison.OrdinalIgnoreCase)) return "3.2.0";
             return text;
         }
     }

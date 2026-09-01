@@ -246,7 +246,7 @@ Omit `id` to get `pack_<uuid>`. An existing `id` updates that draft.
 }
 ```
 
-If a Mod version declares compatible game versions and the Pack version is outside that range, create fails. The current client string `3.1.0` and server string `3.10.14` are treated as the same build. With `gameVersionRange` `major`, a `3.0` Mod can enter a `3.10.14` Pack but not `4.0`. Unchecked still means exact match.
+If a Mod version declares compatible game versions and the Pack version is outside that range, create fails. The current client and server string `3.2.0` (and a possible dedicated `3.20.0`) are treated as the same build; the previous `3.1.0` / `3.10.14` pair is still mapped. With `gameVersionRange` `major`, a `3.0` Mod can enter a `3.2.0` Pack but not `4.0`. Unchecked still means exact match.
 
 ## Publish a ModPack
 

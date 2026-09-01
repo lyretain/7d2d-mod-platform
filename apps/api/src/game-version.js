@@ -24,9 +24,14 @@ export function normalizeGameVersionSpec(value) {
   return String(value || '').trim().replace(/\+$/u, '').replace(/\.x$/iu, '');
 }
 
+const HANDSHAKE_ALIASES = {
+  '3.10.14': '3.1.0',
+  '3.20.0': '3.2.0'
+};
+
 export function normalizeHandshakeVersion(value) {
   const text = String(value || '').trim().replace(/^v\s*/i, '').replace(/\s*[\(\-]?b\d+\)?\s*$/i, '').trim();
-  return text === '3.10.14' ? '3.1.0' : text;
+  return HANDSHAKE_ALIASES[text] || text;
 }
 
 export function handshakeVersionsCompatible(actual, required) {

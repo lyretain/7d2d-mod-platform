@@ -265,7 +265,7 @@ onMounted(async () => {
         <label class="field">{{ t('ws.dlgName') }}</label>
         <input v-model="packName" class="input mb-3" :placeholder="t('ws.phName')">
         <label class="field">{{ t('ws.dlgGame') }}</label>
-        <input v-model="packGame" class="input mb-3" placeholder="3.10.14">
+        <input v-model="packGame" class="input mb-3" placeholder="3.2.0">
       </div>
       <div v-else>
         <label class="field">{{ t('ws.dlgPack') }}</label>

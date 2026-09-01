@@ -32,6 +32,7 @@ test('handshake accepts a matching hello and rejects spoofed hashes', () => {
   assert.equal(evaluateHello(hello, policy).ok, true);
   assert.equal(evaluateHello({ ...hello, gameVersion: 'V 3.1.0' }, policy).ok, true);
   assert.equal(evaluateHello({ ...hello, gameVersion: '3.1.0 (b14)' }, policy).ok, true);
+  assert.equal(evaluateHello({ ...hello, gameVersion: 'V 3.2.0' }, policy).reason, 'GAME_VERSION');
   assert.equal(evaluateHello({ ...hello, gameVersion: '2.6' }, policy).reason, 'GAME_VERSION');
   assert.equal(evaluateHello({ ...hello, artifactFingerprint: 'cc' }, policy).reason, 'PACK_MISMATCH');
   assert.equal(evaluateHello({ ...hello, packVersion: 1 }, policy).reason, 'PACK_MISMATCH');

@@ -171,7 +171,7 @@ function startCreate() {
   creating.value = true;
   pack.value = null;
   packName.value = '';
-  packGame.value = '3.10.14';
+  packGame.value = '3.2.0';
   entries.value = [];
   releases.value = [];
   selectedRelease.value = '';
@@ -362,7 +362,7 @@ onMounted(async () => {
             </div>
             <div>
               <label class="field">{{ t('pack.game') }}</label>
-              <input v-model="packGame" class="input" :disabled="!writable" placeholder="3.10.14">
+              <input v-model="packGame" class="input" :disabled="!writable" placeholder="3.2.0">
             </div>
           </div>
           <p v-if="pack?.id" class="mt-2 truncate text-theme-xs text-gray-400">{{ pack.id }}</p>

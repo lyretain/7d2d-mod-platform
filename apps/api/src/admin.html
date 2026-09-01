@@ -321,7 +321,7 @@
           </div>
           <div>
             <label class="field" data-i18n="ws.game">游戏版本</label>
-            <input id="workshopGame" data-i18n-placeholder="ws.phGame" placeholder="例如 3.1.0" oninput="scheduleWorkshopSearch()">
+            <input id="workshopGame" data-i18n-placeholder="ws.phGame" placeholder="例如 3.2.0" oninput="scheduleWorkshopSearch()">
           </div>
           <div>
             <label class="field" data-i18n="ws.type">类型</label>
@@ -393,8 +393,8 @@
           <div><label class="field" data-i18n="mod.sha">文件 SHA-256</label><input id="artifactSha" data-i18n-placeholder="mod.phSha" placeholder="上传后自动填写"></div>
         </div>
         <label class="field" data-i18n="mod.game">游戏版本</label>
-        <input id="gameVersions" data-i18n-placeholder="mod.phGames" placeholder="逗号分隔，例如 3.0 或 3.1.0">
-        <label class="check"><input id="genericGameVersion" type="checkbox"> <span data-i18n="mod.generic">泛版本：从填写的版本起，同一大版本内均兼容（如 3.0 可用于 3.1.0，但不能用于 4.0）</span></label>
+        <input id="gameVersions" data-i18n-placeholder="mod.phGames" placeholder="逗号分隔，例如 3.0 或 3.2.0">
+        <label class="check"><input id="genericGameVersion" type="checkbox"> <span data-i18n="mod.generic">泛版本：从填写的版本起，同一大版本内均兼容（如 3.0 可用于 3.2.0，但不能用于 4.0）</span></label>
         <label class="field" data-i18n="mod.roots">ZIP 顶层目录</label>
         <input id="installRoots" data-i18n-placeholder="mod.phRoots" placeholder="逗号分隔，例如 ExampleVehicles">
         <label class="check"><input id="containsDll" type="checkbox"> <span data-i18n="mod.containsDll">包含客户端 DLL / 需要重启</span></label>
@@ -437,7 +437,7 @@
           <div><label class="field" data-i18n="pack.name">名称</label><input id="packName" data-i18n-placeholder="pack.phName" placeholder="正式服 Pack"></div>
         </div>
         <label class="field" data-i18n="pack.game">游戏版本</label>
-        <input id="packGame" placeholder="3.10.14">
+        <input id="packGame" placeholder="3.2.0">
         <label class="field" data-i18n="pack.mods">包含的 Mod</label>
         <div class="picker" id="packEntryPicker">
           <button type="button" class="picker-btn" id="packEntryToggle" onclick="togglePackEntries(event)" data-i18n="pack.pick">选择已登记的 Mod（可多选）</button>
@@ -597,7 +597,7 @@
       <label class="field" data-i18n="ws.dlgName">名称</label>
       <input id="workshopPackName" data-i18n-placeholder="ws.phName" placeholder="例如 周末 PVE">
       <label class="field" data-i18n="ws.dlgGame">游戏版本</label>
-      <input id="workshopPackGame" placeholder="3.10.14">
+      <input id="workshopPackGame" placeholder="3.2.0">
     </div>
     <div id="workshopAddFields" hidden>
       <label class="field" data-i18n="ws.dlgPack">加入哪个 Pack</label>
@@ -1856,7 +1856,7 @@ function pluginConfigFromCreate(created) {
     BaseUrl: location.origin,
     ServerId: created.serverId,
     ServerToken: created.token,
-    GameVersion: pack.gameVersion || '3.10.14',
+    GameVersion: pack.gameVersion || '3.2.0',
     RefreshSeconds: 60,
     HandshakeTimeoutSeconds: 15,
     AutoSync: true,

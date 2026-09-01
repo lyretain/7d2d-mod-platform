@@ -2,16 +2,16 @@
 
 [English](PLUGIN.md) · [简体中文](PLUGIN.zh.md)
 
-## 1. Current verified environment
+## 1. Current target environment
 
-- 7 Days to Die client: `V 3.1.0`
-- 7 Days to Die server: `V 3.10.14`
-- Steam Build: `24436778`
+- 7 Days to Die client: `V 3.2.0`
+- 7 Days to Die server: `V 3.2.0`
+- Steam Build: `24994517`
 - Game directory: `G:\SteamLibrary\steamapps\common\7 Days To Die`
 - Unity: `2022.3.62f2`
 - Plugin target: `netstandard2.1`
 - Handshake protocol: `1`
-- Plugin version: `0.2.12`
+- Plugin version: `0.2.14`
 
 ## 2. Use a prebuilt pack
 
@@ -62,8 +62,8 @@ The build script prefers a modern .NET SDK. If none is installed it uses the Win
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File .\deploy\build-plugins.ps1 `
   -GameManagedDir "G:\SteamLibrary\steamapps\common\7 Days To Die\7DaysToDie_Data\Managed" `
-  -ClientGameVersion "3.1.0" `
-  -ServerGameVersion "3.10.14"
+  -ClientGameVersion "3.2.0" `
+  -ServerGameVersion "3.2.0"
 ```
 
 Output:
@@ -166,7 +166,7 @@ The plugins already do:
 - the server claims that handshake by Steam/EOS/name and rejects unsynced, version-mismatched, or timed-out players on `PlayerLogin` / `PlayerSpawning`, with a kick reason that includes the launcher URL. Handshake wait is at least 120s (180s while a `syncing` hello is in flight) so a large content overlay cannot lose the race to the old 15s default
 - sync claims same-name folders the Pack already declared; the server cache lives in `ModPlatformServer/.modplatform`
 
-Upgrade client and server plugins together to `0.2.12`. Side-aware auto-update only installs server or client mods on the matching side; older plugins still install everything. Handshake fingerprints ignore server-only and client-only artifacts, so mixed packs need this plugin version. Official `mod-platform-client` / `mod-platform-server` entries in a Pack can update the matching plugin folders.
+Upgrade client and server plugins together to `0.2.14`. Side-aware auto-update only installs server or client mods on the matching side; older plugins still install everything. Handshake fingerprints ignore server-only and client-only artifacts, so mixed packs need this plugin version. Official `mod-platform-client` / `mod-platform-server` entries in a Pack can update the matching plugin folders.
 
 ```powershell
 npm run launcher -- join --base-url http://localhost:8080 --address game.example.com:26900

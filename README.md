@@ -6,7 +6,7 @@
 
 Plugin folders and assemblies stay `ModPlatform*` so existing installs keep working.
 
-The current client target is 7DTD `V 3.1.0`; the server target is `V 3.10.14`, corresponding to Steam Build `24436778`. The Windows client and Windows dedicated server have passed a live join. Listen-server host mode and Linux dedicated server validation remain open. See [`project-versions.json`](project-versions.json) for authoritative version metadata.
+The current client target is 7DTD `V 3.2.0`; the server target is `V 3.2.0`, corresponding to Steam Build `24994517`. Windows client and dedicated-server live join against this build is still pending. Listen-server host mode and Linux dedicated server validation remain open. See [`project-versions.json`](project-versions.json) for authoritative version metadata.
 
 ## Included
 
@@ -116,7 +116,7 @@ Copy each built DLL, its `ModInfo.xml`, `ModPlatform.Shared.dll`, and the rename
 
 Bumping the plugin version on `main` runs `.github/workflows/ci.yml`, which rebuilds those folders and can upload them to the management platform. Configure the secrets listed in [Deployment](docs/DEPLOYMENT.md#10-github-actions).
 
-The client plugin targets 7DTD `V 3.1.0`; the server plugin targets `V 3.10.14` / Steam Build `24436778`. They poll assignments, send diagnostics, and run handshake protocol v1 over the platform HTTP API so unsynced clients are rejected before world entry without registering a custom NetPackage. The compatibility layer treats those client/server version strings as the same game build. Launcher preflight is still required to install files before the game loads DLLs.
+The client plugin targets 7DTD `V 3.2.0`; the server plugin targets `V 3.2.0` / Steam Build `24994517`. They poll assignments, send diagnostics, and run handshake protocol v1 over the platform HTTP API so unsynced clients are rejected before world entry without registering a custom NetPackage. The compatibility layer treats `3.2.0` and a possible dedicated `3.20.0` string as the same game build, and still maps the previous `3.1.0` / `3.10.14` pair. Launcher preflight is still required to install files before the game loads DLLs.
 
 ## Test
 

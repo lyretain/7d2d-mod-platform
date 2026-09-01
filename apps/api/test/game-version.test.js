@@ -24,6 +24,15 @@ test('handshake treats client 3.1.0 as compatible with server 3.10.14', () => {
   assert.equal(handshakeVersionsCompatible('2.6', '3.10.14'), false);
 });
 
+test('handshake treats client 3.2.0 as compatible with server 3.2.0 and 3.20.0', () => {
+  assert.equal(handshakeVersionsCompatible('V 3.2.0', '3.2.0'), true);
+  assert.equal(handshakeVersionsCompatible('V 3.2.0', '3.20.0'), true);
+  assert.equal(handshakeVersionsCompatible('3.2.0 (b0)', '3.20.0'), true);
+  assert.equal(handshakeVersionsCompatible('3.1.0', '3.2.0'), false);
+  assert.equal(gameVersionMatches(['3.2.0'], '3.20.0', 'exact'), true);
+  assert.equal(gameVersionMatches(['3.2.0'], '3.20.1', 'exact'), false);
+});
+
 test('exact game versions still require a full match', () => {
   assert.equal(gameVersionMatches(['3.10.14'], '3.10.14', 'exact'), true);
   assert.equal(gameVersionMatches(['3.1.0'], '3.10.14', 'exact'), true);
