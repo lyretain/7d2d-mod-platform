@@ -1,5 +1,7 @@
 # Cloudflare CDN
 
+After [LINUX.md](LINUX.md) is live and you want CDN / R2. Skip this on a single local disk.
+
 [English](CLOUDFLARE.md) · [简体中文](CLOUDFLARE.zh.md)
 
 Recommended topology: player downloads go through Cloudflare. The origin only handles admin, signing, diagnostics, and cache misses.

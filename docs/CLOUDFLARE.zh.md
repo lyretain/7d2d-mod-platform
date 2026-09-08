@@ -1,5 +1,7 @@
 # Cloudflare CDN 部署
 
+适合：已经按 [LINUX.zh.md](LINUX.zh.md) 上线后，还要接 CDN / R2。单机本机磁盘可以不看这篇。
+
 [English](CLOUDFLARE.md) · [简体中文](CLOUDFLARE.zh.md)
 
 推荐拓扑：玩家下载走 Cloudflare，后台源站只处理管理、签名、诊断和缓存未命中。

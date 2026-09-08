@@ -1,8 +1,10 @@
 # 安全说明
 
+适合：了解已落地的安全控制。漏洞私密报告见仓库根目录 [SECURITY.md](../SECURITY.md)。
+
 [English](SECURITY.md) · [简体中文](SECURITY.zh.md)
 
-本文说明工程安全控制。私密报告漏洞请遵循仓库根目录的 [安全漏洞报告政策](../SECURITY.md)，不要创建公开 Issue。
+不要创建公开 Issue 报告漏洞。
 
 ## 当前已经实施的安全措施
 

@@ -6,7 +6,16 @@
 
 Plugin folders and assemblies stay `ModPlatform*` so existing installs keep working.
 
-The current client target is 7DTD `V 3.2.0`; the server target is `V 3.2.0`, corresponding to Steam Build `24994517`. Windows client and dedicated-server live join against this build is still pending. Listen-server host mode and Linux dedicated server validation remain open. See [`project-versions.json`](project-versions.json) for authoritative version metadata.
+Client and server target: 7DTD `V 3.2.0` (Steam Build `24994517`). See [`project-versions.json`](project-versions.json).
+
+## Start here
+
+| Goal | Doc |
+|---|---|
+| **aaPanel / Linux go-live** | [docs/LINUX.md](docs/LINUX.md) |
+| Windows local or Docker | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) |
+| Players and hosts | [docs/USER.md](docs/USER.md) |
+| Full index | [docs/README.md](docs/README.md) |
 
 ## Included
 
@@ -24,7 +33,7 @@ The current client target is 7DTD `V 3.2.0`; the server target is `V 3.2.0`, cor
 
 ## Quick start
 
-Requirements: Node.js 22+ or Docker.
+Needs Node.js 22. Production: [Linux / aaPanel](docs/LINUX.md). Local:
 
 ### Run locally
 
@@ -46,8 +55,6 @@ npm run dev
 npm run dev:web
 ```
 
-Player and host tutorial: [docs/USER.md](docs/USER.md) / [中文](docs/USER.zh.md), or `/guide` and `/guide?lang=en` on a running instance. Install steps and official downloads: `/about`. CI also publishes client/server plugin ZIPs to [GitHub Releases](https://github.com/lyretain/7d2d-mod-platform/releases).
-
 ### Run with Docker
 
 Copy `.env.example` to `.env`, change `ADMIN_TOKEN` and `PUBLIC_BASE_URL`, then:
@@ -57,6 +64,8 @@ docker compose up --build -d
 ```
 
 The named Docker volume stores metadata, artifacts and the development signing key. Back it up before upgrades.
+
+Players and hosts: [USER.md](docs/USER.md), or `/guide` and `/about`. Plugin ZIPs: [GitHub Releases](https://github.com/lyretain/7d2d-mod-platform/releases).
 
 ## Client synchronization
 
@@ -114,7 +123,7 @@ On the development machine, both plugins were successfully compiled against 7DTD
 
 Copy each built DLL, its `ModInfo.xml`, `ModPlatform.Shared.dll`, and the renamed example configuration into the matching `Mods/ModPlatformServer` or `Mods/ModPlatformClient` directory.
 
-Bumping the plugin version on `main` runs `.github/workflows/ci.yml`, which rebuilds those folders and can upload them to the management platform. Configure the secrets listed in [Deployment](docs/DEPLOYMENT.md#10-github-actions).
+Bumping the plugin version on `main` runs CI and can publish a GitHub Release. Secrets: [DEPLOYMENT.md](docs/DEPLOYMENT.md) section 4.
 
 The client plugin targets 7DTD `V 3.2.0`; the server plugin targets `V 3.2.0` / Steam Build `24994517`. They poll assignments, send diagnostics, and run handshake protocol v1 over the platform HTTP API so unsynced clients are rejected before world entry without registering a custom NetPackage. The compatibility layer treats `3.2.0` and a possible dedicated `3.20.0` string as the same game build, and still maps the previous `3.1.0` / `3.10.14` pair. Launcher preflight is still required to install files before the game loads DLLs.
 
@@ -170,17 +179,7 @@ This is not legal advice. If you plan to charge players or redistribute Mods at 
 
 ## Further reading
 
-Index: [docs/README.md](docs/README.md)
-
-- [Player and host guide](docs/USER.md) · [中文](docs/USER.zh.md)
-- [Deployment](docs/DEPLOYMENT.md) · [中文](docs/DEPLOYMENT.zh.md)
-- [Plugin build and install](docs/PLUGIN.md) · [中文](docs/PLUGIN.zh.md)
-- [Production runbook](docs/RUNBOOK.md) · [中文](docs/RUNBOOK.zh.md)
-- [Cloudflare CDN](docs/CLOUDFLARE.md) · [中文](docs/CLOUDFLARE.zh.md)
-- [Production TODO](docs/PRODUCTION-TODO.md) · [中文](docs/PRODUCTION-TODO.zh.md)
-- [HTTP API](docs/API.md) · [中文](docs/API.zh.md)
-- [Security](docs/SECURITY.md) · [中文](docs/SECURITY.zh.md)
-- [Protocol v1](docs/PROTOCOL.md) · [中文](docs/PROTOCOL.zh.md)
+Start with [docs/README.md](docs/README.md).
 
 ## Community
 

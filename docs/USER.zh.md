@@ -1,5 +1,7 @@
 # 玩家与服主教程
 
+适合：进服的玩家、装插件的服主。上线平台看 [LINUX.zh.md](LINUX.zh.md)。
+
 [English](USER.md) · [简体中文](USER.zh.md)
 
 平台地址：[https://mods.aic.la](https://mods.aic.la)

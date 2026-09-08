@@ -6,7 +6,16 @@
 
 插件目录和程序集仍叫 `ModPlatform*`，已安装的服不必改文件夹名。
 
-当前客户端目标版本为七日杀 `V 3.2.0`，服务端目标版本为 `V 3.2.0`，对应 Steam Build `24994517`。Windows 客户端与专用服务器在此 Build 上的真实进服验证仍待完成；本地主机模式和 Linux 专用服务器仍待验证。权威版本信息见 [`project-versions.json`](project-versions.json)。
+当前客户端 / 服务端目标为七日杀 `V 3.2.0`（Steam Build `24994517`）。权威版本见 [`project-versions.json`](project-versions.json)。
+
+## 按目的阅读
+
+| 你要做什么 | 文档 |
+|---|---|
+| **宝塔 / Linux 上线** | [docs/LINUX.zh.md](docs/LINUX.zh.md) |
+| Windows 本机或 Docker | [docs/DEPLOYMENT.zh.md](docs/DEPLOYMENT.zh.md) |
+| 玩家进服、服主装插件 | [docs/USER.zh.md](docs/USER.zh.md) |
+| 全部目录 | [docs/README.zh.md](docs/README.zh.md) |
 
 ## 已实现功能
 
@@ -45,7 +54,7 @@ data/                     单节点元数据、签名密钥和 Mod 文件
 
 ## 快速启动后台
 
-需要 Node.js 22 或更高版本。不必再单独开 Vite：先装一次前端依赖，然后一条命令构建 Vue、启动 API 并打开浏览器。
+需要 Node.js 22。上线步骤见 [Linux / 宝塔](docs/LINUX.zh.md)，不要在这里找生产配置。本机：
 
 ```powershell
 cd A:\GameMod\7d2d-mod-platform
@@ -64,21 +73,7 @@ npm run dev
 npm run dev:web
 ```
 
-完整步骤见 [部署指南](docs/DEPLOYMENT.zh.md)（[English](docs/DEPLOYMENT.md)）。
-
-首次部署流程：
-
-1. 打开首页，在初始化页填写 `ADMIN_TOKEN` 和首位管理员账户；
-2. 完成后进入运营后台，引导令牌默认失效；
-3. 之后首页变为社区登录与邀请码注册；
-4. 邀请其他服主或只读成员；
-5. 上传 Mod ZIP；
-6. 登记 Mod ID、版本和兼容的游戏版本；
-7. 创建并发布带 Ed25519 签名的 ModPack。
-
-首个用户注册后，`ADMIN_TOKEN` 默认停止作为后台身份使用。只有设置 `ALLOW_BOOTSTRAP_ADMIN=true` 才能继续使用它，建议仅在账户恢复时临时启用。
-
-玩家进服与服主登记服务器，参见 [玩家与服主教程](docs/USER.zh.md)（[English](docs/USER.md)）。线上也可打开 `https://mods.aic.la/guide` 或 `https://mods.aic.la/guide?lang=en`，安装与官方下载见 `https://mods.aic.la/about`，CI 编译的客户端/服务端插件见 [GitHub Releases](https://github.com/lyretain/7d2d-mod-platform/releases)。
+上线后打开域名做 `/setup`。玩家与服主：[USER.zh.md](docs/USER.zh.md)，或 `/guide`、`/about`。插件包：[GitHub Releases](https://github.com/lyretain/7d2d-mod-platform/releases)。
 
 ## 客户端同步
 
@@ -125,7 +120,7 @@ artifacts/plugins/ModPlatformClient
 artifacts/plugins/ModPlatformServer
 ```
 
-插件编译和安装参见 [插件构建与安装指南](docs/PLUGIN.zh.md)（[English](docs/PLUGIN.md)）。在 `main` 上更新插件版本号后，`.github/workflows/ci.yml` 才会重新编译并上传到管理平台；密钥见 [部署](docs/DEPLOYMENT.zh.md#10-github-actions)。
+编译见 [PLUGIN.zh.md](docs/PLUGIN.zh.md)。`main` 上改插件版本后 CI 才会发 Release；密钥见 [DEPLOYMENT.zh.md](docs/DEPLOYMENT.zh.md) 第四节。
 
 ## 故障守护程序
 
@@ -210,17 +205,7 @@ npm run build:web
 
 ## 进一步阅读
 
-索引：[docs/README.zh.md](docs/README.zh.md)
-
-- [玩家与服主教程](docs/USER.zh.md) · [English](docs/USER.md)
-- [部署指南](docs/DEPLOYMENT.zh.md) · [English](docs/DEPLOYMENT.md)
-- [插件构建与安装](docs/PLUGIN.zh.md) · [English](docs/PLUGIN.md)
-- [生产运维 Runbook](docs/RUNBOOK.zh.md) · [English](docs/RUNBOOK.md)
-- [Cloudflare CDN](docs/CLOUDFLARE.zh.md) · [English](docs/CLOUDFLARE.md)
-- [生产环境 TODO](docs/PRODUCTION-TODO.zh.md) · [English](docs/PRODUCTION-TODO.md)
-- [API 说明](docs/API.zh.md) · [English](docs/API.md)
-- [安全说明](docs/SECURITY.zh.md) · [English](docs/SECURITY.md)
-- [协议 v1](docs/PROTOCOL.zh.md) · [English](docs/PROTOCOL.md)
+先看 [docs/README.zh.md](docs/README.zh.md) 里的「你要做什么」。
 
 ## 参与社区
 

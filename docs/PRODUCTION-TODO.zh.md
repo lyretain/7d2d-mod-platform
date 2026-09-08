@@ -1,5 +1,7 @@
 # 生产环境 TODO
 
+适合：仓库维护者对未完成验收项打勾。部署平台不要从这篇开始，看 [LINUX.zh.md](LINUX.zh.md)。
+
 [English](PRODUCTION-TODO.md) · [简体中文](PRODUCTION-TODO.zh.md)
 
 最后检查日期：2026-09-01

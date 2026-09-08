@@ -1,8 +1,10 @@
 # Security model
 
+Engineering controls in this repo. Private reports: [SECURITY.md](../SECURITY.md).
+
 [English](SECURITY.md) · [简体中文](SECURITY.zh.md)
 
-This document describes engineering controls. To report a vulnerability privately, follow the repository-root [Security Policy](../SECURITY.md); do not open a public issue.
+Do not open a public issue for vulnerabilities.
 
 ## Enforced in this MVP
 

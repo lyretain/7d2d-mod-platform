@@ -1,5 +1,7 @@
 # Plugin build and install
 
+For building `ModPlatformClient` / `ModPlatformServer`. Platform go-live: [LINUX.md](LINUX.md).
+
 [English](PLUGIN.md) · [简体中文](PLUGIN.zh.md)
 
 ## 1. Current target environment
@@ -74,7 +76,7 @@ E:\Project\artifacts\plugins
 
 After every 7 Days to Die update, rebuild against the new `Assembly-CSharp.dll` and test again.
 
-GitHub Actions rebuilds and zips those folders when the plugin version changes on `main`, and can upload them to the management platform as `mod-platform-client` / `mod-platform-server`. See [Deployment](DEPLOYMENT.md#10-github-actions).
+GitHub Actions rebuilds and zips those folders when the plugin version changes on `main`, and can upload them to the management platform as `mod-platform-client` / `mod-platform-server`. See [DEPLOYMENT.md](DEPLOYMENT.md) section 4.
 
 ## 4. Server config
 

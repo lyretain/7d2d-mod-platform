@@ -1,5 +1,7 @@
 # Player and host guide
 
+For players joining a server and hosts installing plugins. To deploy the platform, see [LINUX.md](LINUX.md).
+
 [English](USER.md) · [简体中文](USER.zh.md)
 
 Platform: [https://mods.aic.la](https://mods.aic.la)

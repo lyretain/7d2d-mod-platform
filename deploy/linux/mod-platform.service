@@ -1,0 +1,28 @@
+[Unit]
+Description=Hordepin Mod Platform
+Documentation=https://github.com/lyretain/7d2d-mod-platform/blob/main/docs/LINUX.zh.md
+After=network-online.target
+Wants=network-online.target
+# Ubuntu 默认 postgresql.service；CentOS 系 PGDG 常见 postgresql-16.service，按实际改。
+After=postgresql.service postgresql-16.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=modplatform
+Group=modplatform
+WorkingDirectory=/opt/mod-platform
+EnvironmentFile=/etc/mod-platform/env
+ExecStart=/usr/bin/node apps/api/src/server.js
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+LimitNOFILE=65535
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/var/lib/mod-platform
+
+[Install]
+WantedBy=multi-user.target

@@ -1,5 +1,7 @@
 # HTTP API
 
+For HTTP integration. Deploy: [LINUX.md](LINUX.md).
+
 [English](API.md) · [简体中文](API.zh.md)
 
 Administrator routes require:

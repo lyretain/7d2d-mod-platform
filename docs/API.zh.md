@@ -1,5 +1,7 @@
 # API 说明
 
+适合：对接 HTTP 接口。部署看 [LINUX.zh.md](LINUX.zh.md)。
+
 [English](API.md) · [简体中文](API.zh.md)
 
 管理员接口必须携带：

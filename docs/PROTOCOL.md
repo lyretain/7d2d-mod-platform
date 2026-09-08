@@ -1,5 +1,7 @@
 # Protocol v1
 
+For handshake and manifest verification. Deploy: [LINUX.md](LINUX.md).
+
 [English](PROTOCOL.md) · [简体中文](PROTOCOL.zh.md)
 
 ## Trust model

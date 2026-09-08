@@ -1,5 +1,7 @@
 # Production TODO
 
+Maintainer checklist. Do not start a deploy here — use [LINUX.md](LINUX.md).
+
 [English](PRODUCTION-TODO.md) · [简体中文](PRODUCTION-TODO.zh.md)
 
 Last reviewed: 2026-09-01

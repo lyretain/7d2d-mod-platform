@@ -1,5 +1,7 @@
 # 插件构建与安装指南
 
+适合：要自己编译 `ModPlatformClient` / `ModPlatformServer` 的人。上线平台看 [LINUX.zh.md](LINUX.zh.md)。
+
 [English](PLUGIN.md) · [简体中文](PLUGIN.zh.md)
 
 ## 一、当前目标环境
@@ -74,7 +76,7 @@ E:\Project\artifacts\plugins
 
 每次七日杀更新后都应使用新版本的 `Assembly-CSharp.dll` 重新编译并测试。
 
-`main` 上只有插件版本号变化时，GitHub Actions 才会做这次编译、打出插件 ZIP，并可以登记为管理平台上的 `mod-platform-client` / `mod-platform-server`。见 [部署](DEPLOYMENT.zh.md#10-github-actions)。
+`main` 上只有插件版本号变化时，GitHub Actions 才会做这次编译、打出插件 ZIP，并可以登记为管理平台上的 `mod-platform-client` / `mod-platform-server`。见 [DEPLOYMENT.zh.md](DEPLOYMENT.zh.md) 第四节。
 
 ## 四、服务端配置
 

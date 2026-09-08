@@ -1,5 +1,7 @@
 # 协议 v1
 
+适合：实现握手、验签的客户端或插件。部署看 [LINUX.zh.md](LINUX.zh.md)。
+
 [English](PROTOCOL.md) · [简体中文](PROTOCOL.zh.md)
 
 ## 信任模型

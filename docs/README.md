@@ -2,18 +2,19 @@
 
 [English](README.md) · [简体中文](README.zh.md)
 
-Hordepin is a 7 Days to Die mod distribution and sync platform. Every guide has a matching English and Simplified Chinese file.
+Pick one page. You do not need to read the set.
 
-| Topic | English | 简体中文 |
-|---|---|---|
-| Player and host guide | [USER.md](USER.md) | [USER.zh.md](USER.zh.md) |
-| Deployment | [DEPLOYMENT.md](DEPLOYMENT.md) | [DEPLOYMENT.zh.md](DEPLOYMENT.zh.md) |
-| Plugin build and install | [PLUGIN.md](PLUGIN.md) | [PLUGIN.zh.md](PLUGIN.zh.md) |
-| Production runbook | [RUNBOOK.md](RUNBOOK.md) | [RUNBOOK.zh.md](RUNBOOK.zh.md) |
-| Cloudflare CDN / R2 | [CLOUDFLARE.md](CLOUDFLARE.md) | [CLOUDFLARE.zh.md](CLOUDFLARE.zh.md) |
-| Production TODO | [PRODUCTION-TODO.md](PRODUCTION-TODO.md) | [PRODUCTION-TODO.zh.md](PRODUCTION-TODO.zh.md) |
-| HTTP API | [API.md](API.md) | [API.zh.md](API.zh.md) |
-| Security model | [SECURITY.md](SECURITY.md) | [SECURITY.zh.md](SECURITY.zh.md) |
-| Protocol v1 | [PROTOCOL.md](PROTOCOL.md) | [PROTOCOL.zh.md](PROTOCOL.zh.md) |
+| Goal | Page |
+|---|---|
+| Players and hosts | [USER.md](USER.md) |
+| **aaPanel / Linux production** (start here to go live) | [LINUX.md](LINUX.md) |
+| Windows local or Docker | [DEPLOYMENT.md](DEPLOYMENT.md) |
+| Build client / server plugins | [PLUGIN.md](PLUGIN.md) |
+| Backup, pause, key leak | [RUNBOOK.md](RUNBOOK.md) |
+| Cloudflare CDN / R2 | [CLOUDFLARE.md](CLOUDFLARE.md) |
+| HTTP API | [API.md](API.md) |
+| Security model | [SECURITY.md](SECURITY.md) |
+| Handshake and signing | [PROTOCOL.md](PROTOCOL.md) |
+| Maintainer leftovers | [PRODUCTION-TODO.md](PRODUCTION-TODO.md) |
 
-A running instance also serves the player guide at `/guide` (Chinese) and `/guide?lang=en` (English), and the install / download page at `/about`.
+A running instance also serves `/guide`, `/guide?lang=en`, and `/about`.

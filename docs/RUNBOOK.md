@@ -1,5 +1,7 @@
 # Production runbook
 
+For backup, pause, and key-leak response after go-live. First deploy: [LINUX.md](LINUX.md).
+
 [English](RUNBOOK.md) · [简体中文](RUNBOOK.zh.md)
 
 Goal: restore the API, object files, and signing on a clean machine inside the target RTO.
@@ -15,7 +17,7 @@ Suggested targets:
 
 These must be backed up together:
 
-1. PostgreSQL: `deploy/backup-postgres.ps1 -DatabaseUrl $env:DATABASE_URL`, or `data/state/database.json` in JSON mode
+1. PostgreSQL: Windows `deploy/backup-postgres.ps1 -DatabaseUrl $env:DATABASE_URL`; Linux `pg_dump` (see [LINUX.md](LINUX.md)); or `data/state/database.json` in JSON mode
 2. Object store: S3/MinIO versioning or a snapshot of `data/objects/`
 3. Signing material: `SIGNING_PRIVATE_KEY`, remote signing credentials, or `data/state/keyring.json` and the development key (test only)
 4. Config: `.env`, reverse proxy, DNS, CDN

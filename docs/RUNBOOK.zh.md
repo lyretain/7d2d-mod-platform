@@ -1,5 +1,7 @@
 # 生产运维 Runbook
 
+适合：已经上线、要备份或处理停发 / 密钥泄露。第一次部署看 [LINUX.zh.md](LINUX.zh.md)。
+
 [English](RUNBOOK.md) · [简体中文](RUNBOOK.zh.md)
 
 目标：在预定 RTO 内从全新环境恢复后台、对象文件和签名能力。
@@ -15,7 +17,7 @@
 
 必须一起备份，缺一不可：
 
-1. PostgreSQL：`deploy/backup-postgres.ps1 -DatabaseUrl $env:DATABASE_URL`，或 JSON 模式下的 `data/state/database.json`
+1. PostgreSQL：Windows 用 `deploy/backup-postgres.ps1 -DatabaseUrl $env:DATABASE_URL`；Linux 用 `pg_dump`（见 [LINUX.zh.md](LINUX.zh.md)）；或 JSON 模式下的 `data/state/database.json`
 2. 对象存储：S3/MinIO 版本控制或 `data/objects/` 快照
 3. 签名材料：`SIGNING_PRIVATE_KEY`、远程签名服务凭证，或 `data/state/keyring.json` 与开发密钥（仅测试）
 4. 配置：`.env`、反向代理、DNS、CDN
