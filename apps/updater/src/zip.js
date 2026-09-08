@@ -1,4 +1,4 @@
-import { open } from 'node:fs/promises';
+import { open, readdir, readFile } from 'node:fs/promises';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { inflateRawSync } from 'node:zlib';
@@ -59,6 +59,79 @@ export function buildStoredZip(files) {
   eocd.writeUInt32LE(centralData.length, 12);
   eocd.writeUInt32LE(localData.length, 16);
   return Buffer.concat([localData, centralData, eocd]);
+}
+
+async function listFilesRecursive(root) {
+  const files = [];
+  async function walk(dir, prefix) {
+    const entries = await readdir(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) await walk(full, rel);
+      else if (entry.isFile()) files.push({ rel: safeEntryName(rel), full });
+    }
+  }
+  await walk(root, '');
+  files.sort((a, b) => a.rel.localeCompare(b.rel, 'en'));
+  return files;
+}
+
+export async function writeStoredZipFromDir(sourceDir, destFile) {
+  const files = await listFilesRecursive(sourceDir);
+  if (files.length > 0xffff) throw new Error('ZIP entry count exceeds classic ZIP limit');
+  const handle = await open(destFile, 'w');
+  const centrals = [];
+  let offset = 0;
+  try {
+    for (const file of files) {
+      const content = await readFile(file.full);
+      if (content.length > 0xffffffff) throw new Error(`ZIP entry is too large: ${file.rel}`);
+      const crc = crc32(content);
+      const fileName = Buffer.from(file.rel);
+      const local = Buffer.alloc(30);
+      local.writeUInt32LE(LOCAL, 0);
+      local.writeUInt16LE(20, 4);
+      local.writeUInt16LE(0x800, 6);
+      local.writeUInt32LE(crc, 14);
+      local.writeUInt32LE(content.length, 18);
+      local.writeUInt32LE(content.length, 22);
+      local.writeUInt16LE(fileName.length, 26);
+      await handle.write(local);
+      await handle.write(fileName);
+      if (content.length) await handle.write(content);
+      centrals.push({ fileName, crc, size: content.length, offset });
+      offset += 30 + fileName.length + content.length;
+      if (offset > 0xffffffff) throw new Error('ZIP archive exceeds classic ZIP size limit');
+    }
+    const centralStart = offset;
+    for (const item of centrals) {
+      const central = Buffer.alloc(46);
+      central.writeUInt32LE(CENTRAL, 0);
+      central.writeUInt16LE(20, 4);
+      central.writeUInt16LE(20, 6);
+      central.writeUInt16LE(0x800, 8);
+      central.writeUInt32LE(item.crc, 16);
+      central.writeUInt32LE(item.size, 20);
+      central.writeUInt32LE(item.size, 24);
+      central.writeUInt16LE(item.fileName.length, 28);
+      central.writeUInt32LE(item.offset, 42);
+      await handle.write(central);
+      await handle.write(item.fileName);
+      offset += 46 + item.fileName.length;
+    }
+    if (offset > 0xffffffff) throw new Error('ZIP archive exceeds classic ZIP size limit');
+    const eocd = Buffer.alloc(22);
+    eocd.writeUInt32LE(EOCD, 0);
+    eocd.writeUInt16LE(files.length, 8);
+    eocd.writeUInt16LE(files.length, 10);
+    eocd.writeUInt32LE(offset - centralStart, 12);
+    eocd.writeUInt32LE(centralStart, 16);
+    await handle.write(eocd);
+  } finally {
+    await handle.close();
+  }
+  return destFile;
 }
 
 export function crc32(buffer) {

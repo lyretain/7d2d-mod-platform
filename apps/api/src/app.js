@@ -24,6 +24,7 @@ import { claimHandshake, normalizePlayerIds, sanitizeHello, storeHandshake } fro
 import { applyAddresses, parseAddresses, publicAddressView, resolveRegisteredServer } from './servers.js';
 import { currentLauncher, launcherArtifactUrl, launcherManifestPayload, normalizePlatform, validateLauncherZip } from './launcher-update.js';
 import { createChunkUploadStore, DEFAULT_CHUNK_BYTES, receiveExactBytes } from './artifact-upload.js';
+import { buildServerModBundleZip, cleanupServerModBundle, serverBundleFileName } from './server-bundle.js';
 
 const ADMIN_HTML_V2 = readFileSync(new URL('./admin.html', import.meta.url), 'utf8');
 const WEB_DIST = path.resolve(fileURLToPath(new URL('../../web/dist/', import.meta.url)));
@@ -1039,6 +1040,77 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
         return json(res, 200, { ...result, token, config: pluginConfig });
       }
 
+      const bundleMatch = pathname.match(/^\/api\/v1\/servers\/([^/]+)\/bundle$/);
+      if (req.method === 'POST' && bundleMatch) {
+        const principal = requireUser(req, res);
+        if (!principal) return;
+        const current = store.snapshot().servers[bundleMatch[1]];
+        if (!current) return problem(res, 404, 'SERVER_NOT_FOUND', 'Server was not found');
+        if (!can(principal, 'server.manage') && current.ownerId !== principal.id) {
+          return problem(res, 403, 'FORBIDDEN', 'You can only download a bundle for your own servers');
+        }
+        const body = await readJson(req, 32 * 1024);
+        const snapshot = store.snapshot();
+        const pack = snapshot.packs[current.packId];
+        const release = pack && activeRelease(snapshot, pack);
+        if (!release?.manifest) throw Object.assign(new Error('Server pack has no published release'), { code: 'VALIDATION' });
+        let token = typeof body.token === 'string' ? body.token : '';
+        let rotated = false;
+        if (token && tokenHash(token) !== current.tokenHash) {
+          if (body.rotateToken !== true) throw Object.assign(new Error('Server token does not match. Pass rotateToken to issue a new one'), { code: 'VALIDATION' });
+          token = '';
+        }
+        if (!token && body.rotateToken !== true) {
+          throw Object.assign(new Error('Pass the current ServerToken or rotateToken to build a complete server.config.json'), { code: 'VALIDATION' });
+        }
+        if (!token) {
+          token = randomBytes(32).toString('base64url');
+          rotated = true;
+          const updated = await store.mutate((draft) => {
+            const server = draft.servers[current.id];
+            if (!server) return null;
+            server.tokenHash = tokenHash(token);
+            server.updatedAt = now();
+            recordAudit(draft, { actor: principal.username || principal.id, action: 'server.bundle', target: server.id, details: { packId: server.packId, packVersion: release.packVersion, rotateToken: true } });
+            return true;
+          });
+          if (!updated) return problem(res, 404, 'SERVER_NOT_FOUND', 'Server was not found');
+        } else {
+          await store.mutate((draft) => {
+            recordAudit(draft, { actor: principal.username || principal.id, action: 'server.bundle', target: current.id, details: { packId: current.packId, packVersion: release.packVersion, rotateToken: false } });
+          });
+        }
+        const pluginConfig = pluginServerConfig({
+          baseUrl: publicBaseUrl,
+          serverId: current.id,
+          token,
+          gameVersion: pack.gameVersion
+        });
+        const bundle = await buildServerModBundleZip({
+          snapshot,
+          release,
+          objectDir,
+          pluginConfig,
+          requireReview
+        });
+        try {
+          const info = await stat(bundle.zipPath);
+          const fileName = serverBundleFileName(current, pack, release.packVersion);
+          res.writeHead(200, {
+            'content-type': 'application/zip',
+            'content-length': info.size,
+            'content-disposition': `attachment; filename="${fileName}"`,
+            'cache-control': 'no-store',
+            'x-server-config': Buffer.from(JSON.stringify(pluginConfig)).toString('base64url'),
+            'x-server-token-rotated': rotated ? '1' : '0'
+          });
+          await pipeline(createReadStream(bundle.zipPath), res);
+        } finally {
+          await cleanupServerModBundle(bundle);
+        }
+        return;
+      }
+
       const addressesMatch = pathname.match(/^\/api\/v1\/servers\/([^/]+)\/addresses$/);
       if (req.method === 'PUT' && addressesMatch) {
         const snapshot = store.snapshot();
@@ -1135,6 +1207,7 @@ export function createApp({ store, signing, dataDir, adminToken, allowBootstrapA
       }
       return problem(res, 404, 'NOT_FOUND', 'Route not found');
     } catch (error) {
+      if (res.headersSent) return;
       if (error.code === 'ENOENT' || error.code === 'NOT_FOUND') return problem(res, 404, 'NOT_FOUND', error.code === 'NOT_FOUND' ? error.message : 'Requested file or object was not found');
       if (error.code === 'BODY_TOO_LARGE') return problem(res, 413, error.code, error.message);
       if (error.code === 'HASH_MISMATCH') return problem(res, 422, error.code, error.message, error.details);

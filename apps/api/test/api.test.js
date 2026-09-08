@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
-import { mkdtemp } from 'node:fs/promises';
+import { mkdtemp, readFile, stat } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -9,6 +9,7 @@ import { SigningService } from '../src/signing.js';
 import { JsonStore } from '../src/store.js';
 import { sha256 } from '../src/util.js';
 import { verifyManifest } from '../../updater/src/verify.js';
+import { extractZip } from '../../updater/src/zip.js';
 import { createStoredZip } from '../../updater/test/zip-helper.js';
 
 async function fixture(t, extra = {}) {
@@ -105,6 +106,39 @@ test('server-only and client-only mods publish with installSide and stay out of 
   assert.deepEqual(Object.fromEntries(latest.mods.map((mod) => [mod.id, mod.installSide])), { 'shared-mod': 'both', 'server-mod': 'server', 'client-mod': 'client' });
   const listed = await jsonRequest(`${base}/api/v1/mods`, { headers: { authorization: admin.authorization } });
   assert.equal(listed.mods.find((item) => item.id === 'server-mod').installSide, 'server');
+
+  const host = await jsonRequest(`${base}/api/v1/servers`, { method: 'POST', headers: admin, body: JSON.stringify({ name: 'Side Host', packId: 'side-pack' }) });
+  assert.equal((await fetch(`${base}/api/v1/servers/${host.serverId}/bundle`, { method: 'POST', headers: admin, body: '{}' })).status, 422);
+  const bundled = await fetch(`${base}/api/v1/servers/${host.serverId}/bundle`, {
+    method: 'POST',
+    headers: admin,
+    body: JSON.stringify({ token: host.token })
+  });
+  assert.equal(bundled.status, 200);
+  assert.equal(bundled.headers.get('x-server-token-rotated'), '0');
+  const config = JSON.parse(Buffer.from(bundled.headers.get('x-server-config'), 'base64url').toString('utf8'));
+  assert.equal(config.ServerId, host.serverId);
+  assert.equal(config.ServerToken, host.token);
+  assert.equal(config.GameVersion, '3.10.14');
+  assert.equal(config.AutoSync, true);
+  const archive = Buffer.from(await bundled.arrayBuffer());
+  const dest = await mkdtemp(path.join(os.tmpdir(), 'mod-platform-bundle-'));
+  await extractZip(archive, dest);
+  assert.equal(JSON.parse(await readFile(path.join(dest, 'ModPlatformServer', 'server.config.json'), 'utf8')).ServerToken, host.token);
+  assert.ok(await stat(path.join(dest, 'SharedMod', 'ModInfo.xml')));
+  assert.ok(await stat(path.join(dest, 'ServerMod', 'ModInfo.xml')));
+  await assert.rejects(stat(path.join(dest, 'ClientMod', 'ModInfo.xml')));
+  const rotated = await fetch(`${base}/api/v1/servers/${host.serverId}/bundle`, {
+    method: 'POST',
+    headers: admin,
+    body: JSON.stringify({ rotateToken: true })
+  });
+  assert.equal(rotated.status, 200);
+  assert.equal(rotated.headers.get('x-server-token-rotated'), '1');
+  const rotatedConfig = JSON.parse(Buffer.from(rotated.headers.get('x-server-config'), 'base64url').toString('utf8'));
+  assert.notEqual(rotatedConfig.ServerToken, host.token);
+  assert.equal((await fetch(`${base}/api/v1/servers/${host.serverId}/assignment`, { headers: { authorization: `Bearer ${host.token}` } })).status, 401);
+  await jsonRequest(`${base}/api/v1/servers/${host.serverId}/assignment`, { headers: { authorization: `Bearer ${rotatedConfig.ServerToken}` } });
 });
 
 test('content slots attach overlays that publish into the release', async (t) => {
@@ -349,6 +383,7 @@ test('regular users can register a game server and open the user guide', async (
   assert.equal((await fetch(`${base}/api/v1/servers/${created.serverId}`, { method: 'PATCH', headers: { authorization: `Bearer ${other.token}`, 'content-type': 'application/json' }, body: JSON.stringify({ name: 'Stolen' }) })).status, 403);
   assert.equal((await fetch(`${base}/api/v1/servers/${created.serverId}`, { method: 'DELETE', headers: { authorization: `Bearer ${other.token}` } })).status, 403);
   assert.equal((await fetch(`${base}/api/v1/servers/${created.serverId}/reset-token`, { method: 'POST', headers: { authorization: `Bearer ${other.token}` } })).status, 403);
+  assert.equal((await fetch(`${base}/api/v1/servers/${created.serverId}/bundle`, { method: 'POST', headers: { authorization: `Bearer ${other.token}`, 'content-type': 'application/json' }, body: JSON.stringify({ rotateToken: true }) })).status, 403);
   const reset = await jsonRequest(`${base}/api/v1/servers/${created.serverId}/reset-token`, { method: 'POST', headers: hostHeaders });
   assert.ok(reset.token);
   assert.notEqual(reset.token, created.token);

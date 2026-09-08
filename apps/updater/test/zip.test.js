@@ -1,10 +1,9 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { writeFile } from 'node:fs/promises';
-import { extractZip, extractZipFile, listZip, listZipFile, safeEntryName } from '../src/zip.js';
+import { extractZip, extractZipFile, listZip, listZipFile, safeEntryName, writeStoredZipFromDir } from '../src/zip.js';
 import { createStoredZip } from './zip-helper.js';
 
 test('extracts a valid ZIP and preserves content', async () => {
@@ -35,4 +34,18 @@ test('lists and extracts a ZIP from disk without loading the whole archive in th
   assert.equal((await listZipFile(zipPath)).length, 2);
   await extractZipFile(zipPath, path.join(root, 'out'));
   assert.equal(await readFile(path.join(root, 'out', 'ExampleMod', 'Config', 'a.txt'), 'utf8'), 'streamed');
+});
+
+test('writes a stored ZIP from a directory and extracts it back', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'mod-platform-zipdir-'));
+  await mkdir(path.join(root, 'ModPlatformServer'), { recursive: true });
+  await writeFile(path.join(root, 'ModPlatformServer', 'server.config.json'), '{"BaseUrl":"https://example.test"}\n');
+  await mkdir(path.join(root, 'ExampleMod', 'Config'), { recursive: true });
+  await writeFile(path.join(root, 'ExampleMod', 'Config', 'a.txt'), 'packed');
+  const zipPath = path.join(root, 'bundle.zip');
+  await writeStoredZipFromDir(root, zipPath);
+  const out = path.join(root, 'out');
+  await extractZipFile(zipPath, out);
+  assert.equal(await readFile(path.join(out, 'ExampleMod', 'Config', 'a.txt'), 'utf8'), 'packed');
+  assert.match(await readFile(path.join(out, 'ModPlatformServer', 'server.config.json'), 'utf8'), /example\.test/);
 });

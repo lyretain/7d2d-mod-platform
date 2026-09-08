@@ -83,6 +83,7 @@ Authorization: Bearer <ADMIN_TOKEN>
 | PATCH | `/api/v1/servers/{id}` | 登录用户 | 修改自己的服务器；社区管理员可改全部 |
 | DELETE | `/api/v1/servers/{id}` | 登录用户 | 删除自己的服务器；社区管理员可删全部 |
 | POST | `/api/v1/servers/{id}/reset-token` | 登录用户 | 重新签发 ServerToken；旧令牌立即失效 |
+| POST | `/api/v1/servers/{id}/bundle` | 登录用户 | 下载专用服 Mods ZIP（服务端/两端模组 + 完整 `server.config.json`） |
 | POST | `/api/v1/admin/distribution` | 超级管理员 / 社区管理员 | 紧急停止或恢复全平台分发 |
 | GET | `/api/v1/admin/audit` | 登录用户 | 所有写操作审计；可用 `?action=` `?actor=` `?from=` `?to=` `?limit=` 过滤 |
 | POST | `/api/v1/servers/{id}/sync-status` | 服务端令牌 | 上报同步状态 |
@@ -273,6 +274,8 @@ Content-Type: application/json
 `publicAddress` 仍可用，表示单条地址。地址可选；解析和握手优先使用 `serverId`。`GET /api/v1/public/servers/resolve?serverId=` 或 `?address=` 均可。多台服可以登记相同局域网地址。服务端插件用令牌 `PUT /api/v1/servers/:id/addresses` 合并当前监听地址。
 
 响应中的 `config` 与插件 `server.config.json` 字段一致（`BaseUrl`、`ServerId`、`ServerToken`、`GameVersion`、`RefreshSeconds`、`HandshakeTimeoutSeconds`）。令牌只返回一次，应立即覆盖到插件目录。丢失后可用 `POST /api/v1/servers/{id}/reset-token` 重新签发（权限与更新/删除相同），旧令牌立即失效。
+
+`POST /api/v1/servers/{id}/bundle` 返回 `application/zip`，解压到专用服 `Mods` 目录即可。内容为当前已发布 Release 里的**服务端与两端**模组（不含仅客户端），以及字段完整的 `ModPlatformServer/server.config.json`。页面上还有令牌时传 `{ "token": "<当前 ServerToken>" }`；否则传 `{ "rotateToken": true }` 会签发新令牌（旧令牌立即失效）。同一份 JSON 也会放在 `x-server-config` 响应头（base64url）。主人可下载自己的服，社区管理员可下载任意服。
 
 ## 上传诊断信息
 

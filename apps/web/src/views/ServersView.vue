@@ -21,6 +21,7 @@ const addresses = ref('');
 const configText = ref('');
 const configJson = ref('');
 const configServerId = ref('');
+const bundling = ref(false);
 const servers = ref<Record<string, unknown>[]>([]);
 
 const currentId = computed(() => (creating.value ? '' : String(route.params.id || '')));
@@ -182,6 +183,58 @@ async function copyConfig() {
   }
 }
 
+function currentServerToken() {
+  try {
+    const parsed = JSON.parse(configJson.value || '');
+    return typeof parsed.ServerToken === 'string' ? parsed.ServerToken : '';
+  } catch {
+    return '';
+  }
+}
+
+function decodeServerConfigHeader(value: string | null) {
+  if (!value) return null;
+  const padded = value.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((value.length + 3) % 4);
+  return JSON.parse(atob(padded));
+}
+
+async function downloadBundle() {
+  try {
+    if (creating.value || !serverId.value) throw new Error(t('srv.needSelect'));
+    const token = currentServerToken();
+    if (!token && !window.confirm(t('srv.confirmBundleRotate'))) throw new Error(t('cancelled'));
+    bundling.value = true;
+    const response = await fetch(`/api/v1/servers/${encodeURIComponent(serverId.value)}/bundle`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${localStorage.getItem('modPlatformToken') || ''}`,
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify(token ? { token } : { rotateToken: true })
+    });
+    if (!response.ok) {
+      let body: { error?: { message?: string } } = {};
+      try { body = await response.json(); } catch { /* empty */ }
+      throw new Error(body.error?.message || `HTTP ${response.status}`);
+    }
+    const config = decodeServerConfigHeader(response.headers.get('x-server-config'));
+    if (config) showConfig({ config, serverId: serverId.value });
+    const blob = await response.blob();
+    const href = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const match = /filename="([^"]+)"/.exec(response.headers.get('content-disposition') || '');
+    link.href = href;
+    link.download = match?.[1] || 'server-mods.zip';
+    link.click();
+    URL.revokeObjectURL(href);
+    ok({ downloaded: true }, t('srv.bundleOk'));
+  } catch (error) {
+    fail(error);
+  } finally {
+    bundling.value = false;
+  }
+}
+
 watch(() => route.params.id, (id) => {
   if (!id) {
     if (!creating.value) resetForm();
@@ -246,7 +299,9 @@ onMounted(async () => {
           <button v-if="!creating" type="button" class="btn-danger" :disabled="!canManageSelected()" @click="deleteServer">{{ t('srv.delete') }}</button>
           <button type="button" class="btn-secondary" @click="loadServers()">{{ t('srv.refresh') }}</button>
           <button type="button" class="btn-secondary" @click="copyConfig">{{ t('srv.copy') }}</button>
+          <button v-if="!creating" type="button" class="btn-primary" :disabled="!canManageSelected() || bundling" @click="downloadBundle">{{ bundling ? t('srv.bundling') : t('srv.bundle') }}</button>
         </div>
+        <p class="mt-2 text-theme-xs text-gray-500">{{ t('srv.bundleHint') }}</p>
         <pre class="mt-4 max-h-56 overflow-auto rounded-lg bg-gray-950 p-3 text-theme-xs text-gray-300">{{ configText }}</pre>
       </div>
     </HierarchyShell>

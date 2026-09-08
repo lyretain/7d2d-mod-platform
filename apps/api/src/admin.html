@@ -498,7 +498,9 @@
         </div>
         <div class="actions">
           <button class="secondary" onclick="copyServerConfig()" data-i18n="srv.copy">复制 server.config.json</button>
+          <button class="secondary" onclick="downloadServerBundle()" data-i18n="srv.bundle">下载服务器 Mod 包</button>
         </div>
+        <p class="hint" data-i18n="srv.bundleHint">解压到专用服 Mods 目录。包含当前 Pack 的服务端与两端模组，以及完整的 ModPlatformServer/server.config.json。</p>
         <pre id="serverTokenResult" data-i18n="srv.tokenIdle">登记或重置成功后，这里会给出可直接覆盖到插件目录的 server.config.json。</pre>
       </article>
       <article class="card stretch">
@@ -1885,6 +1887,48 @@ async function copyServerConfig() {
   } catch (e) {
     show(e.message || t('srv.copyFail'));
   }
+}
+
+function currentServerToken() {
+  const box = document.getElementById('serverTokenResult');
+  try {
+    const parsed = JSON.parse((box && box.dataset.config) || '');
+    return parsed && typeof parsed.ServerToken === 'string' ? parsed.ServerToken : '';
+  } catch {
+    return '';
+  }
+}
+
+async function downloadServerBundle() {
+  try {
+    if (!serverId.value) throw new Error(t('srv.needSelect'));
+    const token = currentServerToken();
+    if (!token && !confirm(t('srv.confirmBundleRotate'))) throw new Error(t('cancelled'));
+    const response = await fetch('/api/v1/servers/' + encodeURIComponent(serverId.value) + '/bundle', {
+      method: 'POST',
+      headers: Object.assign({ 'content-type': 'application/json' }, headers()),
+      body: JSON.stringify(token ? { token: token } : { rotateToken: true })
+    });
+    if (!response.ok) {
+      let body = {};
+      try { body = await response.json(); } catch {}
+      throw new Error((body.error && body.error.message) || ('HTTP ' + response.status));
+    }
+    const encoded = response.headers.get('x-server-config');
+    if (encoded) {
+      const padded = encoded.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((encoded.length + 3) % 4);
+      showServerPluginConfig({ config: JSON.parse(atob(padded)), serverId: serverId.value });
+    }
+    const blob = await response.blob();
+    const href = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const match = /filename="([^"]+)"/.exec(response.headers.get('content-disposition') || '');
+    link.href = href;
+    link.download = (match && match[1]) || 'server-mods.zip';
+    link.click();
+    URL.revokeObjectURL(href);
+    toast(t('srv.bundleOk'), 'ok');
+  } catch (e) { show(e.message); }
 }
 
 async function createServer() {
