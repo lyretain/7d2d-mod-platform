@@ -500,7 +500,7 @@
           <button class="secondary" onclick="copyServerConfig()" data-i18n="srv.copy">复制 server.config.json</button>
           <button class="secondary" onclick="downloadServerBundle()" data-i18n="srv.bundle">下载服务器 Mod 包</button>
         </div>
-        <p class="hint" data-i18n="srv.bundleHint">解压到专用服 Mods 目录。包含当前 Pack 的服务端与两端模组，以及完整的 ModPlatformServer/server.config.json。</p>
+        <p class="hint" data-i18n="srv.bundleHint">解压到专用服 Mods 目录。只含 ModPlatformServer 和完整的 server.config.json。Pack 里其它订阅模组由服务端插件自动下载。</p>
         <pre id="serverTokenResult" data-i18n="srv.tokenIdle">登记或重置成功后，这里会给出可直接覆盖到插件目录的 server.config.json。</pre>
       </article>
       <article class="card stretch">
@@ -1924,7 +1924,7 @@ async function downloadServerBundle() {
     const link = document.createElement('a');
     const match = /filename="([^"]+)"/.exec(response.headers.get('content-disposition') || '');
     link.href = href;
-    link.download = (match && match[1]) || 'server-mods.zip';
+    link.download = (match && match[1]) || 'server-plugin.zip';
     link.click();
     URL.revokeObjectURL(href);
     toast(t('srv.bundleOk'), 'ok');

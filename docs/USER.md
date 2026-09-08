@@ -77,11 +77,11 @@ Overwrite `server.config.json` with the JSON from the console. Keep the field ca
 
 Do not give `ServerToken` to players or put it in the client plugin.
 
-You can also click **Download server mod pack** on the Servers page. Extract the ZIP into the dedicated server `Mods` folder. It contains the current Pack’s server and both-side mods, plus a complete `ModPlatformServer/server.config.json`. If the page still has the token from registration or reset, that token is written in. If not, the download resets `ServerToken` and the old token stops working immediately.
+You can also click **Download server mod pack** on the Servers page. Extract the ZIP into the dedicated server `Mods` folder. It contains only `ModPlatformServer` and a complete `server.config.json`. Other subscribed pack mods are downloaded by the server plugin after startup. If the page still has the token from registration or reset, that token is written in. If not, the download resets `ServerToken` and the old token stops working immediately.
 
 ### 4. Sync Mods and start the server
 
-The server plugin **downloads and installs server and shared mods** from the current Pack into the sibling `Mods` directory (next to `ModPlatformServer`). After you publish a new Release, the dedicated server fetches it on the next refresh (60 seconds by default). Client-only mods are not installed on the dedicated server. If you preinstalled from the download pack, the plugin still applies incremental Release updates.
+The server plugin **downloads and installs server and shared mods** from the current Pack into the sibling `Mods` directory (next to `ModPlatformServer`). After you publish a new Release, the dedicated server fetches it on the next refresh (60 seconds by default). Client-only mods are not installed on the dedicated server.
 
 DLL Mods need a dedicated-server restart before they load. Restart when the log shows `restartRequired=True`. To exit after download so an external guardian can start the process again, set `AutoRestart` to `true`.
 

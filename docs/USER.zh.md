@@ -77,11 +77,11 @@ Hordepin 是七日杀 Mod 的分发与同步平台。这篇文档面向两类人
 
 `ServerToken` 不要发给玩家，也不要放进客户端插件。
 
-也可以在「服务器」页点 **下载服务器 Mod 包**。把 ZIP 解压到专用服 `Mods` 目录，里面是当前 Pack 的服务端与两端模组，以及完整的 `ModPlatformServer/server.config.json`。页面上还留着刚生成的令牌时，会写入同一份令牌；没有令牌时下载会重置 ServerToken，旧令牌立即失效。
+也可以在「服务器」页点 **下载服务器 Mod 包**。把 ZIP 解压到专用服 `Mods` 目录，里面只有 `ModPlatformServer` 和完整的 `server.config.json`。Pack 里其它订阅模组由服务端插件启动后自动下载。页面上还留着刚生成的令牌时，会写入同一份令牌；没有令牌时下载会重置 ServerToken，旧令牌立即失效。
 
 ### 4. 同步 Mod 并开服
 
-服务端插件会按当前 Pack **自动下载并安装服务端与两端 Mod** 到同级 `Mods` 目录（与 `ModPlatformServer` 并列）。后台发布新 Release 后，专用服会在下一次刷新（默认 60 秒）再下一遍。仅客户端的 Mod 不会装到专用服。已用下载包预装时，插件仍会按 Release 做增量同步。
+服务端插件会按当前 Pack **自动下载并安装服务端与两端 Mod** 到同级 `Mods` 目录（与 `ModPlatformServer` 并列）。后台发布新 Release 后，专用服会在下一次刷新（默认 60 秒）再下一遍。仅客户端的 Mod 不会装到专用服。
 
 含 DLL 的 Mod 必须重启专用服才会加载。日志出现 `restartRequired=True` 时重启一次。若希望下完自动退出以便外部守护进程拉起，把 `server.config.json` 里的 `AutoRestart` 设为 `true`。
 

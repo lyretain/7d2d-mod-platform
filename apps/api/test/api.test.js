@@ -99,6 +99,10 @@ test('server-only and client-only mods publish with installSide and stay out of 
   await jsonRequest(`${base}/api/v1/mods`, { method: 'POST', headers: admin, body: JSON.stringify({ id: 'shared-mod', name: 'Shared', version: '1.0.0', artifactSha: sharedSha, gameVersions: ['3.10.14'], installRoots: ['SharedMod'], installSide: 'both' }) });
   await jsonRequest(`${base}/api/v1/mods`, { method: 'POST', headers: admin, body: JSON.stringify({ id: 'server-mod', name: 'Server', version: '1.0.0', artifactSha: serverSha, gameVersions: ['3.10.14'], installRoots: ['ServerMod'], installSide: 'server' }) });
   await jsonRequest(`${base}/api/v1/mods`, { method: 'POST', headers: admin, body: JSON.stringify({ id: 'client-mod', name: 'Client', version: '1.0.0', artifactSha: clientSha, gameVersions: ['3.10.14'], installRoots: ['ClientMod'], installSide: 'client' }) });
+  const pluginZip = createStoredZip({ 'ModPlatformServer/ModInfo.xml': '<xml />', 'ModPlatformServer/ModPlatform.Server.dll': 'plugin' });
+  const pluginSha = sha256(pluginZip);
+  await jsonRequest(`${base}/api/v1/artifacts/${pluginSha}`, { method: 'PUT', headers: { ...admin, 'content-type': 'application/zip' }, body: pluginZip });
+  await jsonRequest(`${base}/api/v1/mods`, { method: 'POST', headers: admin, body: JSON.stringify({ id: 'mod-platform-server', name: 'Mod Platform Server', version: '1.0.0', artifactSha: pluginSha, gameVersions: ['3.10.14'], installRoots: ['ModPlatformServer'], installSide: 'server' }) });
   const pack = await jsonRequest(`${base}/api/v1/packs`, { method: 'POST', headers: admin, body: JSON.stringify({ id: 'side-pack', name: 'Sides', gameVersion: '3.10.14', entries: [{ modId: 'shared-mod', version: '1.0.0' }, { modId: 'server-mod', version: '1.0.0' }, { modId: 'client-mod', version: '1.0.0' }] }) });
   assert.equal(pack.entries.length, 3);
   await jsonRequest(`${base}/api/v1/packs/side-pack/releases`, { method: 'POST', headers: admin, body: '{}' });
@@ -125,8 +129,9 @@ test('server-only and client-only mods publish with installSide and stay out of 
   const dest = await mkdtemp(path.join(os.tmpdir(), 'mod-platform-bundle-'));
   await extractZip(archive, dest);
   assert.equal(JSON.parse(await readFile(path.join(dest, 'ModPlatformServer', 'server.config.json'), 'utf8')).ServerToken, host.token);
-  assert.ok(await stat(path.join(dest, 'SharedMod', 'ModInfo.xml')));
-  assert.ok(await stat(path.join(dest, 'ServerMod', 'ModInfo.xml')));
+  assert.equal(await readFile(path.join(dest, 'ModPlatformServer', 'ModPlatform.Server.dll'), 'utf8'), 'plugin');
+  await assert.rejects(stat(path.join(dest, 'SharedMod', 'ModInfo.xml')));
+  await assert.rejects(stat(path.join(dest, 'ServerMod', 'ModInfo.xml')));
   await assert.rejects(stat(path.join(dest, 'ClientMod', 'ModInfo.xml')));
   const rotated = await fetch(`${base}/api/v1/servers/${host.serverId}/bundle`, {
     method: 'POST',

@@ -85,7 +85,7 @@ Session routes use the login Bearer token instead. Server-token routes use the o
 | PATCH | `/api/v1/servers/{id}` | Signed-in | Edit your server; community admins can edit any |
 | DELETE | `/api/v1/servers/{id}` | Signed-in | Delete your server; community admins can delete any |
 | POST | `/api/v1/servers/{id}/reset-token` | Signed-in | Issue a new ServerToken; the old token stops working immediately |
-| POST | `/api/v1/servers/{id}/bundle` | Signed-in | Download a dedicated-server Mods ZIP (server/both-side mods + complete `server.config.json`) |
+| POST | `/api/v1/servers/{id}/bundle` | Signed-in | Download the official server plugin ZIP plus a complete `server.config.json` |
 | POST | `/api/v1/admin/distribution` | Superadmin / community | Emergency pause or resume (platform-wide) |
 | GET | `/api/v1/admin/audit` | Signed-in | Audit log of mutating operations; optional `?action=` `?actor=` `?from=` `?to=` `?limit=` |
 | POST | `/api/v1/servers/{id}/sync-status` | Server token | Dedicated-server sync heartbeat |
@@ -277,7 +277,7 @@ Publish writes an immutable manifest and signs it with Ed25519. Editing the draf
 
 The response `config` matches plugin `server.config.json` (`BaseUrl`, `ServerId`, `ServerToken`, `GameVersion`, `RefreshSeconds`, `HandshakeTimeoutSeconds`). The token is returned once; paste it over the plugin file immediately. If it is lost, `POST /api/v1/servers/{id}/reset-token` issues a new one (same permission as update/delete) and invalidates the previous token.
 
-`POST /api/v1/servers/{id}/bundle` returns an `application/zip` you extract into the dedicated server `Mods` folder. It includes every **server** and **both** mod from the current published release (not client-only), plus `ModPlatformServer/server.config.json` with the same fields as registration. Send `{ "token": "<current ServerToken>" }` when the page still has the token; otherwise `{ "rotateToken": true }` issues a new one (old token stops working). The JSON is also echoed in the `x-server-config` header (base64url). Owners can download their own servers; community admins can download any.
+`POST /api/v1/servers/{id}/bundle` returns an `application/zip` you extract into the dedicated server `Mods` folder. It includes only `ModPlatformServer` (the official server plugin when published, plus `server.config.json` with the same fields as registration). Other subscribed pack mods are not in the zip; the plugin downloads them after startup. Send `{ "token": "<current ServerToken>" }` when the page still has the token; otherwise `{ "rotateToken": true }` issues a new one (old token stops working). The JSON is also echoed in the `x-server-config` header (base64url). Owners can download their own servers; community admins can download any.
 
 ## Submit a diagnostic
 

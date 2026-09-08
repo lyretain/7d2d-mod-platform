@@ -224,7 +224,7 @@ async function downloadBundle() {
     const link = document.createElement('a');
     const match = /filename="([^"]+)"/.exec(response.headers.get('content-disposition') || '');
     link.href = href;
-    link.download = match?.[1] || 'server-mods.zip';
+    link.download = match?.[1] || 'server-plugin.zip';
     link.click();
     URL.revokeObjectURL(href);
     ok({ downloaded: true }, t('srv.bundleOk'));

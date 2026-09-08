@@ -4,7 +4,7 @@ import path from 'node:path';
 import { mkdtemp } from 'node:fs/promises';
 import { remapOverlayEntry } from '../../updater/src/overlay.js';
 import { extractZipFile, writeStoredZipFromDir } from '../../updater/src/zip.js';
-import { modsForInstallSide, PLATFORM_PLUGIN_MODS, platformPluginDownloads } from './protocol.js';
+import { PLATFORM_PLUGIN_MODS, platformPluginDownloads } from './protocol.js';
 
 const PLUGIN_ID = 'mod-platform-server';
 const PLUGIN_ROOT = PLATFORM_PLUGIN_MODS[PLUGIN_ID].root;
@@ -15,23 +15,22 @@ export function serverBundleFileName(server, pack, packVersion) {
     .replace(/^-+|-+$/g, '')
     .slice(0, 48) || 'server';
   const packId = String(pack?.id || 'pack').replace(/[^a-zA-Z0-9._-]+/g, '-').slice(0, 48);
-  return `${slug}-${packId}-v${Number(packVersion) || 0}-server-mods.zip`;
+  return `${slug}-${packId}-v${Number(packVersion) || 0}-server-plugin.zip`;
 }
 
 export function serverModsForBundle(snapshot, release, { requireReview = false } = {}) {
-  const mods = [...modsForInstallSide(release?.manifest?.mods, 'server')];
-  if (mods.some((mod) => String(mod.id).toLowerCase() === PLUGIN_ID)) return mods;
+  const fromPack = (release?.manifest?.mods || []).find((mod) => String(mod.id).toLowerCase() === PLUGIN_ID);
+  if (fromPack?.sha256) return [fromPack];
   const extra = platformPluginDownloads(snapshot, { requireReview }).find((item) => item.id === PLUGIN_ID);
-  if (!extra) return mods;
+  if (!extra) return [];
   const version = snapshot.mods?.[PLUGIN_ID]?.versions?.[extra.version];
-  mods.push({
+  return [{
     id: extra.id,
     version: extra.version,
     sha256: extra.sha256,
     installRoots: version?.installRoots?.length ? version.installRoots : [PLUGIN_ROOT],
     overlays: []
-  });
-  return mods;
+  }];
 }
 
 export async function assembleServerModTree({ snapshot, release, objectDir, pluginConfig, requireReview = false }) {
