@@ -6,7 +6,7 @@ Maintainer checklist. Do not start a deploy here — use [LINUX.md](LINUX.md).
 
 Last reviewed: 2026-09-01
 
-Status: P0, P1, and the admin API/console are in place. CDN is designed for Cloudflare (origin cache or an R2 custom domain). Target game is now client V 3.2.0 and server V 3.2.0 / Steam Build 24994517; Windows live join against this build is still pending. Still open: listen-server host mode, Linux dedicated server, Authenticode on the launcher, and Postgres/browser/load-test gates. Launcher Ed25519 self-update and the standalone Vue console are done.
+Status: P0, P1, and the admin API/console are in place. CDN is designed for Cloudflare (origin cache or an R2 custom domain). Target game is now client V 3.3.0 and server V 3.3.0 / Steam Build 25661859; Windows live join against this build is still pending. Still open: listen-server host mode, Linux dedicated server, Authenticode on the launcher, and Postgres/browser/load-test gates. Launcher Ed25519 self-update and the standalone Vue console are done.
 
 ## Definition of done
 
@@ -23,13 +23,13 @@ Call it “ready for public production” only when all of these are true:
 
 ### Current game version
 
-- [ ] Rebuild the client plugin against Steam Build `24994517` (game `V 3.2.0`) `Assembly-CSharp.dll`
-- [ ] Rebuild the server plugin against Steam Build `24994517` (server `V 3.2.0`) `Assembly-CSharp.dll`
-- [ ] Recheck `IModApi`, logging, network packages, and event callbacks on V 3.2.0
+- [ ] Rebuild the client plugin against Steam Build `25661859` (game `V 3.3.0`) `Assembly-CSharp.dll`
+- [ ] Rebuild the server plugin against Steam Build `25661859` (server `V 3.3.0`) `Assembly-CSharp.dll`
+- [ ] Recheck `IModApi`, logging, network packages, and event callbacks on V 3.3.0
 - [x] Write Steam Build ID, game version, and protocol version into plugin artifacts
-- [ ] Client plugin start test passed on V 3.2.0
+- [ ] Client plugin start test passed on V 3.3.0
 - [ ] Listen-server / host mode test passed
-- [ ] Windows dedicated server test passed on V 3.2.0
+- [ ] Windows dedicated server test passed on V 3.3.0
 - [ ] Linux dedicated server test passed
 - [ ] Game updates automatically rebuild plugins and run compatibility tests
 
@@ -299,7 +299,7 @@ Accept: restore API, files, and signing on a clean box inside the RTO.
 
 Keep the first milestone to:
 
-- [ ] Plugins compile for the current game (client `V 3.2.0`, server `V 3.2.0` / Build `24994517`)
+- [ ] Plugins compile for the current game (client `V 3.3.0`, server `V 3.3.0` / Build `25661859`)
 - [ ] Live Windows handshake blocks incompatible players and allows entry after sync
 - [ ] Standalone launcher is Authenticode-signed and can sync, start, reconnect, and self-update in one click
 - [x] Windows dedicated server auto-syncs the Pack

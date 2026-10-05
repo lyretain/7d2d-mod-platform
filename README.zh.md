@@ -6,7 +6,7 @@
 
 插件目录和程序集仍叫 `ModPlatform*`，已安装的服不必改文件夹名。
 
-当前客户端 / 服务端目标为七日杀 `V 3.2.0`（Steam Build `24994517`）。权威版本见 [`project-versions.json`](project-versions.json)。
+当前客户端 / 服务端目标为七日杀 `V 3.3.0`（Steam Build `25661859`）。权威版本见 [`project-versions.json`](project-versions.json)。
 
 ## 按目的阅读
 

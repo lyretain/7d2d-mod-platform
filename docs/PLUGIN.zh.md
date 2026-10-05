@@ -6,9 +6,9 @@
 
 ## 一、当前目标环境
 
-- 七日杀客户端：`V 3.2.0`
-- 七日杀服务端：`V 3.2.0`
-- Steam Build：`24994517`
+- 七日杀客户端：`V 3.3.0`
+- 七日杀服务端：`V 3.3.0`
+- Steam Build：`25661859`
 - 游戏目录：`G:\SteamLibrary\steamapps\common\7 Days To Die`
 - Unity：`2022.3.62f2`
 - 插件目标框架：`netstandard2.1`
@@ -64,8 +64,8 @@ E:\Project\artifacts\plugins\ModPlatformServer
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File .\deploy\build-plugins.ps1 `
   -GameManagedDir "G:\SteamLibrary\steamapps\common\7 Days To Die\7DaysToDie_Data\Managed" `
-  -ClientGameVersion "3.2.0" `
-  -ServerGameVersion "3.2.0"
+  -ClientGameVersion "3.3.0" `
+  -ServerGameVersion "3.3.0"
 ```
 
 输出目录：
