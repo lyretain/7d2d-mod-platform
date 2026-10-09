@@ -6,9 +6,9 @@ For building `ModPlatformClient` / `ModPlatformServer`. Platform go-live: [LINUX
 
 ## 1. Current target environment
 
-- 7 Days to Die client: `V 3.2.0`
-- 7 Days to Die server: `V 3.2.0`
-- Steam Build: `24994517`
+- 7 Days to Die client: `V 3.3.0`
+- 7 Days to Die server: `V 3.3.0`
+- Steam Build: `25661859`
 - Game directory: `G:\SteamLibrary\steamapps\common\7 Days To Die`
 - Unity: `2022.3.62f2`
 - Plugin target: `netstandard2.1`
@@ -64,8 +64,8 @@ The build script prefers a modern .NET SDK. If none is installed it uses the Win
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File .\deploy\build-plugins.ps1 `
   -GameManagedDir "G:\SteamLibrary\steamapps\common\7 Days To Die\7DaysToDie_Data\Managed" `
-  -ClientGameVersion "3.2.0" `
-  -ServerGameVersion "3.2.0"
+  -ClientGameVersion "3.3.0" `
+  -ServerGameVersion "3.3.0"
 ```
 
 Output:

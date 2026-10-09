@@ -6,7 +6,7 @@
 
 Plugin folders and assemblies stay `ModPlatform*` so existing installs keep working.
 
-Client and server target: 7DTD `V 3.2.0` (Steam Build `24994517`). See [`project-versions.json`](project-versions.json).
+Client and server target: 7DTD `V 3.3.0` (Steam Build `25661859`). See [`project-versions.json`](project-versions.json).
 
 ## Start here
 
@@ -125,7 +125,7 @@ Copy each built DLL, its `ModInfo.xml`, `ModPlatform.Shared.dll`, and the rename
 
 Bumping the plugin version on `main` runs CI and can publish a GitHub Release. Secrets: [DEPLOYMENT.md](docs/DEPLOYMENT.md) section 4.
 
-The client plugin targets 7DTD `V 3.2.0`; the server plugin targets `V 3.2.0` / Steam Build `24994517`. They poll assignments, send diagnostics, and run handshake protocol v1 over the platform HTTP API so unsynced clients are rejected before world entry without registering a custom NetPackage. The compatibility layer treats `3.2.0` and a possible dedicated `3.20.0` string as the same game build, and still maps the previous `3.1.0` / `3.10.14` pair. Launcher preflight is still required to install files before the game loads DLLs.
+The client plugin targets 7DTD `V 3.3.0`; the server plugin targets `V 3.3.0` / Steam Build `25661859`. They poll assignments, send diagnostics, and run handshake protocol v1 over the platform HTTP API so unsynced clients are rejected before world entry without registering a custom NetPackage. The compatibility layer treats `3.3.0` and a possible dedicated `3.30.0` string as the same game build, and still maps the previous `3.2.0` / `3.20.0` pair and the `3.1.0` / `3.10.14` pair. Launcher preflight is still required to install files before the game loads DLLs.
 
 ## Test
 
