@@ -62,6 +62,25 @@ function shaLabel(value?: string) {
   if (hash.length < 16) return '';
   return `${hash.slice(0, 12)}…${hash.slice(-8)}`;
 }
+
+type CopyPart = { text: string; code: boolean };
+
+// Windows install paths have no spaces, so mark them for code styling and hard wrapping.
+const INSTALL_PATH_RE = /(?:%[A-Za-z0-9_]+%|[A-Za-z]:|[A-Za-z0-9_.-]+)?(?:\\[^\s\\]+)+\\?/g;
+
+function installCopyParts(value: string): CopyPart[] {
+  const text = String(value || '');
+  const parts: CopyPart[] = [];
+  let last = 0;
+  for (const match of text.matchAll(INSTALL_PATH_RE)) {
+    const index = match.index ?? 0;
+    if (index > last) parts.push({ text: text.slice(last, index), code: false });
+    if (match[0]) parts.push({ text: match[0], code: true });
+    last = index + match[0].length;
+  }
+  if (last < text.length) parts.push({ text: text.slice(last), code: false });
+  return parts.length ? parts : [{ text, code: false }];
+}
 </script>
 
 <template>
@@ -81,7 +100,7 @@ function shaLabel(value?: string) {
       </div>
     </div>
 
-    <div class="mx-auto flex w-full max-w-5xl flex-col gap-6" :class="session.user ? '' : 'px-4 py-8 md:px-8'">
+    <div class="mx-auto flex w-full min-w-0 max-w-5xl flex-col gap-6" :class="session.user ? '' : 'px-4 py-8 md:px-8'">
       <section>
         <p class="text-sm text-brand-500">{{ gameLabel }}</p>
         <h2 class="mt-1 text-title-sm font-semibold text-gray-800 dark:text-white/90">{{ t('page.about.title') }}</h2>
@@ -89,22 +108,31 @@ function shaLabel(value?: string) {
       </section>
 
       <UiCard :title="t('about.downloads')" :desc="t('about.downloadsHint')">
-        <div class="grid gap-4 md:grid-cols-3">
+        <div class="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-3">
           <article v-for="card in [
             { key: 'client', item: client, title: t('about.client'), path: t('about.clientPath') },
             { key: 'server', item: server, title: t('about.server'), path: t('about.serverPath') },
             { key: 'launcher', item: payload.launcher, title: t('about.launcher'), path: t('about.launcherHint') }
-          ]" :key="card.key" class="flex flex-col rounded-xl border border-gray-200 p-4 dark:border-gray-800">
-            <h3 class="font-medium text-gray-800 dark:text-white/90">{{ card.title }}</h3>
-            <p v-if="card.item?.version" class="mt-1 text-sm text-gray-500">{{ t('about.version', { v: card.item.version }) }} · {{ prettyBytes(card.item.size) }}</p>
-            <p v-else class="mt-1 text-sm text-gray-500">{{ loaded ? t('about.unavailable') : '…' }}</p>
-            <p class="mt-3 flex-1 text-sm text-gray-500 dark:text-gray-400">{{ card.path }}</p>
-            <p v-if="card.item?.sha256" class="mt-2 truncate font-mono text-theme-xs text-gray-400" :title="card.item.sha256">{{ t('about.sha') }} {{ shaLabel(card.item.sha256) }}</p>
-            <a v-if="card.item?.url" :href="card.item.url" class="btn-primary mt-4">
-              <Download :size="16" />
-              {{ t('about.download') }}
+          ]" :key="card.key" class="flex min-w-0 flex-col overflow-hidden rounded-xl border border-gray-200 p-4 dark:border-gray-800">
+            <h3 class="min-w-0 font-medium text-gray-800 wrap-anywhere dark:text-white/90">{{ card.title }}</h3>
+            <p v-if="card.item?.version" class="mt-1 min-w-0 text-sm text-gray-500 wrap-anywhere">{{ t('about.version', { v: card.item.version }) }} · {{ prettyBytes(card.item.size) }}</p>
+            <p v-else class="mt-1 min-w-0 text-sm text-gray-500 wrap-anywhere">{{ loaded ? t('about.unavailable') : '…' }}</p>
+            <p class="mt-3 min-w-0 flex-1 text-sm text-gray-500 wrap-anywhere dark:text-gray-400">
+              <template v-for="(part, index) in installCopyParts(card.path)" :key="`${card.key}-${index}`">
+                <code v-if="part.code" class="box-decoration-clone break-all rounded bg-gray-100 px-1 py-0.5 font-mono text-[0.92em] text-gray-800 wrap-anywhere dark:bg-white/10 dark:text-gray-200">{{ part.text }}</code><span v-else>{{ part.text }}</span>
+              </template>
+            </p>
+            <p v-if="card.item?.sha256" class="mt-2 flex min-w-0 max-w-full items-baseline gap-1 font-mono text-theme-xs text-gray-400" :title="card.item.sha256">
+              <span class="shrink-0">{{ t('about.sha') }}</span>
+              <span class="min-w-0 break-all wrap-anywhere">{{ shaLabel(card.item.sha256) }}</span>
+            </p>
+            <a v-if="card.item?.url" :href="card.item.url" class="btn-primary mt-4 min-w-0 max-w-full whitespace-normal">
+              <Download :size="16" class="shrink-0" />
+              <span class="min-w-0 wrap-anywhere">{{ t('about.download') }}</span>
             </a>
-            <span v-else class="btn-secondary mt-4 cursor-not-allowed opacity-60">{{ t('about.download') }}</span>
+            <span v-else class="btn-secondary mt-4 min-w-0 max-w-full cursor-not-allowed whitespace-normal opacity-60">
+              <span class="min-w-0 wrap-anywhere">{{ t('about.download') }}</span>
+            </span>
           </article>
         </div>
         <p class="text-sm text-gray-500">
