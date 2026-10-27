@@ -17,16 +17,16 @@ const sponsor = computed(() => {
 
 <template>
   <footer
-    class="text-theme-xs text-gray-500 dark:text-gray-400"
+    class="text-theme-xs text-gray-400"
     :class="compact
       ? 'space-y-1'
-      : 'flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-gray-200 pt-4 dark:border-gray-800'"
+      : 'flex flex-col gap-2 border-t border-gray-800 pt-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between'"
   >
     <p class="m-0">{{ copyright }}</p>
     <GitHubRepoLink />
-    <p class="m-0">
+    <p class="m-0 whitespace-nowrap">
       {{ sponsor }}
-      <a href="https://aicocloud.com/" target="_blank" rel="noreferrer" class="text-brand-500 hover:underline">AICOCLOUD</a>
+      <a href="https://aicocloud.com/" target="_blank" rel="noreferrer" class="text-brand-400 hover:underline">AICOCLOUD</a>
     </p>
   </footer>
 </template>

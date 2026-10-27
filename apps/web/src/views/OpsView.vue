@@ -280,31 +280,31 @@ onMounted(async () => {
         </div>
       </div>
 
-      <div v-if="section === 'overview'" class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
-        <p class="mb-3 text-theme-xs font-medium uppercase tracking-wide text-gray-400">{{ tableTitle || t('ops.hot') }}</p>
+      <div v-if="section === 'overview'" class="surface p-5">
+        <p class="section-label">{{ tableTitle || t('ops.hot') }}</p>
         <UiTable :rows="rows" :cols="cols.length ? cols : ['id']" @pick="pickRow" />
         <p v-if="!rows.length" class="text-sm text-gray-500">{{ t('ops.pickOp') }}</p>
         <button type="button" class="btn-secondary mt-3" @click="loadState">{{ t('ops.state') }}</button>
       </div>
 
       <div v-if="section === 'pause' && can('distribution.pause')" class="rounded-2xl border border-error-500/30 bg-white p-5 dark:border-error-500/20 dark:bg-white/[0.03]">
-        <p class="mb-3 text-theme-xs font-medium uppercase tracking-wide text-gray-400">{{ t('ops.navPause') }}</p>
+        <p class="section-label">{{ t('ops.navPause') }}</p>
         <p class="mb-3 text-sm text-gray-500">{{ t('srv.pauseHint') }}</p>
         <p class="rounded-lg px-3 py-2 text-sm" :class="paused ? 'bg-error-500/10 text-error-500' : 'bg-success-500/10 text-success-500'">
           {{ paused ? t('srv.pauseOn') : t('srv.pauseOff') }}
         </p>
-        <label class="field">{{ t('srv.pauseReason') }}</label>
-        <input v-model="pauseReason" class="input" :placeholder="t('srv.phReason')">
+        <label class="mb-3 block"><span class="field">{{ t('srv.pauseReason') }}</span>
+        <input v-model="pauseReason" class="input" :placeholder="t('srv.phReason')"></label>
         <div class="mt-3 flex flex-wrap gap-2">
           <button type="button" class="btn-danger" @click="pause(true)">{{ t('srv.pause') }}</button>
           <button type="button" class="btn-ok" @click="pause(false)">{{ t('srv.resume') }}</button>
         </div>
       </div>
 
-      <div v-if="section === 'reviews'" class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
-        <p class="mb-3 text-theme-xs font-medium uppercase tracking-wide text-gray-400">{{ t('ops.navReviews') }}</p>
-        <label class="field">{{ t('ops.reviewSha') }}</label>
-        <input v-model="reviewSha" class="input" :placeholder="t('ops.phSha')">
+      <div v-if="section === 'reviews'" class="surface p-5">
+        <p class="section-label">{{ t('ops.navReviews') }}</p>
+        <label class="mb-3 block"><span class="field">{{ t('ops.reviewSha') }}</span>
+        <input v-model="reviewSha" class="input" :placeholder="t('ops.phSha')"></label>
         <div class="mt-3 flex flex-wrap gap-2">
           <button type="button" class="btn-secondary" @click="loadReviews">{{ t('ops.reviews') }}</button>
           <button type="button" class="btn-ok" @click="approveReview">{{ t('ops.approve') }}</button>
@@ -313,51 +313,51 @@ onMounted(async () => {
         <UiTable class="mt-3" :rows="rows" :cols="cols.length ? cols : ['id']" @pick="pickRow" />
       </div>
 
-      <div v-if="section === 'matrix'" class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
-        <p class="mb-3 text-theme-xs font-medium uppercase tracking-wide text-gray-400">{{ tableTitle || t('ops.navMatrix') }}</p>
+      <div v-if="section === 'matrix'" class="surface p-5">
+        <p class="section-label">{{ tableTitle || t('ops.navMatrix') }}</p>
         <button type="button" class="btn-secondary mb-3" @click="loadMatrix">{{ t('ops.matrix') }}</button>
         <UiTable :rows="rows" :cols="cols.length ? cols : ['id']" @pick="pickRow" />
       </div>
 
-      <div v-if="section === 'users'" class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
-        <p class="mb-3 text-theme-xs font-medium uppercase tracking-wide text-gray-400">{{ t('ops.navUsers') }}</p>
+      <div v-if="section === 'users'" class="surface p-5">
+        <p class="section-label">{{ t('ops.navUsers') }}</p>
         <button type="button" class="btn-secondary mb-3" @click="loadUsers">{{ t('ops.users') }}</button>
         <UiTable :rows="rows" :cols="cols.length ? cols : ['id']" />
       </div>
 
-      <div v-if="section === 'sessions'" class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
-        <p class="mb-3 text-theme-xs font-medium uppercase tracking-wide text-gray-400">{{ t('ops.navSessions') }}</p>
+      <div v-if="section === 'sessions'" class="surface p-5">
+        <p class="section-label">{{ t('ops.navSessions') }}</p>
         <button type="button" class="btn-secondary mb-3" @click="loadSessions">{{ t('ops.sessions') }}</button>
         <UiTable :rows="rows" :cols="cols.length ? cols : ['id']" />
       </div>
 
-      <div v-if="section === 'audit'" class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
-        <p class="mb-3 text-theme-xs font-medium uppercase tracking-wide text-gray-400">{{ t('ops.navAudit') }}</p>
-        <label class="field">{{ t('ops.auditAction') }}</label>
-        <input v-model="auditAction" class="input mb-3" :placeholder="t('ops.phAction')">
+      <div v-if="section === 'audit'" class="surface p-5">
+        <p class="section-label">{{ t('ops.navAudit') }}</p>
+        <label class="mb-3 block"><span class="field">{{ t('ops.auditAction') }}</span>
+        <input v-model="auditAction" class="input mb-3" :placeholder="t('ops.phAction')"></label>
         <button type="button" class="btn-secondary mb-3" @click="loadAudit">{{ t('ops.queryAudit') }}</button>
         <UiTable :rows="rows" :cols="cols.length ? cols : ['id']" />
       </div>
 
-      <div v-if="section === 'launcher' && can('platform.manage')" class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
-        <p class="mb-3 text-theme-xs font-medium uppercase tracking-wide text-gray-400">{{ t('ops.navLauncher') }}</p>
+      <div v-if="section === 'launcher' && can('platform.manage')" class="surface p-5">
+        <p class="section-label">{{ t('ops.navLauncher') }}</p>
         <p class="mb-3 text-sm text-gray-500">{{ t('ln.hint') }}</p>
         <p class="text-sm text-gray-500">{{ launcherStatus }}</p>
         <div class="grid gap-3 sm:grid-cols-2">
-          <div><label class="field">{{ t('ln.version') }}</label><input v-model="launcherVersion" class="input" placeholder="0.3.1"></div>
+          <div><label class="mb-3 block"><span class="field">{{ t('ln.version') }}</span><input v-model="launcherVersion" class="input" placeholder="0.3.1"></label></div>
           <div>
-            <label class="field">{{ t('ln.platform') }}</label>
+            <label class="mb-3 block"><span class="field">{{ t('ln.platform') }}</span>
             <select v-model="launcherPlatform" class="input">
               <option value="win32">win32</option>
               <option value="linux">linux</option>
               <option value="darwin">darwin</option>
-            </select>
+            </select></label>
           </div>
         </div>
-        <label class="field">{{ t('ln.sha') }}</label>
-        <input v-model="launcherSha" class="input" :placeholder="t('ln.phSha')">
-        <label class="field">{{ t('ln.notes') }}</label>
-        <input v-model="launcherNotes" class="input" :placeholder="t('ln.phNotes')">
+        <label class="mb-3 block"><span class="field">{{ t('ln.sha') }}</span>
+        <input v-model="launcherSha" class="input" :placeholder="t('ln.phSha')"></label>
+        <label class="mb-3 block"><span class="field">{{ t('ln.notes') }}</span>
+        <input v-model="launcherNotes" class="input" :placeholder="t('ln.phNotes')"></label>
         <div class="mt-3 flex flex-wrap gap-2">
           <button type="button" class="btn-secondary" @click="loadLauncher()">{{ t('ln.refresh') }}</button>
           <button type="button" class="btn-primary" @click="publishLauncher">{{ t('ln.publish') }}</button>

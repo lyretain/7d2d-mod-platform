@@ -7,6 +7,7 @@ import HierarchyItem from '../components/HierarchyItem.vue';
 import HierarchyShell from '../components/HierarchyShell.vue';
 import { i18n, t } from '../i18n';
 import { fail, ok } from '../lib/feedback';
+import { askConfirm } from '../stores/confirm';
 import { catalog, loadPacks, packOptionLabel } from '../stores/catalog';
 import { can, session } from '../stores/session';
 
@@ -149,7 +150,7 @@ function canManageSelected() {
 async function resetServerToken() {
   try {
     if (!serverId.value) throw new Error(t('srv.needSelect'));
-    if (!window.confirm(t('srv.confirmReset'))) throw new Error(t('cancelled'));
+    if (!await askConfirm({ title: t('srv.confirmReset'), confirmLabel: t('confirm') })) throw new Error(t('cancelled'));
     const result = await api<any>(`/api/v1/servers/${encodeURIComponent(serverId.value)}/reset-token`, { method: 'POST' });
     showConfig(result);
     ok(result, t('srv.tokenReset'));
@@ -161,7 +162,7 @@ async function resetServerToken() {
 async function deleteServer() {
   try {
     if (!serverId.value) throw new Error(t('srv.needSelect'));
-    if (!window.confirm(t('srv.confirmDelete'))) throw new Error(t('cancelled'));
+    if (!await askConfirm({ title: t('srv.confirmDelete'), confirmLabel: t('confirm') })) throw new Error(t('cancelled'));
     const result = await api(`/api/v1/servers/${encodeURIComponent(serverId.value)}`, { method: 'DELETE' });
     ok(result, t('srv.deleted'));
     creating.value = false;
@@ -202,7 +203,7 @@ async function downloadBundle() {
   try {
     if (creating.value || !serverId.value) throw new Error(t('srv.needSelect'));
     const token = currentServerToken();
-    if (!token && !window.confirm(t('srv.confirmBundleRotate'))) throw new Error(t('cancelled'));
+    if (!token && !await askConfirm({ title: t('srv.confirmBundleRotate'), confirmLabel: t('confirm') })) throw new Error(t('cancelled'));
     bundling.value = true;
     const response = await fetch(`/api/v1/servers/${encodeURIComponent(serverId.value)}/bundle`, {
       method: 'POST',
@@ -275,22 +276,22 @@ onMounted(async () => {
         />
       </template>
 
-      <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
-        <p class="mb-3 text-theme-xs font-medium uppercase tracking-wide text-gray-400">{{ creating ? t('srv.creating') : t('srv.levelServer') }}</p>
-        <label class="field">{{ t('srv.name') }}</label>
-        <input v-model="name" class="input" :placeholder="t('srv.phName')">
+      <div class="surface p-5">
+        <p class="section-label">{{ creating ? t('srv.creating') : t('srv.levelServer') }}</p>
+        <label class="mb-3 block"><span class="field">{{ t('srv.name') }}</span>
+        <input v-model="name" class="input" :placeholder="t('srv.phName')"></label>
         <div class="grid gap-3 sm:grid-cols-2">
-          <div><label class="field">{{ t('srv.id') }}</label><input v-model="serverId" class="input" :disabled="!creating" :placeholder="t('srv.phId')"></div>
+          <div><label class="mb-3 block"><span class="field">{{ t('srv.id') }}</span><input v-model="serverId" class="input" :disabled="!creating" :placeholder="t('srv.phId')"></label></div>
           <div>
-            <label class="field">{{ t('srv.pack') }}</label>
+            <label class="mb-3 block"><span class="field">{{ t('srv.pack') }}</span>
             <select v-model="packId" class="input">
               <option value="">{{ t('pack.selectPublished') }}</option>
               <option v-for="pack in catalog.packs" :key="pack.id" :value="pack.id">{{ packOptionLabel(pack) }}</option>
-            </select>
+            </select></label>
           </div>
         </div>
-        <label class="field">{{ t('srv.addresses') }}</label>
-        <textarea v-model="addresses" class="input min-h-24" :placeholder="t('srv.phAddr')"></textarea>
+        <label class="mb-3 block"><span class="field">{{ t('srv.addresses') }}</span>
+        <textarea v-model="addresses" class="input min-h-24" :placeholder="t('srv.phAddr')"></textarea></label>
         <p class="text-theme-xs text-gray-500">{{ t('srv.addrHint') }}</p>
         <div class="mt-3 flex flex-wrap gap-2">
           <button v-if="creating" type="button" class="btn-primary" @click="createServer">{{ t('srv.create') }}</button>
@@ -302,7 +303,7 @@ onMounted(async () => {
           <button v-if="!creating" type="button" class="btn-primary" :disabled="!canManageSelected() || bundling" @click="downloadBundle">{{ bundling ? t('srv.bundling') : t('srv.bundle') }}</button>
         </div>
         <p class="mt-2 text-theme-xs text-gray-500">{{ t('srv.bundleHint') }}</p>
-        <pre class="mt-4 max-h-56 overflow-auto rounded-lg bg-gray-950 p-3 text-theme-xs text-gray-300">{{ configText }}</pre>
+        <pre class="mt-4 max-h-56 tech-block">{{ configText }}</pre>
       </div>
     </HierarchyShell>
   </div>

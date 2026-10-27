@@ -114,42 +114,42 @@ onMounted(() => {
         />
       </template>
 
-      <div v-if="section === 'age'" class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
-        <p class="mb-3 text-theme-xs font-medium uppercase tracking-wide text-gray-400">{{ t('account.navAge') }}</p>
+      <div v-if="section === 'age'" class="surface p-5">
+        <p class="section-label">{{ t('account.navAge') }}</p>
         <p class="mb-3 text-sm text-gray-500">{{ t('r18.accountHint') }}</p>
         <p class="mb-3 text-sm text-gray-600 dark:text-gray-300">{{ isAdultVerified() ? t('r18.verified') : t('r18.notVerified') }}</p>
         <button v-if="!session.user?.adultVerified" type="button" class="btn-primary" @click="ensureAdult()">{{ t('r18.enter') }}</button>
       </div>
 
-      <div v-if="section === 'identity'" class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
-        <p class="mb-3 text-theme-xs font-medium uppercase tracking-wide text-gray-400">{{ t('account.navIdentity') }}</p>
+      <div v-if="section === 'identity'" class="surface p-5">
+        <p class="section-label">{{ t('account.navIdentity') }}</p>
         <p class="mb-3 text-sm text-gray-500">{{ t('account.hint') }}</p>
         <div class="flex flex-wrap gap-2">
           <button type="button" class="btn-secondary" @click="bindGithub">{{ t('account.bindGithub') }}</button>
         </div>
-        <label class="field">{{ t('account.devCode') }}</label>
-        <input v-model="activateCode" class="input" :placeholder="t('account.phActivate')">
+        <label class="mb-3 block"><span class="field">{{ t('account.devCode') }}</span>
+        <input v-model="activateCode" class="input" :placeholder="t('account.phActivate')"></label>
         <button type="button" class="btn-secondary mt-3" @click="activateDeveloper">{{ t('account.activate') }}</button>
       </div>
 
-      <div v-if="section === 'invite'" class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
-        <p class="mb-3 text-theme-xs font-medium uppercase tracking-wide text-gray-400">{{ t('account.navInvite') }}</p>
+      <div v-if="section === 'invite'" class="surface p-5">
+        <p class="section-label">{{ t('account.navInvite') }}</p>
         <p class="mb-3 text-sm text-gray-500">{{ t('account.inviteHint') }}</p>
-        <label class="field">{{ t('account.bootstrap') }}</label>
-        <input v-model="bootstrapToken" class="input" type="password" :placeholder="t('account.phBootstrap')">
+        <label class="mb-3 block"><span class="field">{{ t('account.bootstrap') }}</span>
+        <input v-model="bootstrapToken" class="input" type="password" :placeholder="t('account.phBootstrap')"></label>
         <div class="grid gap-3 sm:grid-cols-3">
           <div>
-            <label class="field">{{ t('account.role') }}</label>
+            <label class="mb-3 block"><span class="field">{{ t('account.role') }}</span>
             <select v-model="inviteRole" class="input">
               <option value="community">{{ t('account.roleCommunity') }}</option>
               <option value="developer">{{ t('account.roleDeveloper') }}</option>
-            </select>
+            </select></label>
           </div>
-          <div><label class="field">{{ t('account.uses') }}</label><input v-model.number="inviteUses" class="input" type="number" min="1" max="100"></div>
-          <div><label class="field">{{ t('account.hours') }}</label><input v-model.number="inviteHours" class="input" type="number" min="1" max="8760"></div>
+          <div><label class="mb-3 block"><span class="field">{{ t('account.uses') }}</span><input v-model.number="inviteUses" class="input" type="number" min="1" max="100"></label></div>
+          <div><label class="mb-3 block"><span class="field">{{ t('account.hours') }}</span><input v-model.number="inviteHours" class="input" type="number" min="1" max="8760"></label></div>
         </div>
         <button type="button" class="btn-primary mt-3" @click="createInvite">{{ t('account.createInvite') }}</button>
-        <pre class="mt-4 max-h-56 overflow-auto rounded-lg bg-gray-950 p-3 text-theme-xs text-gray-300">{{ inviteResult }}</pre>
+        <pre class="mt-4 max-h-56 tech-block">{{ inviteResult }}</pre>
       </div>
     </HierarchyShell>
   </div>

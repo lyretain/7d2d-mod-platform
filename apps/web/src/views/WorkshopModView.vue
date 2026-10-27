@@ -169,8 +169,8 @@ onMounted(async () => {
 
 <template>
   <div class="space-y-4" :data-lang="i18n.lang">
-    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
-      <p class="mb-3 text-theme-xs font-medium uppercase tracking-wide text-gray-400">{{ t('mod.levelMod') }}</p>
+    <div class="surface p-5">
+      <p class="section-label">{{ t('mod.levelMod') }}</p>
       <h2 class="text-lg font-semibold text-gray-800 dark:text-white/90">
         {{ mod?.name || route.params.id }}
         <R18Badge v-if="isAdultMod(mod)" class="ml-2 align-middle" />
@@ -179,8 +179,8 @@ onMounted(async () => {
       <p class="mt-3 text-sm text-gray-600 dark:text-gray-300">{{ mod?.redacted ? t('r18.hidden') : (mod?.description || t('ws.noDesc')) }}</p>
       <p v-if="slotTotal" class="mt-2 text-theme-xs text-gray-500">{{ t('ws.slotCount', { n: slotTotal }) }}</p>
     </div>
-    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
-      <p class="mb-3 text-theme-xs font-medium uppercase tracking-wide text-gray-400">{{ t('mod.levelSlots') }}</p>
+    <div class="surface p-5">
+      <p class="section-label">{{ t('mod.levelSlots') }}</p>
       <p v-if="!slots.length" class="text-sm text-gray-500">{{ t('mod.slotsEmpty') }}</p>
       <div v-for="slot in slots" :key="slot.id" class="mb-4 last:mb-0">
         <h3 class="mb-1 text-sm font-medium text-gray-800 dark:text-white/90">{{ slot.label || slot.path }}</h3>
@@ -193,23 +193,23 @@ onMounted(async () => {
         />
       </div>
     </div>
-    <div v-if="slots.length" class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
-      <p class="mb-1 text-theme-xs font-medium uppercase tracking-wide text-gray-400">{{ t('ws.uploadModel') }}</p>
+    <div v-if="slots.length" class="surface p-5">
+      <p class="section-label">{{ t('ws.uploadModel') }}</p>
       <p class="mb-3 text-theme-xs text-gray-500">{{ t('ws.uniqueHint') }}</p>
       <div class="grid gap-3 sm:grid-cols-2">
         <div>
-          <label class="field">{{ t('mod.slots') }}</label>
+          <label class="mb-3 block"><span class="field">{{ t('mod.slots') }}</span>
           <select v-model="upload.slotId" class="input">
             <option v-for="slot in slots" :key="slot.id" :value="slot.id">{{ slot.label || slot.path }}</option>
-          </select>
+          </select></label>
         </div>
         <div>
-          <label class="field">{{ t('content.name') }}</label>
-          <input v-model="upload.name" class="input" :placeholder="t('ws.phModelName')">
+          <label class="mb-3 block"><span class="field">{{ t('content.name') }}</span>
+          <input v-model="upload.name" class="input" :placeholder="t('ws.phModelName')"></label>
         </div>
       </div>
-      <label class="field">{{ t('content.desc') }}</label>
-      <textarea v-model="upload.description" class="input min-h-20" :placeholder="t('ws.phModelDesc')"></textarea>
+      <label class="mb-3 block"><span class="field">{{ t('content.desc') }}</span>
+      <textarea v-model="upload.description" class="input min-h-20" :placeholder="t('ws.phModelDesc')"></textarea></label>
       <label class="mb-3 mt-3 flex items-center gap-2 text-sm text-gray-500"><input v-model="upload.r18" type="checkbox"><span>{{ t('r18.declare') }}</span></label>
       <label class="mb-3 flex items-center gap-2 text-sm text-gray-500"><input v-model="license" type="checkbox"><span>{{ t('mod.license') }}</span></label>
       <p class="mb-3 text-theme-xs text-gray-500">{{ t('content.batchHint') }}</p>
@@ -230,17 +230,17 @@ onMounted(async () => {
       @close="dialogOpen = false"
     >
       <div v-if="dialogMode === 'create'">
-        <label class="field">{{ t('ws.dlgName') }}</label>
-        <input v-model="packName" class="input mb-3" :placeholder="t('ws.phName')">
-        <label class="field">{{ t('ws.dlgGame') }}</label>
-        <input v-model="packGame" class="input mb-3" placeholder="3.2.0">
+        <label class="mb-3 block"><span class="field">{{ t('ws.dlgName') }}</span>
+        <input v-model="packName" class="input mb-3" :placeholder="t('ws.phName')"></label>
+        <label class="mb-3 block"><span class="field">{{ t('ws.dlgGame') }}</span>
+        <input v-model="packGame" class="input mb-3" placeholder="3.2.0"></label>
       </div>
       <div v-else>
-        <label class="field">{{ t('ws.dlgPack') }}</label>
+        <label class="mb-3 block"><span class="field">{{ t('ws.dlgPack') }}</span>
         <select v-model="packId" class="input mb-3">
           <option value="">{{ t('pack.select') }}</option>
           <option v-for="pack in catalog.packs" :key="pack.id" :value="pack.id">{{ pack.name || pack.id }}</option>
-        </select>
+        </select></label>
       </div>
       <div class="flex gap-2">
         <button type="button" class="btn-secondary flex-1" @click="dialogOpen = false">{{ t('cancel') }}</button>

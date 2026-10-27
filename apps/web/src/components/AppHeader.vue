@@ -12,7 +12,8 @@ import LangSwitch from './LangSwitch.vue';
 
 const route = useRoute();
 const router = useRouter();
-const { toggleSidebar } = useSidebar();
+const { toggleSidebar, isMobileOpen, isExpanded } = useSidebar();
+const menuOpen = computed(() => isMobileOpen.value || isExpanded.value);
 const title = computed(() => {
   void i18n.lang;
   const key = String(route.meta.titleKey || '');
@@ -33,23 +34,30 @@ async function logout() {
 </script>
 
 <template>
-  <header class="sticky top-0 z-99999 flex w-full border-b border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
-    <div class="flex w-full items-center justify-between gap-4 px-4 py-3 md:px-6">
-      <div class="flex min-w-0 items-center gap-3">
-        <button type="button" class="flex size-10 items-center justify-center rounded-lg border border-gray-200 text-gray-500 dark:border-gray-800" @click="toggleSidebar">
-          <Menu :size="18" />
+  <header class="sticky top-0 z-sticky border-b border-gray-200 bg-gray-900 safe-top dark:border-gray-800 dark:bg-gray-900">
+    <div class="flex w-full items-center justify-between gap-3 px-4 py-3 md:px-6">
+      <div class="flex min-w-0 flex-1 items-center gap-3">
+        <button
+          type="button"
+          class="inline-flex size-11 shrink-0 items-center justify-center rounded-lg border border-gray-700 text-gray-300"
+          :aria-label="menuOpen ? t('nav.closeMenu') : t('nav.openMenu')"
+          aria-controls="app-sidebar"
+          :aria-expanded="menuOpen"
+          @click="toggleSidebar"
+        >
+          <Menu :size="18" aria-hidden="true" />
         </button>
         <div class="min-w-0">
-          <h1 class="truncate text-lg font-semibold text-gray-800 dark:text-white/90">{{ title }}</h1>
-          <p v-if="hint" class="hidden truncate text-theme-xs text-gray-500 sm:block">{{ hint }}</p>
+          <h1 class="truncate text-lg font-medium text-gray-800 dark:text-white/90" :title="title">{{ title }}</h1>
+          <p v-if="hint" class="hidden truncate text-theme-xs text-gray-400 sm:block">{{ hint }}</p>
         </div>
       </div>
-      <div class="flex items-center gap-2">
+      <div class="flex shrink-0 items-center gap-2">
         <GitHubRepoLink :labeled="false" :size="18" class="hidden sm:inline-flex" />
         <LangSwitch />
-        <router-link to="/about" class="btn-secondary hidden sm:inline-flex">{{ t('nav.about') }}</router-link>
-        <a href="/guide" class="btn-secondary hidden sm:inline-flex">{{ t('guide') }}</a>
-        <button type="button" class="btn-secondary" @click="logout">{{ t('logout') }}</button>
+        <router-link to="/about" class="btn-secondary hidden md:inline-flex">{{ t('nav.about') }}</router-link>
+        <a href="/guide" class="btn-secondary hidden md:inline-flex">{{ t('guide') }}</a>
+        <button type="button" class="btn-secondary whitespace-nowrap" @click="logout">{{ t('logout') }}</button>
       </div>
     </div>
   </header>

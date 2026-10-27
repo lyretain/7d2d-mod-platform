@@ -116,7 +116,8 @@ function displayMeta(item: ContentItem) {
       <input
         v-if="selectable"
         type="checkbox"
-        class="mt-5"
+        class="mt-5 size-4"
+        :aria-label="displayName(item)"
         :checked="selectedIds.includes(item.id)"
         :disabled="Boolean(busy)"
         @change="emit('toggle', item.id)"
@@ -157,10 +158,14 @@ function displayMeta(item: ContentItem) {
       </div>
     </div>
     <UiModal :open="Boolean(editing)" :title="t('content.edit')" :hint="t('content.editHint')" @close="editing = null">
-      <label class="field">{{ t('content.name') }}</label>
-      <input v-model="draft.name" class="input" :placeholder="t('ws.phModelName')">
-      <label class="field">{{ t('content.desc') }}</label>
-      <textarea v-model="draft.description" class="input min-h-20" :placeholder="t('ws.phModelDesc')"></textarea>
+      <label class="mb-3 block">
+        <span class="field">{{ t('content.name') }}</span>
+        <input v-model="draft.name" class="input" :placeholder="t('ws.phModelName')">
+      </label>
+      <label class="mb-3 block">
+        <span class="field">{{ t('content.desc') }}</span>
+        <textarea v-model="draft.description" class="input min-h-20" :placeholder="t('ws.phModelDesc')"></textarea>
+      </label>
       <label class="mb-3 mt-3 flex items-center gap-2 text-sm text-gray-500"><input v-model="draft.r18" type="checkbox"><span>{{ t('r18.declare') }}</span></label>
       <p v-if="editing?.previewPath" class="mb-2 text-theme-xs text-gray-400">{{ t('content.previewPath', { path: editing.previewPath }) }} · {{ t('content.previewLater') }}</p>
       <p v-else class="mb-2 text-theme-xs text-gray-400">{{ t('content.previewLater') }}</p>

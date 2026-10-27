@@ -6,7 +6,7 @@ import UiModal from './UiModal.vue';
 
 <template>
   <UiModal :open="confirmDialog.open" :title="confirmDialog.title" :hint="confirmDialog.hint" @close="settleConfirm(false)">
-    <div class="flex justify-end gap-2">
+    <div class="flex justify-end gap-3">
       <button type="button" class="btn-secondary" @click="settleConfirm(false)">{{ t('cancel') }}</button>
       <button type="button" class="btn-danger" @click="settleConfirm(true)">{{ confirmDialog.confirmLabel || t('confirm') }}</button>
     </div>

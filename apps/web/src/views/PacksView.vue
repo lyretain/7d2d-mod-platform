@@ -353,25 +353,25 @@ onMounted(async () => {
           @click="selectPack(item.id)"
         />
       </template>
-        <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
-          <p class="mb-3 text-theme-xs font-medium uppercase tracking-wide text-gray-400">{{ creating ? t('pack.creating') : t('pack.levelPack') }}</p>
+        <div class="surface p-5">
+          <p class="section-label">{{ creating ? t('pack.creating') : t('pack.levelPack') }}</p>
           <div class="grid gap-3 sm:grid-cols-2">
             <div>
-              <label class="field">{{ t('pack.name') }}</label>
-              <input v-model="packName" class="input" :disabled="!writable" :placeholder="t('pack.phName')">
+              <label class="mb-3 block"><span class="field">{{ t('pack.name') }}</span>
+              <input v-model="packName" class="input" :disabled="!writable" :placeholder="t('pack.phName')"></label>
             </div>
             <div>
-              <label class="field">{{ t('pack.game') }}</label>
-              <input v-model="packGame" class="input" :disabled="!writable" placeholder="3.3.0">
+              <label class="mb-3 block"><span class="field">{{ t('pack.game') }}</span>
+              <input v-model="packGame" class="input" :disabled="!writable" placeholder="3.3.0"></label>
             </div>
           </div>
           <p v-if="pack?.id" class="mt-2 truncate text-theme-xs text-gray-400">{{ pack.id }}</p>
         </div>
 
-        <div class="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
+        <div class="surface">
           <header class="flex items-center justify-between gap-3 px-5 py-4">
             <div>
-              <p class="text-theme-xs font-medium uppercase tracking-wide text-gray-400">{{ t('pack.levelMods') }}</p>
+              <p class="section-label">{{ t('pack.levelMods') }}</p>
               <h3 class="text-base font-medium text-gray-800 dark:text-white/90">
                 {{ t('pack.entryCount', { n: entries.length }) }}
                 <span v-if="selectedCount" class="text-theme-xs font-normal text-gray-500"> · {{ t('pack.overlayCount', { n: selectedCount }) }}</span>
@@ -449,9 +449,9 @@ onMounted(async () => {
           </ul>
         </div>
 
-        <div v-if="!creating" class="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
+        <div v-if="!creating" class="surface">
           <header class="px-5 py-4">
-            <p class="text-theme-xs font-medium uppercase tracking-wide text-gray-400">{{ t('pack.levelReleases') }}</p>
+            <p class="section-label">{{ t('pack.levelReleases') }}</p>
             <h3 class="flex items-center gap-2 text-base font-medium text-gray-800 dark:text-white/90">
               <History :size="16" class="text-gray-400" />
               {{ t('pack.release') }}
@@ -478,9 +478,9 @@ onMounted(async () => {
           </ul>
         </div>
 
-        <div v-if="writable" class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
-          <label class="field">{{ t('pack.reason') }}</label>
-          <input v-model="releaseReason" class="input mb-3" :placeholder="t('pack.phReason')">
+        <div v-if="writable" class="surface p-5">
+          <label class="mb-3 block"><span class="field">{{ t('pack.reason') }}</span>
+          <input v-model="releaseReason" class="input mb-3" :placeholder="t('pack.phReason')"></label>
           <UiProgress :active="progress.active" :value="progress.percent" :label="progress.label" />
           <div class="mt-3 flex flex-wrap gap-2">
             <button type="button" class="btn-secondary" @click="save(false)">{{ t('content.saveDraft') }}</button>

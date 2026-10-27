@@ -14,11 +14,13 @@ const username = ref('');
 const password = ref('');
 const password2 = ref('');
 const busy = ref(false);
+const formError = ref('');
 
 async function submit() {
   try {
     if (password.value !== password2.value) throw new Error(t('setup.mismatch'));
     busy.value = true;
+    formError.value = '';
     await api('/api/v1/setup', {
       method: 'POST',
       headers: { authorization: `Bearer ${token.value}` },
@@ -37,7 +39,7 @@ async function submit() {
     router.push('/workshop');
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    fail(message === 'Invalid setup token' ? t('setup.badToken') : message === 'Platform is already initialized' ? t('setup.already') : error);
+    formError.value = fail(message === 'Invalid setup token' ? t('setup.badToken') : message === 'Platform is already initialized' ? t('setup.already') : error);
   } finally {
     busy.value = false;
   }
@@ -46,16 +48,25 @@ async function submit() {
 
 <template>
   <AuthLayout :title="t('setup.brand')" :lead="t('setup.sub')" :data-lang="i18n.lang">
-    <p class="mb-2 text-theme-xs text-brand-500">{{ t('setup.steps') }}</p>
-    <p class="mb-5 text-sm text-gray-500">{{ t('setup.hint') }}</p>
-    <label class="field">{{ t('setup.token') }}</label>
-    <input v-model="token" class="input mb-3" type="password" :placeholder="t('setup.phToken')">
-    <label class="field">{{ t('setup.user') }}</label>
-    <input v-model="username" class="input mb-3" autocomplete="username" :placeholder="t('setup.phUser')">
-    <label class="field">{{ t('setup.password') }}</label>
-    <input v-model="password" class="input mb-3" type="password" autocomplete="new-password" :placeholder="t('setup.phPassword')">
-    <label class="field">{{ t('setup.password2') }}</label>
-    <input v-model="password2" class="input mb-5" type="password" autocomplete="new-password" :placeholder="t('setup.phPassword2')" @keydown.enter="submit">
+    <p class="mb-2 text-theme-xs text-gray-400">{{ t('setup.steps') }}</p>
+    <p class="mb-5 text-sm text-gray-400">{{ t('setup.hint') }}</p>
+    <label class="mb-3 block">
+      <span class="field">{{ t('setup.token') }}</span>
+      <input v-model="token" class="input" type="password" :placeholder="t('setup.phToken')" :aria-invalid="Boolean(formError)">
+    </label>
+    <label class="mb-3 block">
+      <span class="field">{{ t('setup.user') }}</span>
+      <input v-model="username" class="input" autocomplete="username" :placeholder="t('setup.phUser')" :aria-invalid="Boolean(formError)">
+    </label>
+    <label class="mb-3 block">
+      <span class="field">{{ t('setup.password') }}</span>
+      <input v-model="password" class="input" type="password" autocomplete="new-password" :placeholder="t('setup.phPassword')" :aria-invalid="Boolean(formError)">
+    </label>
+    <label class="mb-4 block">
+      <span class="field">{{ t('setup.password2') }}</span>
+      <input v-model="password2" class="input" type="password" autocomplete="new-password" :placeholder="t('setup.phPassword2')" :aria-invalid="Boolean(formError)" @keydown.enter="submit">
+    </label>
+    <p v-if="formError" class="mb-3 text-sm text-error-500" role="alert">{{ formError }}</p>
     <button type="button" class="btn-primary w-full" :disabled="busy" @click="submit">{{ t('setup.submit') }}</button>
   </AuthLayout>
 </template>

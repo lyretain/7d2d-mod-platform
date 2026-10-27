@@ -73,6 +73,10 @@
     'nav.ops': '运维管理',
     'nav.account': '账户管理',
     'nav.about': '关于',
+    'nav.openMenu': '打开导航',
+    'nav.closeMenu': '关闭导航',
+    'nav.primary': '主导航',
+    'lang.label': '语言',
 
     'footer.copyright': '© 2026 Lyretain',
     'footer.sponsor': '赞助',
@@ -656,6 +660,10 @@
     'nav.ops': 'Operations',
     'nav.account': 'Account',
     'nav.about': 'About',
+    'nav.openMenu': 'Open navigation',
+    'nav.closeMenu': 'Close navigation',
+    'nav.primary': 'Primary navigation',
+    'lang.label': 'Language',
 
     'footer.copyright': '© 2026 Lyretain',
     'footer.sponsor': 'Sponsored by',

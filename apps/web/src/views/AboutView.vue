@@ -84,14 +84,14 @@ function installCopyParts(value: string): CopyPart[] {
 </script>
 
 <template>
-  <component :is="session.user ? AdminLayout : 'div'" :class="session.user ? '' : 'min-h-screen bg-white dark:bg-gray-900'">
-    <div v-if="!session.user" class="border-b border-gray-200 px-4 py-3 dark:border-gray-800 md:px-8">
-      <div class="mx-auto flex max-w-5xl items-center justify-between gap-3">
+  <component :is="session.user ? AdminLayout : 'div'" :class="session.user ? '' : 'min-h-dvh bg-gray-900'">
+    <div v-if="!session.user" class="border-b border-gray-800 px-4 py-3 safe-top md:px-8">
+      <div class="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3">
         <router-link to="/about" class="min-w-0">
-          <strong class="block text-lg text-brand-500">{{ t('nav.brand') }}</strong>
-          <span class="text-theme-xs text-gray-500">{{ t('nav.sub') }}</span>
+          <strong class="block text-lg font-medium text-brand-400">{{ t('nav.brand') }}</strong>
+          <span class="text-theme-xs text-gray-400">{{ t('nav.sub') }}</span>
         </router-link>
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2">
           <GitHubRepoLink :labeled="false" :size="18" />
           <LangSwitch />
           <a href="/guide" class="btn-secondary hidden sm:inline-flex">{{ t('guide') }}</a>
@@ -102,9 +102,9 @@ function installCopyParts(value: string): CopyPart[] {
 
     <div class="mx-auto flex w-full min-w-0 max-w-5xl flex-col gap-6" :class="session.user ? '' : 'px-4 py-8 md:px-8'">
       <section>
-        <p class="text-sm text-brand-500">{{ gameLabel }}</p>
-        <h2 class="mt-1 text-title-sm font-semibold text-gray-800 dark:text-white/90">{{ t('page.about.title') }}</h2>
-        <p class="mt-2 max-w-3xl text-sm text-gray-500 dark:text-gray-400">{{ t('about.lead') }}</p>
+        <p class="text-sm text-brand-400">{{ gameLabel }}</p>
+        <h2 class="mt-1 text-title-sm font-medium text-white/90">{{ t('page.about.title') }}</h2>
+        <p class="mt-2 max-w-prose text-sm text-gray-400">{{ t('about.lead') }}</p>
       </section>
 
       <UiCard :title="t('about.downloads')" :desc="t('about.downloadsHint')">
@@ -127,7 +127,7 @@ function installCopyParts(value: string): CopyPart[] {
               <span class="min-w-0 break-all wrap-anywhere">{{ shaLabel(card.item.sha256) }}</span>
             </p>
             <a v-if="card.item?.url" :href="card.item.url" class="btn-primary mt-4 min-w-0 max-w-full whitespace-normal">
-              <Download :size="16" class="shrink-0" />
+              <Download :size="16" class="shrink-0" aria-hidden="true" />
               <span class="min-w-0 wrap-anywhere">{{ t('about.download') }}</span>
             </a>
             <span v-else class="btn-secondary mt-4 min-w-0 max-w-full cursor-not-allowed whitespace-normal opacity-60">
@@ -157,7 +157,7 @@ function installCopyParts(value: string): CopyPart[] {
             <li v-for="n in 3" :key="'n' + n">{{ t('about.note' + n) }}</li>
           </ul>
         </div>
-        <div class="flex flex-wrap gap-2">
+        <div class="flex flex-wrap gap-3">
           <a href="/guide" class="btn-primary">{{ t('about.guide') }}</a>
           <router-link v-if="session.user" to="/workshop" class="btn-secondary">{{ t('about.home') }}</router-link>
           <router-link v-else to="/signin" class="btn-secondary">{{ t('about.signin') }}</router-link>

@@ -390,37 +390,37 @@ onMounted(async () => {
         />
       </template>
 
-      <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
-        <p class="mb-3 text-theme-xs font-medium uppercase tracking-wide text-gray-400">{{ creating ? t('mod.creating') : t('mod.levelMod') }}</p>
+      <div class="surface p-5">
+        <p class="section-label">{{ creating ? t('mod.creating') : t('mod.levelMod') }}</p>
         <label class="drop-zone mb-3" :class="{ over }" @dragenter.prevent="over = true" @dragover.prevent="over = true" @dragleave.prevent="over = false" @drop.prevent="over = false; onFile(($event as DragEvent).dataTransfer?.files || null)">
           <input type="file" accept=".zip" :disabled="uploading" @change="onFile(($event.target as HTMLInputElement).files)">
           <span>{{ dropHint }}</span>
         </label>
         <button type="button" class="btn-primary mb-3 disabled:cursor-not-allowed disabled:opacity-50" :disabled="uploading" @click="upload">{{ t('mod.upload') }}</button>
         <UiProgress class="mb-3" :active="progress.active && !busy" :value="progress.percent" :label="progress.label" />
-        <pre class="mb-4 max-h-40 overflow-auto rounded-lg bg-gray-950 p-3 text-theme-xs text-gray-300">{{ uploadResult }}</pre>
+        <pre class="mb-4 max-h-40 tech-block">{{ uploadResult }}</pre>
         <div class="grid gap-3 sm:grid-cols-2">
-          <div><label class="field">{{ t('mod.id') }}</label><input v-model="form.id" class="input" placeholder="example-vehicles"></div>
-          <div><label class="field">{{ t('mod.name') }}</label><input v-model="form.name" class="input" placeholder="Example Vehicles"></div>
-          <div><label class="field">{{ t('mod.version') }}</label><input v-model="form.version" class="input" placeholder="1.0.0"></div>
-          <div><label class="field">{{ t('mod.sha') }}</label><input v-model="form.artifactSha" class="input" :placeholder="t('mod.phSha')"></div>
+          <div><label class="mb-3 block"><span class="field">{{ t('mod.id') }}</span><input v-model="form.id" class="input" placeholder="example-vehicles"></label></div>
+          <div><label class="mb-3 block"><span class="field">{{ t('mod.name') }}</span><input v-model="form.name" class="input" placeholder="Example Vehicles"></label></div>
+          <div><label class="mb-3 block"><span class="field">{{ t('mod.version') }}</span><input v-model="form.version" class="input" placeholder="1.0.0"></label></div>
+          <div><label class="mb-3 block"><span class="field">{{ t('mod.sha') }}</span><input v-model="form.artifactSha" class="input" :placeholder="t('mod.phSha')"></label></div>
         </div>
-        <label class="field">{{ t('mod.game') }}</label>
-        <input v-model="form.gameVersions" class="input" :placeholder="t('mod.phGames')">
+        <label class="mb-3 block"><span class="field">{{ t('mod.game') }}</span>
+        <input v-model="form.gameVersions" class="input" :placeholder="t('mod.phGames')"></label>
         <label class="flex items-start gap-2 text-sm text-gray-500"><input v-model="form.generic" type="checkbox" class="mt-1"><span>{{ t('mod.generic') }}</span></label>
-        <label class="field">{{ t('mod.roots') }}</label>
-        <input v-model="form.installRoots" class="input" :placeholder="t('mod.phRoots')">
+        <label class="mb-3 block"><span class="field">{{ t('mod.roots') }}</span>
+        <input v-model="form.installRoots" class="input" :placeholder="t('mod.phRoots')"></label>
         <label class="flex items-center gap-2 text-sm text-gray-500"><input v-model="form.containsDll" type="checkbox"><span>{{ t('mod.containsDll') }}</span></label>
-        <label class="field">{{ t('mod.installSide') }}</label>
+        <p id="mod-side-label" class="field">{{ t('mod.installSide') }}</p>
         <p class="text-theme-xs text-gray-500">{{ t('mod.installSideHint') }}</p>
-        <select v-model="form.installSide" class="input">
+        <select v-model="form.installSide" class="input" aria-labelledby="mod-side-label">
           <option value="both">{{ t('mod.sideBoth') }}</option>
           <option value="server">{{ t('mod.sideServer') }}</option>
           <option value="client">{{ t('mod.sideClient') }}</option>
         </select>
-        <label class="field">{{ t('mod.depends') }}</label>
+        <p id="mod-depends-label" class="field">{{ t('mod.depends') }}</p>
         <p class="text-theme-xs text-gray-500">{{ t('mod.dependsHint') }}</p>
-        <div class="max-h-40 space-y-2 overflow-auto rounded-lg border border-gray-200 p-3 dark:border-gray-800">
+        <div class="max-h-40 space-y-2 overflow-auto rounded-lg border border-gray-800 p-3" role="group" aria-labelledby="mod-depends-label">
           <p v-if="!dependOptions.length" class="text-theme-xs text-gray-500">{{ t('mod.dependsEmpty') }}</p>
           <label v-for="dep in dependOptions" :key="dep.id" class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
             <input v-model="form.dependsOn" type="checkbox" :value="dep.id">
@@ -428,9 +428,9 @@ onMounted(async () => {
           </label>
         </div>
         <template v-if="creating">
-          <label class="field">{{ t('mod.slots') }}</label>
+          <p id="mod-slots-label" class="field">{{ t('mod.slots') }}</p>
           <p class="text-theme-xs text-gray-500">{{ t('mod.slotsHint') }}</p>
-          <div class="max-h-40 space-y-2 overflow-auto rounded-lg border border-gray-200 p-3 dark:border-gray-800">
+          <div class="max-h-40 space-y-2 overflow-auto rounded-lg border border-gray-800 p-3" role="group" aria-labelledby="mod-slots-label">
             <p v-if="!suggestedSlots.length" class="text-theme-xs text-gray-500">{{ t('mod.slotsEmpty') }}</p>
             <label v-for="slot in suggestedSlots" :key="slot.id || slot.path" class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
               <input v-model="form.slots" type="checkbox" :value="slot.path">
@@ -451,10 +451,10 @@ onMounted(async () => {
         </div>
       </div>
 
-      <div v-if="!creating && mod" class="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
+      <div v-if="!creating && mod" class="surface">
         <header class="flex items-center justify-between gap-3 px-5 py-4">
           <div>
-            <p class="text-theme-xs font-medium uppercase tracking-wide text-gray-400">{{ t('mod.levelVersions') }}</p>
+            <p class="section-label">{{ t('mod.levelVersions') }}</p>
             <h3 class="text-base font-medium text-gray-800 dark:text-white/90">{{ t('mod.versionCount', { n: versions.length }) }}</h3>
           </div>
           <button type="button" class="text-gray-400" @click="openVersions = !openVersions">
@@ -476,15 +476,15 @@ onMounted(async () => {
         </ul>
       </div>
 
-      <div v-if="!creating && mod" class="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
+      <div v-if="!creating && mod" class="surface">
         <header class="px-5 py-4">
-          <p class="text-theme-xs font-medium uppercase tracking-wide text-gray-400">{{ t('mod.levelSlots') }}</p>
+          <p class="section-label">{{ t('mod.levelSlots') }}</p>
           <h3 class="text-base font-medium text-gray-800 dark:text-white/90">{{ t('mod.slotCount', { n: slots.length }) }}</h3>
         </header>
         <div class="space-y-4 border-t border-gray-100 px-5 py-4 dark:border-gray-800">
           <div class="grid gap-3 sm:grid-cols-2">
-            <div><label class="field">{{ t('mod.slotPath') }}</label><input v-model="newPath" class="input" placeholder="Avatars"></div>
-            <div><label class="field">{{ t('mod.slotLabel') }}</label><input v-model="newLabel" class="input" placeholder="Avatars"></div>
+            <div><label class="mb-3 block"><span class="field">{{ t('mod.slotPath') }}</span><input v-model="newPath" class="input" placeholder="Avatars"></label></div>
+            <div><label class="mb-3 block"><span class="field">{{ t('mod.slotLabel') }}</span><input v-model="newLabel" class="input" placeholder="Avatars"></label></div>
           </div>
           <button type="button" class="btn-secondary" @click="addSlot">{{ t('mod.slotAdd') }}</button>
           <p v-if="!slots.length" class="py-4 text-center text-sm text-gray-500">{{ t('mod.slotsEmpty') }}</p>

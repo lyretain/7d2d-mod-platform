@@ -9,12 +9,12 @@ const { isExpanded, isHovered } = useSidebarProvider();
 </script>
 
 <template>
-  <div class="min-h-screen xl:flex">
+  <div class="min-h-dvh xl:flex">
     <AppSidebar />
     <Backdrop />
-    <div class="flex min-h-screen flex-1 flex-col transition-all duration-300 ease-in-out" :class="isExpanded || isHovered ? 'lg:ml-[290px]' : 'lg:ml-[90px]'">
+    <div class="flex min-h-dvh flex-1 flex-col" :class="isExpanded || isHovered ? 'lg:ml-72' : 'lg:ml-20'">
       <AppHeader />
-      <div class="mx-auto flex w-full max-w-(--breakpoint-2xl) flex-1 flex-col p-4 md:p-6">
+      <div class="mx-auto flex w-full max-w-(--breakpoint-2xl) flex-1 flex-col px-4 py-6 md:px-6">
         <div class="flex-1">
           <slot />
         </div>

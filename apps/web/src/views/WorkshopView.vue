@@ -183,44 +183,55 @@ onMounted(async () => {
   <div class="pb-28" :data-lang="i18n.lang">
     <HierarchyShell :empty="!currentId" :empty-text="t('ws.emptySelect')">
       <template #toolbar>
-        <input v-model="query" class="input" :placeholder="t('ws.phSearch')" @input="scheduleSearch">
-        <button type="button" class="btn-secondary shrink-0 px-3" @click="load()">{{ t('refresh') }}</button>
+        <label class="block min-w-0 flex-1">
+          <span class="field">{{ t('ws.phSearch') }}</span>
+          <input v-model="query" class="input" :placeholder="t('ws.phSearch')" @input="scheduleSearch">
+        </label>
+        <button type="button" class="btn-secondary shrink-0 self-end px-3" @click="load()">{{ t('refresh') }}</button>
       </template>
       <template #list>
         <div class="mb-2 grid grid-cols-2 gap-2 px-1">
           <div>
-            <label class="field">{{ t('ws.game') }}</label>
-            <input v-model="game" class="input" :placeholder="t('ws.phGame')" @input="scheduleSearch">
+            <label class="block">
+              <span class="field">{{ t('ws.game') }}</span>
+              <input v-model="game" class="input" :placeholder="t('ws.phGame')" @input="scheduleSearch">
+            </label>
           </div>
           <div>
-            <label class="field">{{ t('ws.type') }}</label>
-            <select v-model="dll" class="input" @change="load({ silent: true })">
+            <label class="block">
+              <span class="field">{{ t('ws.type') }}</span>
+              <select v-model="dll" class="input" @change="load({ silent: true })">
               <option value="">{{ t('ws.all') }}</option>
               <option value="yes">{{ t('ws.dllYes') }}</option>
               <option value="no">{{ t('ws.dllNo') }}</option>
             </select>
+            </label>
           </div>
           <div>
-            <label class="field">{{ t('ws.sort') }}</label>
-            <select v-model="sort" class="input">
+            <label class="block">
+              <span class="field">{{ t('ws.sort') }}</span>
+              <select v-model="sort" class="input">
               <option value="name">{{ t('ws.sortName') }}</option>
               <option value="downloads">{{ t('ws.sortDownloads') }}</option>
               <option value="updated">{{ t('ws.sortUpdated') }}</option>
             </select>
+            </label>
           </div>
           <div>
-            <label class="field">{{ t('r18.filter') }}</label>
-            <select v-model="r18Filter" class="input">
+            <label class="block">
+              <span class="field">{{ t('r18.filter') }}</span>
+              <select v-model="r18Filter" class="input">
               <option value="all">{{ t('ws.all') }}</option>
               <option value="hide">{{ t('r18.hide') }}</option>
               <option value="only">{{ t('r18.only') }}</option>
             </select>
+            </label>
           </div>
         </div>
         <p class="px-3 pb-2 text-theme-xs text-gray-500">{{ sorted.length ? t('ws.found', { n: sorted.length }) : t('ws.none') }}</p>
         <p v-if="!sorted.length" class="px-3 py-8 text-center text-sm text-gray-500">{{ t('ws.noneMods') }}</p>
         <div v-for="mod in sorted" :key="mod.id" class="mb-1 flex items-stretch rounded-xl" :class="currentId === mod.id ? 'bg-brand-50 dark:bg-brand-500/10' : 'hover:bg-gray-50 dark:hover:bg-white/5'">
-          <button type="button" class="min-w-0 flex-1 px-3 py-2.5 text-left" @click="openDetails(mod)">
+          <button type="button" class="min-h-11 min-w-0 flex-1 px-3 py-2.5 text-left" @click="openDetails(mod)">
             <span class="flex items-center gap-2 truncate text-sm font-medium text-gray-800 dark:text-white/90">
               {{ mod.name || mod.id }}
               <R18Badge v-if="isAdultMod(mod)" />
@@ -231,21 +242,21 @@ onMounted(async () => {
               <template v-if="mod.contentSlots?.length"> · {{ t('ws.slotCount', { n: Object.values(mod.contentCounts || {}).reduce((sum, n) => sum + n, 0) }) }}</template>
             </span>
           </button>
-          <button type="button" class="shrink-0 px-3 text-theme-xs" :class="picked(mod.id) ? 'text-brand-500' : 'text-gray-400'" @click.stop="toggle(mod.id)">
+          <button type="button" class="inline-flex min-h-11 shrink-0 items-center px-3 text-theme-xs" :class="picked(mod.id) ? 'text-brand-400' : 'text-gray-400'" :aria-pressed="picked(mod.id)" @click.stop="toggle(mod.id)">
             {{ picked(mod.id) ? t('ws.remove') : t('ws.add') }}
           </button>
         </div>
       </template>
       <WorkshopModView v-if="currentId" :key="currentId" />
     </HierarchyShell>
-    <div class="sticky bottom-4 z-20 flex flex-col gap-3 rounded-2xl border border-brand-500/40 bg-white/95 p-4 shadow-theme-lg backdrop-blur dark:bg-gray-900/95 sm:flex-row sm:items-center sm:justify-between">
+    <div class="sticky bottom-4 z-sticky flex flex-col gap-3 rounded-xl border border-gray-800 bg-gray-900 p-4 shadow-lg safe-bottom sm:flex-row sm:items-center sm:justify-between">
       <div class="min-w-0">
         <strong class="text-sm text-gray-800 dark:text-white/90">{{ cart.length ? t('ws.picked', { n: cart.length }) : t('ws.nonePicked') }}</strong>
         <div class="mt-2 flex flex-wrap gap-1.5">
           <span v-if="!cart.length" class="text-theme-xs text-gray-500">{{ t('ws.pickHint') }}</span>
           <span v-for="item in cart" :key="item.modId" class="chip">
             {{ item.name }}
-            <button type="button" class="text-gray-500" @click="toggle(item.modId)">×</button>
+            <button type="button" class="inline-flex size-11 items-center justify-center rounded-full text-gray-300" :aria-label="t('ws.remove')" @click="toggle(item.modId)">×</button>
           </span>
         </div>
       </div>
@@ -262,23 +273,29 @@ onMounted(async () => {
       @close="dialogOpen = false"
     >
       <div v-if="dialogMode === 'create'">
-        <label class="field">{{ t('ws.dlgName') }}</label>
-        <input v-model="packName" class="input mb-3" :placeholder="t('ws.phName')">
-        <label class="field">{{ t('ws.dlgGame') }}</label>
-        <input v-model="packGame" class="input mb-3" placeholder="3.2.0">
+        <label class="mb-3 block">
+          <span class="field">{{ t('ws.dlgName') }}</span>
+          <input v-model="packName" class="input" :placeholder="t('ws.phName')">
+        </label>
+        <label class="mb-3 block">
+          <span class="field">{{ t('ws.dlgGame') }}</span>
+          <input v-model="packGame" class="input" placeholder="3.2.0">
+        </label>
       </div>
       <div v-else>
-        <label class="field">{{ t('ws.dlgPack') }}</label>
-        <select v-model="packId" class="input mb-3">
+        <label class="mb-3 block">
+          <span class="field">{{ t('ws.dlgPack') }}</span>
+          <select v-model="packId" class="input">
           <option value="">{{ t('pack.select') }}</option>
           <option v-for="pack in catalog.packs" :key="pack.id" :value="pack.id">{{ packOptionLabel(pack) }}</option>
         </select>
+        </label>
       </div>
       <label class="mb-4 flex items-center gap-2 text-sm text-gray-500">
         <input v-model="publish" type="checkbox" :disabled="cartHasSlots()">
         <span>{{ cartHasSlots() ? t('content.pickHint') : t('ws.dlgPublish') }}</span>
       </label>
-      <div class="flex gap-2">
+      <div class="flex gap-3">
         <button type="button" class="btn-secondary flex-1" @click="dialogOpen = false">{{ t('cancel') }}</button>
         <button type="button" class="btn-primary flex-1" @click="submitDialog">{{ t('confirm') }}</button>
       </div>
