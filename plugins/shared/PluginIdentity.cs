@@ -4,8 +4,8 @@
     {
         public const string PluginVersion = "0.2.14";
         public const int ProtocolVersion = 1;
-        public const string TargetClientGameVersion = "3.3.0";
-        public const string TargetServerGameVersion = "3.3.0";
-        public const string TargetSteamBuild = "25661859";
+        public const string TargetClientGameVersion = "3.4.0";
+        public const string TargetServerGameVersion = "3.4.0";
+        public const string TargetSteamBuild = "26166997";
     }
 }
